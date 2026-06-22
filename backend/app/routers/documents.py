@@ -5,9 +5,9 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.models.base import Document
+from app.models.base import Document, DocChunk
 from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
-from app.services import storage_service, ocr_service
+from app.services import storage_service, ocr_service, chunking_service, embedding_service
 
 router = APIRouter()
 
@@ -47,6 +47,19 @@ async def upload_document(
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
+
+    # Chunk text and generate embeddings
+    if raw_text:
+        chunks = chunking_service.chunk_text(raw_text)
+        embeddings = embedding_service.get_embeddings(chunks)
+        for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
+            db.add(DocChunk(
+                document_id=doc.id,
+                chunk_index=i,
+                chunk_text=chunk_text,
+                embedding=embedding,
+            ))
+        await db.commit()
 
     return _to_response(doc)
 
