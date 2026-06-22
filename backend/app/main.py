@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import ai, auth, documents, search
+from app.routers import ai, auth, categories, documents, search
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
+app.include_router(categories.router, prefix="/api/v1/categories", tags=["categories"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 
