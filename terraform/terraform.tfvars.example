@@ -1,0 +1,4 @@
+aws_region      = "eu-west-1"
+project_name    = "docvault"
+db_password     = "CHANGE_ME_secure_password_123"
+container_image = "YOUR_AWS_ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/docvault-api:latest"
