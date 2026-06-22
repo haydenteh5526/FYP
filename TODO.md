@@ -1,43 +1,63 @@
-# TODO — Items To Complete Manually
+# TODO — Priority Order
 
-## Phase 1: Research
+## 1. Setup (Do First)
 
-- [ ] Write literature review (OCR techniques, RAG architectures, cloud-native patterns, similar apps like Paperless-ngx/Quivr)
+- [ ] Set `OPENAI_API_KEY=sk-...` in `.env` file
+- [ ] Run `docker compose up --build` and test the full app at http://localhost:3000
+- [ ] Upload 5-10 real documents (manuals, receipts, guides) to verify everything works
 
-## Phase 6: Testing & Evaluation
+## 2. Evaluation (Semester 1)
 
-- [ ] **OCR accuracy benchmark** — Scan 20 real documents, compare extracted text vs actual content, calculate character accuracy %
-- [ ] **RAG Q&A evaluation** — Prepare 50 questions about your test documents, rate each AI answer as correct/partial/wrong, report % accuracy
-- [ ] **Categorisation accuracy** — Upload 30 documents, check if brand/model/document_type are detected correctly, report %
-- [ ] **Load testing** — Run `locust -f backend/tests/locustfile.py --host http://localhost:8000` with 50 users, record p95 response times
-- [ ] **Usability testing** — Get 5 people to use the app, have them fill out SUS (System Usability Scale) questionnaire, calculate score
-- [ ] **Accessibility audit** — Run Lighthouse audit on frontend, fix any critical WCAG issues, document results
+- [ ] **OCR accuracy benchmark** — Scan 20 documents, compare extracted vs actual, calculate %
+- [ ] **RAG Q&A evaluation** — Write 50 questions, rate AI answers (correct/partial/wrong)
+- [ ] **Categorisation accuracy** — Upload 30 docs, check brand/model/type detection %
+- [ ] **Load testing** — Run `locust -f backend/tests/locustfile.py --host http://localhost:8000`, record results
+- [ ] **Accessibility audit** — Run Lighthouse on frontend, document score
 
-## Phase 7: Documentation & Submission
+## 3. Literature Review (Semester 1)
 
-- [ ] **FYP Report**
-  - [ ] Introduction & problem statement
-  - [ ] Literature review chapter
-  - [ ] Design chapter (reference `specs/DESIGN.md`)
-  - [ ] Implementation chapter (explain key technical decisions)
-  - [ ] Testing & evaluation chapter (include benchmark results)
-  - [ ] Conclusion & future work
-- [ ] **Demo video** — 5 minute screencast: register → upload document → view OCR text → search → ask AI → get answer with sources
-- [ ] **Viva presentation** — Slides covering: problem, architecture, AI approach, live demo, challenges, evaluation results
-- [ ] **Viva rehearsal** — Practice the presentation at least twice
+- [ ] Research OCR techniques (Tesseract, Textract, PaddleOCR)
+- [ ] Research RAG architectures (chunking strategies, embedding models, retrieval methods)
+- [ ] Research cloud-native patterns (12-factor, IaC, containerisation)
+- [ ] Review similar tools (Paperless-ngx, Quivr, Docling)
+- [ ] Write up as a chapter
 
-## Setup & Configuration
+## 4. AWS Deployment (Semester 1)
 
-- [ ] **Set OpenAI API key** — Add `OPENAI_API_KEY=sk-...` to `.env` file (required for real AI features)
-- [ ] **Set up AWS account** — Create account, configure credentials, run `cd terraform && terraform init && terraform apply`
-- [ ] **Add AWS secrets to GitHub** — Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in repo Settings > Secrets (for CD pipeline)
-- [ ] **Test end-to-end** — Upload real manuals (washing machine, router, etc.), verify OCR, search, and AI Q&A work correctly
+- [ ] Create AWS account (free tier)
+- [ ] Run `cd terraform && cp terraform.tfvars.example terraform.tfvars` and fill values
+- [ ] Run `terraform init && terraform apply`
+- [ ] Add `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` to GitHub repo Secrets
+- [ ] Set `DEPLOY_ENABLED=true` in GitHub repo Settings > Variables
+- [ ] Verify CD pipeline deploys successfully
 
-## Future Work (mention in report, don't need to implement)
+## 5. Usability Testing (Semester 2)
 
-- Multi-page document scanning UI flow
+- [ ] Recruit 5 participants
+- [ ] Have them complete tasks: upload, search, ask AI
+- [ ] Administer SUS (System Usability Scale) questionnaire
+- [ ] Calculate and document SUS score
+
+## 6. FYP Report (Semester 2)
+
+- [ ] Introduction & problem statement
+- [ ] Literature review chapter
+- [ ] Design chapter (reference `specs/DESIGN.md`)
+- [ ] Implementation chapter (key decisions, code snippets)
+- [ ] Testing & evaluation chapter (all benchmark results from step 2 + 5)
+- [ ] Conclusion & future work
+
+## 7. Demo & Viva (Final Weeks)
+
+- [ ] Record 5-min demo video (register → upload → OCR → search → ask AI → answer)
+- [ ] Prepare viva slides (problem, architecture, AI approach, live demo, results)
+- [ ] Rehearse presentation (at least twice)
+- [ ] Prepare for questions: "Why not Supabase?", "How does RAG work?", "What would you do differently?"
+
+## Future Work (mention in report only)
+
+- Multi-page scanning UI flow
 - Camera overlay alignment guide
-- Multi-column layout handling
 - Push notifications for warranty expiry
-- Family sharing / household accounts
-- AR overlay (point phone at appliance, show relevant info)
+- Family/household sharing
+- AR overlay for appliance recognition
