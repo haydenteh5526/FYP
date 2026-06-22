@@ -1,23 +1,124 @@
-from fastapi import APIRouter
+import uuid
+
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.dependencies import get_db
+from app.models.base import Document
+from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
+from app.services import storage_service
 
 router = APIRouter()
 
+# Temporary hardcoded user ID until auth is implemented
+TEMP_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
-@router.post("")
-async def upload_document():
-    return {"message": "upload - not implemented"}
-
-
-@router.get("")
-async def list_documents():
-    return {"documents": []}
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
+MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
 
 
-@router.get("/{document_id}")
-async def get_document(document_id: str):
-    return {"message": "get document - not implemented"}
+@router.post("", response_model=DocumentOut, status_code=201)
+async def upload_document(
+    file: UploadFile,
+    title: str | None = Form(None),
+    db: AsyncSession = Depends(get_db),
+):
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(400, f"File type {file.content_type} not allowed")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(413, "File too large (max 20MB)")
+
+    s3_key = storage_service.upload_file(
+        file_bytes, str(TEMP_USER_ID), file.filename or "upload", file.content_type
+    )
+
+    doc = Document(
+        user_id=TEMP_USER_ID,
+        title=title or file.filename or "Untitled",
+        s3_key_original=s3_key,
+        file_size=len(file_bytes),
+    )
+    db.add(doc)
+    await db.commit()
+    await db.refresh(doc)
+
+    return _to_response(doc)
 
 
-@router.delete("/{document_id}")
-async def delete_document(document_id: str):
-    return {"message": "delete - not implemented"}
+@router.get("", response_model=DocumentList)
+async def list_documents(
+    skip: int = 0,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(Document).where(Document.user_id == TEMP_USER_ID).offset(skip).limit(limit)
+    result = await db.execute(query)
+    docs = result.scalars().all()
+
+    count_query = select(func.count()).select_from(Document).where(Document.user_id == TEMP_USER_ID)
+    total = (await db.execute(count_query)).scalar() or 0
+
+    return DocumentList(
+        documents=[_to_response(d) for d in docs],
+        total=total,
+    )
+
+
+@router.get("/{document_id}", response_model=DocumentOut)
+async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    doc = await _get_doc_or_404(document_id, db)
+    return _to_response(doc)
+
+
+@router.patch("/{document_id}", response_model=DocumentOut)
+async def update_document(
+    document_id: uuid.UUID,
+    update: DocumentUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    doc = await _get_doc_or_404(document_id, db)
+    for field, value in update.model_dump(exclude_unset=True).items():
+        setattr(doc, field, value)
+    await db.commit()
+    await db.refresh(doc)
+    return _to_response(doc)
+
+
+@router.delete("/{document_id}", status_code=204)
+async def delete_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    doc = await _get_doc_or_404(document_id, db)
+    storage_service.delete_file(doc.s3_key_original)
+    if doc.s3_key_thumbnail:
+        storage_service.delete_file(doc.s3_key_thumbnail)
+    await db.delete(doc)
+    await db.commit()
+
+
+async def _get_doc_or_404(document_id: uuid.UUID, db: AsyncSession) -> Document:
+    query = select(Document).where(Document.id == document_id, Document.user_id == TEMP_USER_ID)
+    result = await db.execute(query)
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    return doc
+
+
+def _to_response(doc: Document) -> DocumentOut:
+    image_url = storage_service.get_presigned_url(doc.s3_key_original)
+    return DocumentOut(
+        id=doc.id,
+        title=doc.title,
+        brand=doc.brand,
+        model=doc.model,
+        document_type=doc.document_type,
+        category_id=doc.category_id,
+        file_size=doc.file_size,
+        page_count=doc.page_count,
+        ocr_confidence=doc.ocr_confidence,
+        image_url=image_url,
+        created_at=doc.created_at,
+        updated_at=doc.updated_at,
+    )
