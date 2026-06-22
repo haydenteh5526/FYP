@@ -16,9 +16,15 @@ class OCRBackend(ABC):
 class TesseractBackend(OCRBackend):
     def extract_text(self, file_bytes: bytes, content_type: str) -> str:
         if content_type == "application/pdf":
-            return ""  # PDF support requires pdf2image — future work
+            return self._extract_from_pdf(file_bytes)
         image = Image.open(BytesIO(file_bytes))
         return pytesseract.image_to_string(image).strip()
+
+    def _extract_from_pdf(self, file_bytes: bytes) -> str:
+        from pdf2image import convert_from_bytes
+        pages = convert_from_bytes(file_bytes)
+        texts = [pytesseract.image_to_string(page).strip() for page in pages]
+        return "\n\n".join(t for t in texts if t)
 
 
 class TextractBackend(OCRBackend):

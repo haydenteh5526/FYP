@@ -86,3 +86,9 @@ async def update_warranty(warranty_id: uuid.UUID, req: WarrantyUpdate, db: Async
     title = doc.scalar_one()
     return WarrantyOut(id=warranty.id, document_id=warranty.document_id, document_title=title,
                        purchase_date=warranty.purchase_date, expiry_date=warranty.expiry_date, notes=warranty.notes)
+
+
+@router.get("/expiring")
+async def get_expiring_warranties(days: int = 30, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    from app.services.notification_service import get_expiring_warranties
+    return await get_expiring_warranties(db, user_id, days)

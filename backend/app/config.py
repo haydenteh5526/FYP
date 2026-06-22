@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     AWS_REGION: str = "eu-west-1"
     JWT_SECRET: str = "change-me-in-production"
     JWT_EXPIRY_MINUTES: int = 1440
+    OLLAMA_URL: str = ""
+    COGNITO_DOMAIN: str = ""
+    COGNITO_CLIENT_ID: str = ""
+    COGNITO_REDIRECT_URI: str = "http://localhost:3000/auth/callback"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     class Config:

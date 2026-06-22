@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Image, Info } from 'lucide-react'
+import { ArrowLeft, FileText, Image, Info, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getDocument, type Document } from '@/lib/api'
@@ -52,7 +52,7 @@ export default function DocumentDetail() {
         <Card>
           <CardContent className="p-6">
             {doc.raw_text ? (
-              <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{doc.raw_text}</pre>
+              <EditableText documentId={doc.id} initialText={doc.raw_text} />
             ) : (
               <p className="text-muted-foreground text-sm">No text extracted yet.</p>
             )}
@@ -101,5 +101,48 @@ function Badge({ children }: { children: React.ReactNode }) {
     <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
       {children}
     </span>
+  )
+}
+
+function EditableText({ documentId, initialText }: { documentId: string; initialText: string }) {
+  const [text, setText] = useState(initialText)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    const token = localStorage.getItem('token')
+    await fetch(`/api/v1/documents/${documentId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ raw_text: text }),
+    })
+    setSaving(false)
+    setEditing(false)
+  }
+
+  if (!editing) {
+    return (
+      <div>
+        <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{text}</pre>
+        <Button variant="outline" size="sm" className="mt-4" onClick={() => setEditing(true)}>Edit text</Button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <textarea
+        className="w-full h-64 text-sm border rounded-md p-3 font-sans"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <div className="flex gap-2 mt-2">
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Save size={14} className="mr-1" />{saving ? 'Saving...' : 'Save'}
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setText(initialText); setEditing(false) }}>Cancel</Button>
+      </div>
+    </div>
   )
 }

@@ -82,3 +82,56 @@ async def delete_account(
     if user:
         await db.delete(user)
         await db.commit()
+
+
+@router.get("/oauth/google")
+async def oauth_google_redirect():
+    """Redirect user to Cognito hosted UI for Google OAuth."""
+    from app.config import settings
+    if not settings.COGNITO_DOMAIN:
+        raise HTTPException(501, "OAuth not configured")
+    url = (
+        f"https://{settings.COGNITO_DOMAIN}/oauth2/authorize"
+        f"?client_id={settings.COGNITO_CLIENT_ID}"
+        f"&response_type=code"
+        f"&scope=openid+email+profile"
+        f"&redirect_uri={settings.COGNITO_REDIRECT_URI}"
+        f"&identity_provider=Google"
+    )
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url)
+
+
+@router.post("/oauth/callback", response_model=TokenResponse)
+async def oauth_callback(code: str, db: AsyncSession = Depends(get_db)):
+    """Exchange Cognito auth code for token, create/login user."""
+    import httpx
+
+    from app.config import settings
+    # Exchange code for tokens with Cognito
+    token_url = f"https://{settings.COGNITO_DOMAIN}/oauth2/token"
+    resp = httpx.post(token_url, data={
+        "grant_type": "authorization_code",
+        "client_id": settings.COGNITO_CLIENT_ID,
+        "code": code,
+        "redirect_uri": settings.COGNITO_REDIRECT_URI,
+    }, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    if resp.status_code != 200:
+        raise HTTPException(401, "OAuth token exchange failed")
+    # Decode ID token to get email
+    import base64
+    import json
+    id_token = resp.json()["id_token"]
+    payload = json.loads(base64.b64decode(id_token.split(".")[1] + "=="))
+    email = payload["email"]
+
+    # Find or create user
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        user = User(email=email, hashed_password=hash_password("oauth-managed"), cognito_id=payload.get("sub"))
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    return TokenResponse(access_token=create_access_token(user.id))
