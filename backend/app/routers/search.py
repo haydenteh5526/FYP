@@ -1,11 +1,10 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, get_current_user_id
-from app.models.base import DocChunk, Document
+from app.dependencies import get_current_user_id, get_db
 from app.services import embedding_service
 
 router = APIRouter()

@@ -1,13 +1,13 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, get_current_user_id
-from app.models.base import Document, DocChunk
+from app.dependencies import get_current_user_id, get_db
+from app.models.base import DocChunk, Document
 from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
-from app.services import storage_service, ocr_service, chunking_service, embedding_service, categorisation_service
+from app.services import categorisation_service, chunking_service, embedding_service, ocr_service, storage_service
 
 router = APIRouter()
 

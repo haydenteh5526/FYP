@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.dependencies import get_db, get_current_user_id
+from app.dependencies import get_current_user_id, get_db
 from app.services import embedding_service
 
 router = APIRouter()

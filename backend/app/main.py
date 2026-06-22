@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth, documents, search, ai
+from app.routers import ai, auth, documents, search
 
 
 @asynccontextmanager
