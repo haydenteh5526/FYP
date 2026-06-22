@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
+from app.dependencies import get_current_user_id, get_db
 from app.models.base import User
 from app.services.auth_service import create_access_token, hash_password, verify_password
 
@@ -19,6 +19,11 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    new_password: str
 
 
 class TokenResponse(BaseModel):
@@ -53,3 +58,27 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(401, "Invalid email or password")
 
     return TokenResponse(access_token=create_access_token(user.id))
+
+
+@router.post("/reset-password")
+async def reset_password(req: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == req.email))
+    user = result.scalar_one_or_none()
+    if not user:
+        # Don't reveal whether email exists
+        return {"message": "If the email exists, the password has been reset"}
+    user.hashed_password = hash_password(req.new_password)
+    await db.commit()
+    return {"message": "If the email exists, the password has been reset"}
+
+
+@router.delete("/account", status_code=204)
+async def delete_account(
+    db: AsyncSession = Depends(get_db),
+    user_id=Depends(get_current_user_id),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user:
+        await db.delete(user)
+        await db.commit()
