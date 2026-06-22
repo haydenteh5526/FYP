@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("")
 async def search_documents(
     q: str = Query(..., min_length=1),
-    mode: str = Query("hybrid", regex="^(semantic|keyword|hybrid)$"),
+    mode: str = Query("hybrid", pattern="^(semantic|keyword|hybrid)$"),
     limit: int = 5,
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
