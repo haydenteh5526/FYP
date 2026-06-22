@@ -48,6 +48,20 @@ async def upload_document(
     # Auto-categorise document
     metadata = categorisation_service.categorise_document(raw_text)
 
+    # Auto-assign category by document_type
+    category_id = None
+    if metadata.document_type:
+        from app.models.base import Category
+        cat_result = await db.execute(
+            select(Category).where(Category.user_id == user_id, Category.name == metadata.document_type)
+        )
+        cat = cat_result.scalar_one_or_none()
+        if not cat:
+            cat = Category(user_id=user_id, name=metadata.document_type)
+            db.add(cat)
+            await db.flush()
+        category_id = cat.id
+
     doc = Document(
         user_id=user_id,
         title=title or metadata.title or file.filename or "Untitled",
@@ -57,23 +71,35 @@ async def upload_document(
         brand=metadata.brand,
         model=metadata.model,
         document_type=metadata.document_type,
+        category_id=category_id,
     )
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
 
-    # Chunk text and generate embeddings
+    # Chunk text and generate embeddings with section titles
     if raw_text:
         chunks = chunking_service.chunk_text(raw_text)
-        embeddings = embedding_service.get_embeddings(chunks)
-        for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
+        texts = [c["text"] for c in chunks]
+        embeddings = embedding_service.get_embeddings(texts)
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             db.add(DocChunk(
                 document_id=doc.id,
                 chunk_index=i,
-                chunk_text=chunk_text,
+                chunk_text=chunk["text"],
+                section_title=chunk["section_title"],
                 embedding=embedding,
             ))
         await db.commit()
+
+    # Auto-extract warranty dates
+    if raw_text:
+        from app.models.base import Warranty
+        from app.services import warranty_extraction
+        dates = warranty_extraction.extract_warranty_dates(raw_text)
+        if dates:
+            db.add(Warranty(document_id=doc.id, purchase_date=dates.get("purchase_date"), expiry_date=dates.get("expiry_date")))
+            await db.commit()
 
     return _to_response(doc)
 
@@ -123,6 +149,10 @@ async def list_documents(
 @router.get("/{document_id}", response_model=DocumentOut)
 async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
     doc = await _get_doc_or_404(document_id, user_id, db)
+    # Track last accessed
+    from datetime import datetime, timezone
+    doc.updated_at = datetime.now(timezone.utc)
+    await db.commit()
     return _to_response(doc)
 
 
