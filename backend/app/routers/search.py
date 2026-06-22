@@ -4,13 +4,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
+from app.dependencies import get_db, get_current_user_id
 from app.models.base import DocChunk, Document
 from app.services import embedding_service
 
 router = APIRouter()
-
-TEMP_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
 @router.get("")
@@ -18,6 +16,7 @@ async def search_documents(
     q: str = Query(..., min_length=1),
     limit: int = 5,
     db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     # Generate embedding for query
     query_embedding = embedding_service.get_embedding(q)
@@ -37,7 +36,7 @@ async def search_documents(
         """),
         {
             "embedding": embedding_str,
-            "user_id": str(TEMP_USER_ID),
+            "user_id": str(user_id),
             "limit": limit,
         },
     )

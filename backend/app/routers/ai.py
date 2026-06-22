@@ -6,12 +6,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.dependencies import get_db
+from app.dependencies import get_db, get_current_user_id
 from app.services import embedding_service
 
 router = APIRouter()
-
-TEMP_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
 class AskRequest(BaseModel):
@@ -31,7 +29,7 @@ class AskResponse(BaseModel):
 
 
 @router.post("/ask", response_model=AskResponse)
-async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db)):
+async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
     # 1. Embed the question
     query_embedding = embedding_service.get_embedding(req.question)
     embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
@@ -47,7 +45,7 @@ async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db)):
             ORDER BY dc.embedding <=> cast(:embedding as vector)
             LIMIT 5
         """),
-        {"embedding": embedding_str, "user_id": str(TEMP_USER_ID)},
+        {"embedding": embedding_str, "user_id": str(user_id)},
     )
     rows = result.fetchall()
 

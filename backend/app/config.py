@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OCR_BACKEND: str = "tesseract"
     AWS_REGION: str = "eu-west-1"
+    JWT_SECRET: str = "change-me-in-production"
+    JWT_EXPIRY_MINUTES: int = 1440
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     class Config:
