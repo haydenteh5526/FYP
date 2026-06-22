@@ -1,0 +1,29 @@
+# Dependencies
+__pycache__/
+*.pyc
+node_modules/
+.venv/
+venv/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+pgdata/
+miniodata/
+
+# Reference repos
+reference/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
