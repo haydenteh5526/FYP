@@ -11,6 +11,7 @@ class DocumentOut(BaseModel):
     model: str | None = None
     document_type: str | None = None
     category_id: uuid.UUID | None = None
+    raw_text: str | None = None
     file_size: int | None = None
     page_count: int = 1
     ocr_confidence: float | None = None
