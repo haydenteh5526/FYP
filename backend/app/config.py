@@ -1,0 +1,17 @@
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    DATABASE_URL: str = "postgresql+asyncpg://user:pass@localhost:5432/docvault"
+    S3_ENDPOINT: str = "http://localhost:9000"
+    S3_ACCESS_KEY: str = "minioadmin"
+    S3_SECRET_KEY: str = "minioadmin"
+    S3_BUCKET: str = "documents"
+    OPENAI_API_KEY: str = ""
+    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()
