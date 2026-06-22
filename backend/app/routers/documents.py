@@ -72,14 +72,30 @@ async def upload_document(
 async def list_documents(
     skip: int = 0,
     limit: int = 20,
+    brand: str | None = None,
+    document_type: str | None = None,
+    q: str | None = None,
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    query = select(Document).where(Document.user_id == user_id).offset(skip).limit(limit)
+    query = select(Document).where(Document.user_id == user_id)
+    if brand:
+        query = query.where(Document.brand == brand)
+    if document_type:
+        query = query.where(Document.document_type == document_type)
+    if q:
+        query = query.where(Document.title.ilike(f"%{q}%"))
+    query = query.order_by(Document.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     docs = result.scalars().all()
 
     count_query = select(func.count()).select_from(Document).where(Document.user_id == user_id)
+    if brand:
+        count_query = count_query.where(Document.brand == brand)
+    if document_type:
+        count_query = count_query.where(Document.document_type == document_type)
+    if q:
+        count_query = count_query.where(Document.title.ilike(f"%{q}%"))
     total = (await db.execute(count_query)).scalar() or 0
 
     return DocumentList(
@@ -104,6 +120,44 @@ async def update_document(
     doc = await _get_doc_or_404(document_id, user_id, db)
     for field, value in update.model_dump(exclude_unset=True).items():
         setattr(doc, field, value)
+    await db.commit()
+    await db.refresh(doc)
+    return _to_response(doc)
+
+
+@router.post("/{document_id}/reprocess", response_model=DocumentOut)
+async def reprocess_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    doc = await _get_doc_or_404(document_id, user_id, db)
+
+    # Re-download file from S3 and reprocess
+    import boto3
+    from botocore.config import Config as BotoConfig
+
+    from app.config import settings
+    s3 = boto3.client("s3", endpoint_url=settings.S3_ENDPOINT, aws_access_key_id=settings.S3_ACCESS_KEY,
+                      aws_secret_access_key=settings.S3_SECRET_KEY, config=BotoConfig(signature_version="s3v4"), region_name="us-east-1")
+    obj = s3.get_object(Bucket=settings.S3_BUCKET, Key=doc.s3_key_original)
+    file_bytes = obj["Body"].read()
+    content_type = obj.get("ContentType", "image/png")
+
+    # Re-run OCR + categorisation
+    raw_text = ocr_service.extract_text(file_bytes, content_type)
+    metadata = categorisation_service.categorise_document(raw_text)
+    doc.raw_text = raw_text or None
+    doc.brand = metadata.brand or doc.brand
+    doc.model = metadata.model or doc.model
+    doc.document_type = metadata.document_type or doc.document_type
+
+    # Re-chunk and re-embed
+    await db.execute(select(DocChunk).where(DocChunk.document_id == doc.id))
+    from sqlalchemy import delete
+    await db.execute(delete(DocChunk).where(DocChunk.document_id == doc.id))
+    if raw_text:
+        chunks = chunking_service.chunk_text(raw_text)
+        embeddings = embedding_service.get_embeddings(chunks)
+        for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
+            db.add(DocChunk(document_id=doc.id, chunk_index=i, chunk_text=chunk_text, embedding=embedding))
+
     await db.commit()
     await db.refresh(doc)
     return _to_response(doc)
