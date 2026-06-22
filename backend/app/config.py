@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: str = "minioadmin"
     S3_BUCKET: str = "documents"
     OPENAI_API_KEY: str = ""
+    OCR_BACKEND: str = "tesseract"
+    AWS_REGION: str = "eu-west-1"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     class Config:

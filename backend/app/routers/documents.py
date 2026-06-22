@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.models.base import Document
 from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
-from app.services import storage_service
+from app.services import storage_service, ocr_service
 
 router = APIRouter()
 
@@ -35,11 +35,14 @@ async def upload_document(
         file_bytes, str(TEMP_USER_ID), file.filename or "upload", file.content_type
     )
 
+    raw_text = ocr_service.extract_text(file_bytes, file.content_type)
+
     doc = Document(
         user_id=TEMP_USER_ID,
         title=title or file.filename or "Untitled",
         s3_key_original=s3_key,
         file_size=len(file_bytes),
+        raw_text=raw_text or None,
     )
     db.add(doc)
     await db.commit()
@@ -115,6 +118,7 @@ def _to_response(doc: Document) -> DocumentOut:
         model=doc.model,
         document_type=doc.document_type,
         category_id=doc.category_id,
+        raw_text=doc.raw_text,
         file_size=doc.file_size,
         page_count=doc.page_count,
         ocr_confidence=doc.ocr_confidence,
