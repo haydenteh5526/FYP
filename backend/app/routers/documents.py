@@ -4,15 +4,12 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
+from app.dependencies import get_db, get_current_user_id
 from app.models.base import Document, DocChunk
 from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
 from app.services import storage_service, ocr_service, chunking_service, embedding_service, categorisation_service
 
 router = APIRouter()
-
-# Temporary hardcoded user ID until auth is implemented
-TEMP_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
@@ -23,6 +20,7 @@ async def upload_document(
     file: UploadFile,
     title: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(400, f"File type {file.content_type} not allowed")
@@ -32,7 +30,7 @@ async def upload_document(
         raise HTTPException(413, "File too large (max 20MB)")
 
     s3_key = storage_service.upload_file(
-        file_bytes, str(TEMP_USER_ID), file.filename or "upload", file.content_type
+        file_bytes, str(user_id), file.filename or "upload", file.content_type
     )
 
     raw_text = ocr_service.extract_text(file_bytes, file.content_type)
@@ -41,7 +39,7 @@ async def upload_document(
     metadata = categorisation_service.categorise_document(raw_text)
 
     doc = Document(
-        user_id=TEMP_USER_ID,
+        user_id=user_id,
         title=title or metadata.title or file.filename or "Untitled",
         s3_key_original=s3_key,
         file_size=len(file_bytes),
@@ -75,12 +73,13 @@ async def list_documents(
     skip: int = 0,
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    query = select(Document).where(Document.user_id == TEMP_USER_ID).offset(skip).limit(limit)
+    query = select(Document).where(Document.user_id == user_id).offset(skip).limit(limit)
     result = await db.execute(query)
     docs = result.scalars().all()
 
-    count_query = select(func.count()).select_from(Document).where(Document.user_id == TEMP_USER_ID)
+    count_query = select(func.count()).select_from(Document).where(Document.user_id == user_id)
     total = (await db.execute(count_query)).scalar() or 0
 
     return DocumentList(
@@ -90,8 +89,8 @@ async def list_documents(
 
 
 @router.get("/{document_id}", response_model=DocumentOut)
-async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    doc = await _get_doc_or_404(document_id, db)
+async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    doc = await _get_doc_or_404(document_id, user_id, db)
     return _to_response(doc)
 
 
@@ -100,8 +99,9 @@ async def update_document(
     document_id: uuid.UUID,
     update: DocumentUpdate,
     db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    doc = await _get_doc_or_404(document_id, db)
+    doc = await _get_doc_or_404(document_id, user_id, db)
     for field, value in update.model_dump(exclude_unset=True).items():
         setattr(doc, field, value)
     await db.commit()
@@ -110,8 +110,8 @@ async def update_document(
 
 
 @router.delete("/{document_id}", status_code=204)
-async def delete_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    doc = await _get_doc_or_404(document_id, db)
+async def delete_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    doc = await _get_doc_or_404(document_id, user_id, db)
     storage_service.delete_file(doc.s3_key_original)
     if doc.s3_key_thumbnail:
         storage_service.delete_file(doc.s3_key_thumbnail)
@@ -119,8 +119,8 @@ async def delete_document(document_id: uuid.UUID, db: AsyncSession = Depends(get
     await db.commit()
 
 
-async def _get_doc_or_404(document_id: uuid.UUID, db: AsyncSession) -> Document:
-    query = select(Document).where(Document.id == document_id, Document.user_id == TEMP_USER_ID)
+async def _get_doc_or_404(document_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession) -> Document:
+    query = select(Document).where(Document.id == document_id, Document.user_id == user_id)
     result = await db.execute(query)
     doc = result.scalar_one_or_none()
     if not doc:
