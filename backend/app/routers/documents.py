@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.models.base import Document, DocChunk
 from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
-from app.services import storage_service, ocr_service, chunking_service, embedding_service
+from app.services import storage_service, ocr_service, chunking_service, embedding_service, categorisation_service
 
 router = APIRouter()
 
@@ -37,12 +37,18 @@ async def upload_document(
 
     raw_text = ocr_service.extract_text(file_bytes, file.content_type)
 
+    # Auto-categorise document
+    metadata = categorisation_service.categorise_document(raw_text)
+
     doc = Document(
         user_id=TEMP_USER_ID,
-        title=title or file.filename or "Untitled",
+        title=title or metadata.title or file.filename or "Untitled",
         s3_key_original=s3_key,
         file_size=len(file_bytes),
         raw_text=raw_text or None,
+        brand=metadata.brand,
+        model=metadata.model,
+        document_type=metadata.document_type,
     )
     db.add(doc)
     await db.commit()
