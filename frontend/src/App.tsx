@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import { FileText, Search, MessageSquare, Upload, LogOut } from 'lucide-react'
+import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import AuthPage from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import UploadPage from './pages/Upload'
 import SearchPage from './pages/Search'
 import AskAI from './pages/AskAI'
+import DocumentDetail from './pages/DocumentDetail'
+import Categories from './pages/Categories'
 import { Button } from './components/ui/button'
 
 function App() {
@@ -28,7 +30,9 @@ function AppContent() {
         <main className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/documents/:id" element={<DocumentDetail />} />
             <Route path="/upload" element={<UploadPage />} />
+            <Route path="/categories" element={<Categories />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/ask" element={<AskAI />} />
           </Routes>
@@ -50,6 +54,7 @@ function Sidebar() {
       <nav className="flex-1 p-4 space-y-1">
         <SidebarLink to="/" icon={<FileText size={18} />} label="Documents" />
         <SidebarLink to="/upload" icon={<Upload size={18} />} label="Upload" />
+        <SidebarLink to="/categories" icon={<FolderOpen size={18} />} label="Categories" />
         <SidebarLink to="/search" icon={<Search size={18} />} label="Search" />
         <SidebarLink to="/ask" icon={<MessageSquare size={18} />} label="Ask AI" />
       </nav>
