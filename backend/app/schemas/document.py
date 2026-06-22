@@ -28,6 +28,7 @@ class DocumentUpdate(BaseModel):
     model: str | None = None
     document_type: str | None = None
     category_id: uuid.UUID | None = None
+    raw_text: str | None = None
 
 
 class DocumentList(BaseModel):

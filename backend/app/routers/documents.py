@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_current_user_id, get_db
 from app.models.base import DocChunk, Document
 from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
-from app.services import categorisation_service, chunking_service, embedding_service, ocr_service, storage_service
+from app.services import (
+    categorisation_service,
+    chunking_service,
+    embedding_service,
+    image_processing,
+    ocr_service,
+    storage_service,
+)
 
 router = APIRouter()
 
@@ -33,7 +40,10 @@ async def upload_document(
         file_bytes, str(user_id), file.filename or "upload", file.content_type
     )
 
-    raw_text = ocr_service.extract_text(file_bytes, file.content_type)
+    # Pre-process image for better OCR (deskew, denoise, enhance)
+    processed_bytes = image_processing.preprocess_image(file_bytes) if file.content_type != "application/pdf" else file_bytes
+
+    raw_text = ocr_service.extract_text(processed_bytes, file.content_type)
 
     # Auto-categorise document
     metadata = categorisation_service.categorise_document(raw_text)
@@ -75,6 +85,8 @@ async def list_documents(
     brand: str | None = None,
     document_type: str | None = None,
     q: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
@@ -85,6 +97,10 @@ async def list_documents(
         query = query.where(Document.document_type == document_type)
     if q:
         query = query.where(Document.title.ilike(f"%{q}%"))
+    if date_from:
+        query = query.where(Document.created_at >= date_from)
+    if date_to:
+        query = query.where(Document.created_at <= date_to)
     query = query.order_by(Document.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     docs = result.scalars().all()
