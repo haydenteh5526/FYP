@@ -9,6 +9,21 @@ from app.routers import auth, documents, search, ai
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.services.storage_service import ensure_bucket_exists
+    ensure_bucket_exists()
+
+    # Seed temp user for development
+    from app.dependencies import async_session
+    from app.models.base import User
+    import uuid
+    async with async_session() as session:
+        from sqlalchemy import select
+        temp_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+        result = await session.execute(select(User).where(User.id == temp_id))
+        if not result.scalar_one_or_none():
+            session.add(User(id=temp_id, email="dev@example.com", display_name="Dev User"))
+            await session.commit()
+
     yield
 
 
