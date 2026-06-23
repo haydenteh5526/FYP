@@ -1,18 +1,21 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/lib/auth'
 import { loginUser, registerUser } from '@/lib/api'
 
-export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true)
+export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'register' }) {
+  const [isLogin, setIsLogin] = useState(mode === 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
+  const navigate = useNavigate()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -23,6 +26,7 @@ export default function AuthPage() {
         ? await loginUser(email, password)
         : await registerUser(email, password, name || undefined)
       login(data.access_token)
+      navigate('/app')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -39,6 +43,11 @@ export default function AuthPage() {
       </div>
 
       <div className="w-full max-w-md relative animate-scale-in">
+        {/* Back to home */}
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+          <ArrowLeft size={16} /> Back to home
+        </Link>
+
         <Card className="shadow-xl border-border/50">
           <CardHeader className="text-center space-y-4 pb-2">
             <div className="mx-auto w-12 h-12 rounded-xl gradient-bg flex items-center justify-center shadow-lg shadow-primary/25">
@@ -89,12 +98,13 @@ export default function AuthPage() {
             </form>
             <p className="text-center text-sm text-muted-foreground mt-6">
               {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
-              <button
-                onClick={() => { setIsLogin(!isLogin); setError('') }}
+              <Link
+                to={isLogin ? '/register' : '/login'}
                 className="text-primary font-medium hover:underline"
+                onClick={() => { setIsLogin(!isLogin); setError('') }}
               >
                 {isLogin ? 'Sign up' : 'Sign in'}
-              </button>
+              </Link>
             </p>
           </CardContent>
         </Card>

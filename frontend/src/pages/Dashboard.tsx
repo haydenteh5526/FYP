@@ -40,7 +40,7 @@ export default function Dashboard() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {docs.map(doc => (
-            <Card key={doc.id} className="group hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}>
+            <Card key={doc.id} className="group hover-lift cursor-pointer animate-fade-in" onClick={() => navigate(`/app/documents/${doc.id}`)}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-sm font-medium leading-tight">{doc.title}</CardTitle>

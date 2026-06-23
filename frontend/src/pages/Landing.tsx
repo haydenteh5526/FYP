@@ -1,7 +1,8 @@
 import { Camera, Search, MessageSquare, Shield, Cloud, Zap, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 
-export default function Landing({ onGetStarted }: { onGetStarted: () => void }) {
+export default function Landing() {
   return (
     <div className="min-h-screen bg-background overflow-hidden">
       {/* Navbar */}
@@ -13,7 +14,14 @@ export default function Landing({ onGetStarted }: { onGetStarted: () => void }) 
             </div>
             <span className="text-lg font-semibold">DocVault</span>
           </div>
-          <Button size="sm" onClick={onGetStarted}>Get started</Button>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/login">Sign in</Link>
+            </Button>
+            <Button size="sm" className="gradient-bg border-0 text-white" asChild>
+              <Link to="/register">Get started</Link>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -36,11 +44,11 @@ export default function Landing({ onGetStarted }: { onGetStarted: () => void }) 
             Never lose a manual again.
           </p>
           <div className="mt-12 flex gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <Button size="lg" className="gradient-bg border-0 text-white px-8 hover:opacity-90 transition-opacity" onClick={onGetStarted}>
-              Start free <ArrowRight size={16} className="ml-1" />
+            <Button size="lg" className="gradient-bg border-0 text-white px-8 hover:opacity-90 transition-opacity" asChild>
+              <Link to="/register">Start free <ArrowRight size={16} className="ml-1" /></Link>
             </Button>
-            <Button size="lg" variant="outline" className="px-8" onClick={onGetStarted}>
-              Watch demo
+            <Button size="lg" variant="outline" className="px-8" asChild>
+              <Link to="/login">Sign in</Link>
             </Button>
           </div>
         </div>
@@ -71,8 +79,8 @@ export default function Landing({ onGetStarted }: { onGetStarted: () => void }) 
           <div className="relative">
             <h2 className="text-3xl font-bold text-white">Ready to ditch the paper?</h2>
             <p className="mt-3 text-white/70">Join the smarter way to manage documents.</p>
-            <Button size="lg" className="mt-8 bg-white text-primary hover:bg-white/90" onClick={onGetStarted}>
-              Create free account
+            <Button size="lg" className="mt-8 bg-white text-primary hover:bg-white/90" asChild>
+              <Link to="/register">Create free account</Link>
             </Button>
           </div>
         </div>
