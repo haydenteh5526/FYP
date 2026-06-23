@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
+import { useState } from 'react'
 import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
+import Landing from './pages/Landing'
 import AuthPage from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import UploadPage from './pages/Upload'
@@ -20,8 +22,12 @@ function App() {
 
 function AppContent() {
   const { isAuthenticated } = useAuth()
+  const [showAuth, setShowAuth] = useState(false)
 
-  if (!isAuthenticated) return <AuthPage />
+  if (!isAuthenticated) {
+    if (showAuth) return <AuthPage />
+    return <Landing onGetStarted={() => setShowAuth(true)} />
+  }
 
   return (
     <BrowserRouter>
