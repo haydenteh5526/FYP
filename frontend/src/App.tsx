@@ -52,20 +52,27 @@ function Sidebar() {
   const { logout } = useAuth()
 
   return (
-    <aside className="w-64 border-r bg-card flex flex-col">
+    <aside className="w-64 border-r bg-card/50 glass flex flex-col">
       <div className="p-6 border-b">
-        <h1 className="text-xl font-bold tracking-tight">DocVault</h1>
-        <p className="text-xs text-muted-foreground mt-1">AI Document Assistant</p>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shadow-sm shadow-primary/20">
+            <span className="text-white text-sm font-bold">D</span>
+          </div>
+          <div>
+            <h1 className="text-base font-semibold">DocVault</h1>
+            <p className="text-[10px] text-muted-foreground -mt-0.5">AI Document Assistant</p>
+          </div>
+        </div>
       </div>
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-3 space-y-1">
         <SidebarLink to="/" icon={<FileText size={18} />} label="Documents" />
         <SidebarLink to="/upload" icon={<Upload size={18} />} label="Upload" />
         <SidebarLink to="/categories" icon={<FolderOpen size={18} />} label="Categories" />
         <SidebarLink to="/search" icon={<Search size={18} />} label="Search" />
         <SidebarLink to="/ask" icon={<MessageSquare size={18} />} label="Ask AI" />
       </nav>
-      <div className="p-4 border-t">
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={logout}>
+      <div className="p-3 border-t">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground" onClick={logout}>
           <LogOut size={16} /> Sign out
         </Button>
       </div>
@@ -79,8 +86,8 @@ function SidebarLink({ to, icon, label }: { to: string; icon: React.ReactNode; l
       to={to}
       end
       className={({ isActive }) =>
-        `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-          isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+          isActive ? 'gradient-bg text-white shadow-sm shadow-primary/20' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
         }`
       }
     >

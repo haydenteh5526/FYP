@@ -1,75 +1,103 @@
-import { Camera, Search, MessageSquare, Shield, Cloud, Zap } from 'lucide-react'
+import { Camera, Search, MessageSquare, Shield, Cloud, Zap, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function Landing({ onGetStarted }: { onGetStarted: () => void }) {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero */}
-      <header className="border-b">
+    <div className="min-h-screen bg-background overflow-hidden">
+      {/* Navbar */}
+      <header className="fixed top-0 w-full z-50 glass border-b">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold tracking-tight">DocVault</h1>
-          <Button variant="outline" size="sm" onClick={onGetStarted}>Sign in</Button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
+              <span className="text-white text-sm font-bold">D</span>
+            </div>
+            <span className="text-lg font-semibold">DocVault</span>
+          </div>
+          <Button size="sm" onClick={onGetStarted}>Get started</Button>
         </div>
       </header>
 
-      <section className="max-w-6xl mx-auto px-6 py-24 text-center">
-        <div className="inline-flex items-center rounded-full bg-secondary px-3 py-1 text-xs font-medium mb-6">
-          ✨ AI-Powered Document Intelligence
+      {/* Hero */}
+      <section className="pt-32 pb-20 px-6 relative">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute top-40 right-1/4 w-80 h-80 bg-purple-200/20 rounded-full blur-3xl" />
         </div>
-        <h2 className="text-5xl font-bold tracking-tight leading-tight max-w-3xl mx-auto">
-          Snap it. Store it.<br />Ask it anything.
-        </h2>
-        <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          Digitise your physical documents — manuals, warranties, guides — and query them with AI. 
-          Never lose a manual again, and never flip through 60 pages to find one answer.
-        </p>
-        <div className="mt-10 flex gap-4 justify-center">
-          <Button size="lg" onClick={onGetStarted}>Get started free</Button>
-          <Button size="lg" variant="outline" onClick={onGetStarted}>See how it works</Button>
+        <div className="max-w-4xl mx-auto text-center relative animate-fade-in">
+          <div className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5 text-xs font-medium text-secondary-foreground mb-8 animate-scale-in">
+            <Zap size={12} /> AI-Powered Document Intelligence
+          </div>
+          <h1 className="text-6xl md:text-7xl font-bold tracking-tight leading-[1.1]">
+            <span className="gradient-text">Snap it. Store it.</span><br />
+            Ask it anything.
+          </h1>
+          <p className="mt-8 text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed animate-slide-up">
+            Digitise your physical documents and query them with AI. 
+            Never lose a manual again.
+          </p>
+          <div className="mt-12 flex gap-4 justify-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <Button size="lg" className="gradient-bg border-0 text-white px-8 hover:opacity-90 transition-opacity" onClick={onGetStarted}>
+              Start free <ArrowRight size={16} className="ml-1" />
+            </Button>
+            <Button size="lg" variant="outline" className="px-8" onClick={onGetStarted}>
+              Watch demo
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="border-t bg-muted/30">
-        <div className="max-w-6xl mx-auto px-6 py-20">
-          <h3 className="text-2xl font-bold text-center mb-12">Everything you need to go paperless</h3>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Feature icon={<Camera />} title="Snap & Digitise" description="Photograph any document. AI extracts the text, detects the brand, and organises it for you." />
-            <Feature icon={<Search />} title="Search by Meaning" description="Find information across all your documents with semantic search — not just keywords." />
-            <Feature icon={<MessageSquare />} title="Ask AI Questions" description="'What temperature for delicates?' Get instant answers grounded in your actual documents." />
-            <Feature icon={<Shield />} title="Private & Secure" description="Your documents are encrypted and isolated. No one else can access your data." />
-            <Feature icon={<Cloud />} title="Access Anywhere" description="Cloud-synced across all your devices. Web, mobile, or tablet — always available." />
-            <Feature icon={<Zap />} title="Instant Processing" description="Upload takes seconds. OCR, categorisation, and indexing happen automatically." />
+      <section className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold">Powerful features, effortless experience</h2>
+            <p className="mt-3 text-muted-foreground">Everything you need to go paperless, powered by AI.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <FeatureCard icon={<Camera size={24} />} title="Snap & Digitise" description="AI extracts text, detects the brand and model, categorises automatically." delay={0} />
+            <FeatureCard icon={<Search size={24} />} title="Semantic Search" description="Find information by meaning, not just keywords. Ask naturally." delay={0.1} />
+            <FeatureCard icon={<MessageSquare size={24} />} title="AI Q&A" description="Ask questions, get instant answers with source citations." delay={0.2} />
+            <FeatureCard icon={<Shield size={24} />} title="Private & Encrypted" description="Per-user isolation, encrypted storage, JWT authentication." delay={0.3} />
+            <FeatureCard icon={<Cloud size={24} />} title="Cloud Synced" description="Access from any device. Web, mobile, always in sync." delay={0.4} />
+            <FeatureCard icon={<Zap size={24} />} title="Instant Processing" description="Upload takes seconds. OCR and AI run automatically." delay={0.5} />
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="border-t">
-        <div className="max-w-6xl mx-auto px-6 py-20 text-center">
-          <h3 className="text-3xl font-bold">Ready to ditch the paper?</h3>
-          <p className="mt-3 text-muted-foreground">Start digitising your documents in seconds.</p>
-          <Button size="lg" className="mt-8" onClick={onGetStarted}>Create free account</Button>
+      <section className="py-24 px-6">
+        <div className="max-w-3xl mx-auto text-center rounded-2xl gradient-bg p-16 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent)]" />
+          <div className="relative">
+            <h2 className="text-3xl font-bold text-white">Ready to ditch the paper?</h2>
+            <p className="mt-3 text-white/70">Join the smarter way to manage documents.</p>
+            <Button size="lg" className="mt-8 bg-white text-primary hover:bg-white/90" onClick={onGetStarted}>
+              Create free account
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="border-t py-8">
         <div className="max-w-6xl mx-auto px-6 text-center text-sm text-muted-foreground">
-          DocVault — AI Cloud Document Vault © 2027
+          DocVault © 2027 — AI Cloud Document Vault
         </div>
       </footer>
     </div>
   )
 }
 
-function Feature({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+function FeatureCard({ icon, title, description, delay }: { icon: React.ReactNode; title: string; description: string; delay: number }) {
   return (
-    <div className="text-center">
-      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary mb-4">
+    <div
+      className="rounded-xl border bg-card p-6 hover-lift animate-slide-up"
+      style={{ animationDelay: `${delay}s`, animationFillMode: 'both' }}
+    >
+      <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-4">
         {icon}
       </div>
-      <h4 className="font-semibold mb-2">{title}</h4>
+      <h3 className="font-semibold mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
     </div>
   )
