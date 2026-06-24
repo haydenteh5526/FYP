@@ -26,12 +26,9 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Public routes */}
       <Route path="/" element={isAuthenticated ? <Navigate to="/app" /> : <Landing />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="login" />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="register" />} />
-
-      {/* Protected app routes */}
       <Route path="/app" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
         <Route index element={<Dashboard />} />
         <Route path="upload" element={<UploadPage />} />
@@ -40,8 +37,6 @@ function AppRoutes() {
         <Route path="search" element={<SearchPage />} />
         <Route path="ask" element={<AskAI />} />
       </Route>
-
-      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )
@@ -51,39 +46,44 @@ function AppShell() {
   const { logout } = useAuth()
   const navigate = useNavigate()
 
-  function handleLogout() {
-    logout()
-    navigate('/')
-  }
-
   return (
-    <div className="flex h-screen">
-      <aside className="w-64 border-r bg-card/50 glass flex flex-col">
-        <div className="p-6 border-b">
+    <div className="flex h-screen bg-muted/20">
+      {/* Sidebar — glass, no hard border, subtle shadow instead */}
+      <aside className="w-[260px] flex flex-col glass border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)]">
+        <div className="px-5 py-5">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shadow-sm shadow-primary/20">
+            <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shadow-md shadow-primary/25">
               <span className="text-white text-sm font-bold">D</span>
             </div>
             <div>
-              <h1 className="text-base font-semibold">DocVault</h1>
-              <p className="text-[10px] text-muted-foreground -mt-0.5">AI Document Assistant</p>
+              <h1 className="text-[15px] font-semibold leading-none">DocVault</h1>
+              <p className="text-[10px] text-muted-foreground mt-0.5">AI Document Assistant</p>
             </div>
           </div>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
-          <SidebarLink to="/app" icon={<FileText size={18} />} label="Documents" end />
-          <SidebarLink to="/app/upload" icon={<Upload size={18} />} label="Upload" />
-          <SidebarLink to="/app/categories" icon={<FolderOpen size={18} />} label="Categories" />
-          <SidebarLink to="/app/search" icon={<Search size={18} />} label="Search" />
-          <SidebarLink to="/app/ask" icon={<MessageSquare size={18} />} label="Ask AI" />
+
+        <nav className="flex-1 px-3 py-2 space-y-0.5">
+          <SidebarLink to="/app" icon={<FileText size={17} />} label="Documents" end />
+          <SidebarLink to="/app/upload" icon={<Upload size={17} />} label="Upload" />
+          <SidebarLink to="/app/categories" icon={<FolderOpen size={17} />} label="Categories" />
+          <SidebarLink to="/app/search" icon={<Search size={17} />} label="Search" />
+          <SidebarLink to="/app/ask" icon={<MessageSquare size={17} />} label="Ask AI" />
         </nav>
-        <div className="p-3 border-t">
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground" onClick={handleLogout}>
-            <LogOut size={16} /> Sign out
+
+        <div className="px-3 py-3 border-t border-border/40">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground transition-all duration-200"
+            onClick={() => { logout(); navigate('/') }}
+          >
+            <LogOut size={15} /> Sign out
           </Button>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto">
+
+      {/* Main content with neutral bg */}
+      <main className="flex-1 overflow-auto bg-background">
         <Routes>
           <Route index element={<Dashboard />} />
           <Route path="upload" element={<UploadPage />} />
@@ -103,8 +103,10 @@ function SidebarLink({ to, icon, label, end }: { to: string; icon: React.ReactNo
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-          isActive ? 'gradient-bg text-white shadow-sm shadow-primary/20' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+        `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200 ${
+          isActive
+            ? 'gradient-bg text-white shadow-md shadow-primary/20'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
         }`
       }
     >
