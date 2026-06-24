@@ -1,4 +1,4 @@
-import { ArrowRight, Camera, Search, MessageSquare, Shield, Cloud, FileText, Star, Zap } from 'lucide-react'
+import { ArrowRight, Camera, Search, MessageSquare, Shield, Cloud, FileText, Star, Zap, Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
@@ -123,6 +123,81 @@ export default function Landing() {
                 <p className="text-[13px] text-muted-foreground leading-relaxed">{f.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Security */}
+      <section id="security" className="py-24 px-6 border-t border-border/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold tracking-tight">Security you can trust</h2>
+            <p className="mt-2 text-muted-foreground">Your documents are private by default. Always.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { title: 'Encrypted at rest', desc: 'AES-256 encryption on all stored files via AWS S3.' },
+              { title: 'Encrypted in transit', desc: 'TLS 1.3 for every API call and data transfer.' },
+              { title: 'User isolation', desc: 'Row-level security — no user can ever access another\'s data.' },
+              { title: 'No data selling', desc: 'Your documents are never used for training or shared with third parties.' },
+            ].map((item, i) => (
+              <div
+                key={item.title}
+                className="rounded-xl border border-border/40 bg-card p-5 animate-slide-up"
+                style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
+              >
+                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center mb-3">
+                  <Shield size={16} className="text-green-600" />
+                </div>
+                <h4 className="text-sm font-semibold mb-1">{item.title}</h4>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="py-24 px-6 bg-muted/20 border-t border-border/30">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold tracking-tight">Simple, transparent pricing</h2>
+            <p className="mt-2 text-muted-foreground">Start free. Upgrade when you need more.</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {/* Free tier */}
+            <div className="rounded-2xl border border-border/40 bg-card p-8 hover-lift transition-all duration-200">
+              <h3 className="font-semibold text-lg">Free</h3>
+              <p className="text-muted-foreground text-sm mt-1">For personal use</p>
+              <p className="mt-5"><span className="text-4xl font-bold">€0</span><span className="text-muted-foreground text-sm">/month</span></p>
+              <ul className="mt-6 space-y-3 text-sm">
+                <li className="flex items-center gap-2"><Check /> Up to 50 documents</li>
+                <li className="flex items-center gap-2"><Check /> OCR + AI categorisation</li>
+                <li className="flex items-center gap-2"><Check /> Semantic search</li>
+                <li className="flex items-center gap-2"><Check /> AI Q&A (10/day)</li>
+              </ul>
+              <Button variant="outline" className="w-full mt-8 h-10 transition-all duration-200" asChild>
+                <Link to="/register">Get started free</Link>
+              </Button>
+            </div>
+
+            {/* Pro tier */}
+            <div className="rounded-2xl border-2 border-primary/30 bg-card p-8 relative hover-lift transition-all duration-200 shadow-lg shadow-primary/[0.05]">
+              <span className="absolute -top-3 left-6 px-3 py-0.5 text-xs font-medium gradient-bg text-white rounded-full shadow-sm">Popular</span>
+              <h3 className="font-semibold text-lg">Pro</h3>
+              <p className="text-muted-foreground text-sm mt-1">For power users</p>
+              <p className="mt-5"><span className="text-4xl font-bold">€9</span><span className="text-muted-foreground text-sm">/month</span></p>
+              <ul className="mt-6 space-y-3 text-sm">
+                <li className="flex items-center gap-2"><Check /> Unlimited documents</li>
+                <li className="flex items-center gap-2"><Check /> Everything in Free</li>
+                <li className="flex items-center gap-2"><Check /> Unlimited AI Q&A</li>
+                <li className="flex items-center gap-2"><Check /> Priority OCR processing</li>
+                <li className="flex items-center gap-2"><Check /> Warranty expiry alerts</li>
+              </ul>
+              <Button className="w-full mt-8 h-10 gradient-bg border-0 text-white shadow-md shadow-primary/20 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5" asChild>
+                <Link to="/register">Start 14-day trial</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>

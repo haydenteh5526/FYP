@@ -18,6 +18,10 @@ export default function Navbar() {
             <a
               key={item}
               href={`#${item.toLowerCase()}`}
+              onClick={(e) => {
+                e.preventDefault()
+                document.getElementById(item.toLowerCase())?.scrollIntoView({ behavior: 'smooth' })
+              }}
               className="relative px-4 py-1.5 text-sm text-muted-foreground transition-all duration-200 rounded-full hover:text-foreground hover:bg-accent/60"
             >
               {item}
