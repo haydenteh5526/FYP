@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Layers, Loader2, Code2, Mail, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,14 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+
+  // Reset state when switching between login/register
+  useEffect(() => {
+    setStep('email')
+    setError('')
+    setPassword('')
+    setName('')
+  }, [mode])
 
   async function handleEmailContinue(e: React.FormEvent) {
     e.preventDefault()
