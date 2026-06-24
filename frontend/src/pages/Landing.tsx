@@ -1,6 +1,6 @@
-import { ArrowRight, Camera, Search, MessageSquare, Shield, Cloud, FileText, Star, Zap, Check, ChevronDown } from 'lucide-react'
+import { ArrowRight, Camera, Search, MessageSquare, Shield, Cloud, FileText, Star, Zap, Check, ChevronDown, ArrowUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
@@ -61,17 +61,10 @@ export default function Landing() {
       {/* Stats bar */}
       <section className="py-10 px-6 border-y border-border/30 bg-muted/20">
         <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          {[
-            { value: '10,000+', label: 'Documents scanned' },
-            { value: '99.2%', label: 'OCR accuracy' },
-            { value: '< 2s', label: 'Search speed' },
-            { value: '4.9/5', label: 'User rating' },
-          ].map((s, i) => (
-            <div key={s.label} className="animate-slide-up" style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
-              <p className="text-2xl font-bold gradient-text">{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-            </div>
-          ))}
+          <AnimatedStat value={10000} suffix="+" label="Documents scanned" delay={0} />
+          <AnimatedStat value={99.2} suffix="%" label="OCR accuracy" delay={80} decimals={1} />
+          <AnimatedStat prefix="< " value={2} suffix="s" label="Search speed" delay={160} />
+          <AnimatedStat value={4.9} suffix="/5" label="User rating" delay={240} decimals={1} />
         </div>
       </section>
 
@@ -302,6 +295,7 @@ export default function Landing() {
         </div>
       </section>
 
+      <BackToTop />
       <Footer />
 
       <style>{`
@@ -339,5 +333,58 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
         </div>
       </div>
     </div>
+  )
+}
+
+function AnimatedStat({ value, suffix = '', prefix = '', label, delay = 0, decimals = 0 }: { value: number; suffix?: string; prefix?: string; label: string; delay?: number; decimals?: number }) {
+  const [display, setDisplay] = useState(0)
+  const ref = useRef<HTMLDivElement>(null)
+  const animated = useRef(false)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !animated.current) {
+        animated.current = true
+        const duration = 1500
+        const start = performance.now()
+        function tick(now: number) {
+          const progress = Math.min((now - start) / duration, 1)
+          const eased = 1 - Math.pow(1 - progress, 3)
+          setDisplay(parseFloat((eased * value).toFixed(decimals)))
+          if (progress < 1) requestAnimationFrame(tick)
+        }
+        setTimeout(() => requestAnimationFrame(tick), delay)
+      }
+    }, { threshold: 0.5 })
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [value, delay, decimals])
+
+  return (
+    <div ref={ref} className="animate-slide-up" style={{ animationDelay: `${delay}ms`, animationFillMode: 'both' }}>
+      <p className="text-2xl font-bold gradient-text">{prefix}{decimals ? display.toFixed(decimals) : display.toLocaleString()}{suffix}</p>
+      <p className="text-xs text-muted-foreground mt-1">{label}</p>
+    </div>
+  )
+}
+
+function BackToTop() {
+  const [show, setShow] = useState(false)
+
+  useEffect(() => {
+    function onScroll() { setShow(window.scrollY > 600) }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  if (!show) return null
+
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      className="fixed bottom-8 right-8 z-50 w-10 h-10 rounded-full gradient-bg text-white shadow-lg shadow-primary/25 flex items-center justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-xl animate-scale-in"
+    >
+      <ArrowUp size={16} />
+    </button>
   )
 }
