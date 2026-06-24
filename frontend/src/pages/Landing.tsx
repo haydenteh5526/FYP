@@ -4,6 +4,15 @@ import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 
+const testimonials = [
+  { name: 'Sarah K.', role: 'Product Designer', quote: 'I scanned 40+ appliance manuals in one weekend. Now I just ask the app when something breaks.' },
+  { name: 'Mark T.', role: 'Homeowner', quote: 'My dishwasher showed error E4. I asked DocVault and had the fix in 5 seconds flat.' },
+  { name: 'Lisa M.', role: 'Tenant', quote: 'All my lease docs, utility guides, and appliance manuals in one place. Game changer for renters.' },
+  { name: 'James R.', role: 'IT Engineer', quote: 'The semantic search is incredible. I searched "network timeout" and it found the relevant router page.' },
+  { name: 'Anna P.', role: 'Small Business Owner', quote: 'Warranty tracking saved me €200. Got notified before expiry and made a claim just in time.' },
+  { name: 'David C.', role: 'Student', quote: 'I scan all my course handouts. Asking AI questions before exams is like having a personal tutor.' },
+]
+
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background">
@@ -134,23 +143,23 @@ export default function Landing() {
             <h2 className="text-3xl font-bold tracking-tight">Security you can trust</h2>
             <p className="mt-2 text-muted-foreground">Your documents are private by default. Always.</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { title: 'Encrypted at rest', desc: 'AES-256 encryption on all stored files via AWS S3.' },
               { title: 'Encrypted in transit', desc: 'TLS 1.3 for every API call and data transfer.' },
-              { title: 'User isolation', desc: 'Row-level security — no user can ever access another\'s data.' },
+              { title: 'User isolation', desc: 'Row-level security — no user can ever access another\u2019s data.' },
               { title: 'No data selling', desc: 'Your documents are never used for training or shared with third parties.' },
             ].map((item, i) => (
               <div
                 key={item.title}
-                className="rounded-xl border border-border/40 bg-card p-5 animate-slide-up"
-                style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
+                className="rounded-2xl border border-border/40 bg-card p-6 hover-lift animate-slide-up transition-all duration-200"
+                style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'both' }}
               >
-                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center mb-3">
-                  <Shield size={16} className="text-green-600" />
+                <div className="w-10 h-10 rounded-xl bg-green-500/[0.08] flex items-center justify-center mb-4">
+                  <Shield size={18} className="text-green-600" />
                 </div>
-                <h4 className="text-sm font-semibold mb-1">{item.title}</h4>
-                <p className="text-[12px] text-muted-foreground leading-relaxed">{item.desc}</p>
+                <h4 className="text-[15px] font-semibold mb-1.5">{item.title}</h4>
+                <p className="text-[13px] text-muted-foreground leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -202,16 +211,36 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Social proof */}
-      <section className="py-20 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="flex justify-center gap-0.5 mb-5">
-            {[...Array(5)].map((_, i) => <Star key={i} size={15} className="fill-yellow-400 text-yellow-400" />)}
+      {/* Testimonials — flowing marquee */}
+      <section className="py-20 px-6 overflow-hidden">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold tracking-tight">Loved by early users</h2>
+          <p className="mt-2 text-muted-foreground">See what people are saying.</p>
+        </div>
+        <div className="relative">
+          {/* Fade edges */}
+          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+
+          <div className="flex gap-5 animate-[marquee_40s_linear_infinite] hover:[animation-play-state:paused]">
+            {[...testimonials, ...testimonials].map((t, i) => (
+              <div key={i} className="flex-shrink-0 w-[340px] rounded-2xl border border-border/40 bg-card p-6 transition-all duration-200 hover:shadow-md">
+                <div className="flex gap-0.5 mb-3">
+                  {[...Array(5)].map((_, j) => <Star key={j} size={12} className="fill-yellow-400 text-yellow-400" />)}
+                </div>
+                <p className="text-sm leading-relaxed text-foreground/90">"{t.quote}"</p>
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold">
+                    {t.name[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{t.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{t.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          <blockquote className="text-xl font-medium leading-relaxed max-w-2xl mx-auto">
-            "I scanned 40+ appliance manuals in one weekend. Now when something breaks, I just ask the app instead of digging through drawers."
-          </blockquote>
-          <p className="mt-5 text-sm text-muted-foreground">— Early access user</p>
         </div>
       </section>
 
@@ -242,6 +271,10 @@ export default function Landing() {
           10% { opacity: 1; }
           90% { opacity: 1; }
           50% { transform: translateY(320px); }
+        }
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
         }
       `}</style>
     </div>
