@@ -8,8 +8,11 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Cache-first for static assets, network-first for API
+  // Only cache GET requests
+  if (event.request.method !== 'GET') return;
+
   if (event.request.url.includes('/api/')) {
+    // Network-first for API calls
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -20,6 +23,7 @@ self.addEventListener('fetch', (event) => {
         .catch(() => caches.match(event.request))
     );
   } else {
+    // Cache-first for static assets
     event.respondWith(
       caches.match(event.request).then((cached) => cached || fetch(event.request))
     );
