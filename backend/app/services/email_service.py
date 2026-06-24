@@ -15,15 +15,18 @@ def send_2fa_setup_email(to_email: str) -> None:
 
 def _send(to_email: str, subject: str, html: str, fallback_url: str | None = None) -> None:
     if settings.RESEND_API_KEY:
-        import resend
-        resend.api_key = settings.RESEND_API_KEY
-        resend.Emails.send({
-            "from": "DocVault <onboarding@resend.dev>",
-            "to": [to_email],
-            "subject": subject,
-            "html": html,
-        })
-        return
+        try:
+            import resend
+            resend.api_key = settings.RESEND_API_KEY
+            resend.Emails.send({
+                "from": "DocVault <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html,
+            })
+            return
+        except Exception as e:
+            print(f"\n⚠️  Resend failed: {e}\n    Falling back to console output.\n")
 
     # Dev fallback — print to console
     print(f"\n{'='*50}")
