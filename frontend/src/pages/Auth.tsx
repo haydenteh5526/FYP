@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Layers, Loader2, Code2, Mail, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Layers, Loader2, Code2, Mail, CheckCircle, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordStrength } from '@/components/PasswordStrength'
 import { useAuth } from '@/lib/auth'
-import { loginUser, registerUser } from '@/lib/api'
+import { loginUser, registerUser, verify2FA } from '@/lib/api'
 
 export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'register' }) {
   const isRegister = mode === 'register'
-  const [step, setStep] = useState<'email' | 'credentials' | 'verify-sent'>('email')
+  const [step, setStep] = useState<'email' | 'credentials' | 'verify-sent' | '2fa'>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [totpCode, setTotpCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
@@ -43,8 +44,12 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
         setStep('verify-sent')
       } else {
         const data = await loginUser(email, password)
-        login(data.access_token)
-        navigate('/app')
+        if (data.requires_2fa) {
+          setStep('2fa')
+        } else if (data.access_token) {
+          login(data.access_token)
+          navigate('/app')
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -109,6 +114,32 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                   Didn't receive it? Check your spam folder.
                 </p>
               </div>
+            </div>
+          ) : step === '2fa' ? (
+            <div className="text-center animate-scale-in">
+              <div className="w-14 h-14 rounded-2xl bg-primary/[0.07] flex items-center justify-center mx-auto mb-5">
+                <ShieldCheck className="h-7 w-7 text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight">Two-factor authentication</h1>
+              <p className="text-sm text-muted-foreground mt-2">Enter the 6-digit code from your authenticator app.</p>
+              <form onSubmit={async (e) => {
+                e.preventDefault()
+                setError('')
+                setLoading(true)
+                try {
+                  const data = await verify2FA(email, password, totpCode)
+                  login(data.access_token)
+                  navigate('/app')
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Invalid code')
+                } finally { setLoading(false) }
+              }} className="mt-6 space-y-4">
+                <Input value={totpCode} onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="h-12 text-center text-2xl tracking-[0.5em] font-mono" maxLength={6} autoFocus />
+                {error && <p className="text-sm text-destructive animate-fade-in">{error}</p>}
+                <Button type="submit" className="w-full h-11 gradient-bg border-0 text-white" disabled={loading || totpCode.length !== 6}>
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : 'Verify'}
+                </Button>
+              </form>
             </div>
           ) : (
             <>
