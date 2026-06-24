@@ -263,7 +263,7 @@ export default function Landing() {
             {[...testimonials, ...testimonials].map((t, i) => (
               <div key={i} className="flex-shrink-0 w-[320px] rounded-2xl border border-border/40 bg-card p-5 transition-all duration-200 hover:shadow-md">
                 <div className="flex gap-0.5 mb-3">{[...Array(5)].map((_, j) => <Star key={j} size={11} className="fill-yellow-400 text-yellow-400" />)}</div>
-                <p className="text-[13px] leading-relaxed text-foreground/90">\u201C{t.quote}\u201D</p>
+                <p className="text-[13px] leading-relaxed text-foreground/90">"{t.quote}"</p>
                 <div className="mt-4 flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-full gradient-bg flex items-center justify-center text-white text-[10px] font-bold">{t.name[0]}</div>
                   <div><p className="text-[12px] font-medium">{t.name}</p><p className="text-[10px] text-muted-foreground">{t.role}</p></div>
