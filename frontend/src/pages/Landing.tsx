@@ -230,7 +230,7 @@ export default function Landing() {
             <div className="rounded-2xl border border-border/40 bg-card p-8 hover-lift transition-all duration-200">
               <h3 className="font-semibold text-lg">Free</h3>
               <p className="text-muted-foreground text-sm mt-1">For personal use</p>
-              <p className="mt-5"><span className="text-4xl font-bold">\u20AC0</span><span className="text-muted-foreground text-sm">/month</span></p>
+              <p className="mt-5"><span className="text-4xl font-bold">€0</span><span className="text-muted-foreground text-sm">/month</span></p>
               <ul className="mt-6 space-y-3 text-sm">
                 {['Up to 50 documents', 'OCR + AI categorisation', 'Semantic search', 'AI Q&A (10/day)'].map(f => <li key={f} className="flex items-center gap-2"><Check size={14} className="text-green-600" /> {f}</li>)}
               </ul>
@@ -240,7 +240,7 @@ export default function Landing() {
               <span className="absolute -top-3 left-6 px-3 py-0.5 text-xs font-medium gradient-bg text-white rounded-full shadow-sm">Popular</span>
               <h3 className="font-semibold text-lg">Pro</h3>
               <p className="text-muted-foreground text-sm mt-1">For power users</p>
-              <p className="mt-5"><span className="text-4xl font-bold">\u20AC9</span><span className="text-muted-foreground text-sm">/month</span></p>
+              <p className="mt-5"><span className="text-4xl font-bold">€9</span><span className="text-muted-foreground text-sm">/month</span></p>
               <ul className="mt-6 space-y-3 text-sm">
                 {['Unlimited documents', 'Everything in Free', 'Unlimited AI Q&A', 'Priority processing', 'Warranty alerts'].map(f => <li key={f} className="flex items-center gap-2"><Check size={14} className="text-green-600" /> {f}</li>)}
               </ul>
