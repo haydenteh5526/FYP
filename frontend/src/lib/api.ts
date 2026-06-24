@@ -44,7 +44,7 @@ export async function registerUser(email: string, password: string, displayName?
   return res.json()
 }
 
-export async function loginUser(email: string, password: string): Promise<{ access_token: string }> {
+export async function loginUser(email: string, password: string): Promise<{ access_token?: string; requires_2fa?: boolean }> {
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -53,6 +53,19 @@ export async function loginUser(email: string, password: string): Promise<{ acce
   if (!res.ok) {
     const text = await res.text()
     throw new Error(text ? (JSON.parse(text).detail || 'Login failed') : 'Server unavailable')
+  }
+  return res.json()
+}
+
+export async function verify2FA(email: string, password: string, code: string): Promise<{ access_token: string }> {
+  const res = await fetch(`${BASE}/auth/login/2fa`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, code }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text ? (JSON.parse(text).detail || 'Invalid code') : 'Server unavailable')
   }
   return res.json()
 }

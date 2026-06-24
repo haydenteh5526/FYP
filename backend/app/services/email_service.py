@@ -1,45 +1,49 @@
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
 from app.config import settings
 
 
 def send_verification_email(to_email: str, token: str) -> None:
-    """Send verification email via SMTP, or log to console in dev mode."""
     verify_url = f"{settings.FRONTEND_URL}/verify?token={token}"
+    html = _build_html("Verify your email", "Click below to verify your DocVault account.", "Verify Email", verify_url)
 
-    subject = "Verify your DocVault account"
-    html = f"""
-    <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-        <h2 style="margin-bottom: 8px;">Verify your email</h2>
-        <p style="color: #666; margin-bottom: 24px;">Click the button below to verify your DocVault account.</p>
-        <a href="{verify_url}" style="display: inline-block; background: linear-gradient(135deg, #5b21b6, #7c3aed); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500;">
-            Verify Email
-        </a>
-        <p style="color: #999; font-size: 12px; margin-top: 24px;">If you didn't create an account, you can ignore this email.</p>
-        <p style="color: #999; font-size: 12px;">Or copy this link: {verify_url}</p>
-    </div>
-    """
+    _send(to_email, "Verify your DocVault account", html, verify_url)
 
-    if not settings.SMTP_HOST:
-        # Dev mode — print to console
-        print(f"\n{'='*50}")
-        print("📧 VERIFICATION EMAIL (dev mode)")
-        print(f"To: {to_email}")
-        print(f"Verify URL: {verify_url}")
-        print(f"{'='*50}\n")
+
+def send_2fa_setup_email(to_email: str) -> None:
+    html = _build_html("2FA Enabled", "Two-factor authentication has been enabled on your account.", None, None)
+    _send(to_email, "2FA enabled on your DocVault account", html)
+
+
+def _send(to_email: str, subject: str, html: str, fallback_url: str | None = None) -> None:
+    if settings.RESEND_API_KEY:
+        import resend
+        resend.api_key = settings.RESEND_API_KEY
+        resend.Emails.send({
+            "from": "DocVault <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html,
+        })
         return
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = settings.SMTP_FROM
-    msg["To"] = to_email
-    msg.attach(MIMEText(html, "html"))
+    # Dev fallback — print to console
+    print(f"\n{'='*50}")
+    print("📧 EMAIL (dev mode)")
+    print(f"To: {to_email}")
+    print(f"Subject: {subject}")
+    if fallback_url:
+        print(f"URL: {fallback_url}")
+    print(f"{'='*50}\n")
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        if settings.SMTP_PORT == 587:
-            server.starttls()
-        if settings.SMTP_USER:
-            server.login(settings.SMTP_USER, settings.SMTP_PASS)
-        server.send_message(msg)
+
+def _build_html(heading: str, message: str, button_text: str | None, button_url: str | None) -> str:
+    button = ""
+    if button_text and button_url:
+        button = f'<a href="{button_url}" style="display:inline-block;background:linear-gradient(135deg,#5b21b6,#7c3aed);color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;">{button_text}</a>'
+    return f"""
+    <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:40px 20px;">
+        <h2 style="margin-bottom:8px;">{heading}</h2>
+        <p style="color:#666;margin-bottom:24px;">{message}</p>
+        {button}
+        <p style="color:#999;font-size:12px;margin-top:32px;">— DocVault Team</p>
+    </div>
+    """

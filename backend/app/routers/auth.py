@@ -78,7 +78,13 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     return {"message": "Email verified successfully. You can now sign in."}
 
 
-@router.post("/login", response_model=TokenResponse)
+class LoginResponse(BaseModel):
+    access_token: str | None = None
+    token_type: str = "bearer"
+    requires_2fa: bool = False
+
+
+@router.post("/login")
 async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
@@ -89,7 +95,69 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user.is_verified:
         raise HTTPException(403, "Please verify your email before signing in")
 
+    if user.totp_secret:
+        # 2FA enabled — require TOTP code
+        return LoginResponse(requires_2fa=True)
+
+    return LoginResponse(access_token=create_access_token(user.id))
+
+
+class Verify2FARequest(BaseModel):
+    email: EmailStr
+    password: str
+    code: str
+
+
+@router.post("/login/2fa", response_model=TokenResponse)
+async def login_2fa(req: Verify2FARequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == req.email))
+    user = result.scalar_one_or_none()
+
+    if not user or not verify_password(req.password, user.hashed_password):
+        raise HTTPException(401, "Invalid credentials")
+
+    import pyotp
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(req.code, valid_window=1):
+        raise HTTPException(401, "Invalid 2FA code")
+
     return TokenResponse(access_token=create_access_token(user.id))
+
+
+@router.post("/2fa/setup")
+async def setup_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_current_user_id)):
+    import base64
+    import io
+
+    import pyotp
+    import qrcode
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one()
+
+    secret = pyotp.random_base32()
+    user.totp_secret = secret
+    await db.commit()
+
+    totp = pyotp.TOTP(secret)
+    uri = totp.provisioning_uri(name=user.email, issuer_name="DocVault")
+
+    # Generate QR code as base64
+    qr = qrcode.make(uri)
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+
+    return {"secret": secret, "qr_code": f"data:image/png;base64,{qr_b64}", "uri": uri}
+
+
+@router.post("/2fa/disable")
+async def disable_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_current_user_id)):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one()
+    user.totp_secret = None
+    await db.commit()
+    return {"message": "2FA disabled"}
 
 
 @router.post("/reset-password")
