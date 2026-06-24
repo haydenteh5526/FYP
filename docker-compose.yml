@@ -54,6 +54,8 @@ services:
     build: ./frontend
     ports:
       - "3000:3000"
+    environment:
+      - DOCKER=true
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/index.html:/app/index.html
