@@ -37,7 +37,10 @@ export async function registerUser(email: string, password: string, displayName?
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, display_name: displayName }),
   })
-  if (!res.ok) throw new Error((await res.json()).detail || 'Registration failed')
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text ? (JSON.parse(text).detail || 'Registration failed') : 'Server unavailable')
+  }
   return res.json()
 }
 
@@ -47,7 +50,10 @@ export async function loginUser(email: string, password: string): Promise<{ acce
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   })
-  if (!res.ok) throw new Error((await res.json()).detail || 'Login failed')
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text ? (JSON.parse(text).detail || 'Login failed') : 'Server unavailable')
+  }
   return res.json()
 }
 
