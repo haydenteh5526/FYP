@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     COGNITO_DOMAIN: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_REDIRECT_URI: str = "http://localhost:3000/auth/callback"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASS: str = ""
+    SMTP_FROM: str = "noreply@docvault.app"
+    FRONTEND_URL: str = "http://localhost:3000"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     class Config:

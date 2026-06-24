@@ -3,6 +3,7 @@ import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen } from 'luc
 import { AuthProvider, useAuth } from './lib/auth'
 import Landing from './pages/Landing'
 import AuthPage from './pages/Auth'
+import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
 import UploadPage from './pages/Upload'
 import SearchPage from './pages/Search'
@@ -29,6 +30,7 @@ function AppRoutes() {
       <Route path="/" element={isAuthenticated ? <Navigate to="/app" /> : <Landing />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="login" />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="register" />} />
+      <Route path="/verify" element={<VerifyEmail />} />
       <Route path="/app" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
         <Route index element={<Dashboard />} />
         <Route path="upload" element={<UploadPage />} />
