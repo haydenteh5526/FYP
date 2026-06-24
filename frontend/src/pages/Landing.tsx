@@ -166,10 +166,10 @@ export default function Landing() {
             desc="Stop flipping through pages. Type your question in plain English and get an instant, sourced answer pulled directly from your stored documents. The AI cites exactly which manual and section it found the answer in."
             visual={
               <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
-                <div className="bg-primary/[0.05] rounded-lg p-3 text-sm ml-auto max-w-[80%] text-right">What temperature for delicates?</div>
+                <div className="bg-primary/[0.05] rounded-lg p-3 text-sm ml-auto w-fit text-right">What temperature for delicates?</div>
                 <div className="bg-muted/60 rounded-lg p-3 text-sm max-w-[85%]">
                   Wash delicates at 30°C with a maximum spin speed of 800 RPM.
-                  <span className="block text-[10px] text-muted-foreground mt-1.5">📎 Samsung WW90T Manual, Section 4.2</span>
+                  <span className="block text-[10px] text-muted-foreground mt-1.5">Source: Samsung WW90T Manual, Section 4.2</span>
                 </div>
               </div>
             }
