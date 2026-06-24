@@ -169,7 +169,7 @@ export default function Landing() {
                 <div className="bg-primary/[0.05] rounded-lg p-3 text-sm ml-auto w-fit text-right">What temperature for delicates?</div>
                 <div className="bg-muted/60 rounded-lg p-3 text-sm max-w-[85%]">
                   Wash delicates at 30°C with a maximum spin speed of 800 RPM.
-                  <span className="block text-[10px] text-muted-foreground mt-1.5">Source: Samsung WW90T Manual, Section 4.2</span>
+                  <span className="block text-[10px] text-muted-foreground mt-1.5">🔗 Samsung WW90T Manual, Section 4.2</span>
                 </div>
               </div>
             }
