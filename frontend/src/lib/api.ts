@@ -31,7 +31,7 @@ export interface AskResponse {
   sources: { document_id: string; document_title: string; chunk_text: string; similarity: number }[]
 }
 
-export async function registerUser(email: string, password: string, displayName?: string): Promise<{ access_token: string }> {
+export async function registerUser(email: string, password: string, displayName?: string): Promise<{ message: string }> {
   const res = await fetch(`${BASE}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

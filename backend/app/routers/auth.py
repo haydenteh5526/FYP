@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
@@ -26,27 +28,54 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
 
-@router.post("/register", response_model=TokenResponse, status_code=201)
+class RegisterResponse(BaseModel):
+    message: str
+    requires_verification: bool = True
+
+
+@router.post("/register", response_model=RegisterResponse, status_code=201)
 async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(User).where(User.email == req.email))
     if existing.scalar_one_or_none():
         raise HTTPException(409, "Email already registered")
 
+    token = secrets.token_urlsafe(32)
+
     user = User(
         email=req.email,
         hashed_password=hash_password(req.password),
         display_name=req.display_name,
+        verification_token=token,
+        is_verified=False,
     )
     db.add(user)
     await db.commit()
-    await db.refresh(user)
 
-    return TokenResponse(access_token=create_access_token(user.id))
+    # Send verification email
+    from app.services.email_service import send_verification_email
+    send_verification_email(req.email, token)
+
+    return RegisterResponse(message="Verification email sent. Please check your inbox.")
+
+
+@router.get("/verify")
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.verification_token == token))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(400, "Invalid or expired verification link")
+
+    user.is_verified = True
+    user.verification_token = None
+    await db.commit()
+    return {"message": "Email verified successfully. You can now sign in."}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -56,6 +85,9 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(401, "Invalid email or password")
+
+    if not user.is_verified:
+        raise HTTPException(403, "Please verify your email before signing in")
 
     return TokenResponse(access_token=create_access_token(user.id))
 
