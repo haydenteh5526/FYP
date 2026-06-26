@@ -57,11 +57,11 @@ def _fallback_categorise(text: str) -> DocumentMetadata:
     text_lower = text.lower()
 
     # Detect common brands (match whole words to avoid false positives)
-    brands = ["samsung", "lg", "bosch", "siemens", "philips", "sony", "apple",
-              "dell", "hp", "lenovo", "asus", "ikea", "dyson", "nikon", "canon",
-              "dreo", "xiaomi", "huawei", "panasonic", "sharp", "toshiba", "whirlpool"]
+    brands = ["samsung", "dreo", "bosch", "siemens", "philips", "sony", "apple",
+              "dell", "lenovo", "asus", "ikea", "dyson", "nikon", "canon",
+              "xiaomi", "huawei", "panasonic", "sharp", "toshiba", "whirlpool", "lg", "hp"]
     import re
-    brand = next((b.title() for b in brands if re.search(r'\b' + b + r'\b', text_lower)), None)
+    brand = next((b.title() for b in brands if re.search(r'(?<![a-z])' + re.escape(b) + r'(?![a-z])', text_lower)), None)
 
     # Detect document type
     doc_type = None

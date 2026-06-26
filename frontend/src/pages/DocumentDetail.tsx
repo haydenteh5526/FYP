@@ -142,8 +142,10 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
   if (!editing) {
     return (
       <div>
-        <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{text}</pre>
-        <Button variant="outline" size="sm" className="mt-4" onClick={() => setEditing(true)}>Edit text</Button>
+        <div className="flex justify-end mb-3">
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit text</Button>
+        </div>
+        <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans max-h-[500px] overflow-auto">{text}</pre>
       </div>
     )
   }
