@@ -134,6 +134,15 @@ Copy `.env.example` to `.env` and set:
 # Backend tests (run in CI or fresh container)
 cd backend && pytest tests/ -v
 
+# Backend tests with coverage
+cd backend && pytest tests/ --cov=app --cov-report=term-missing
+
+# Fast unit tests only (no DB required)
+pytest tests/test_chunking.py tests/test_cache.py tests/test_retry.py -v
+
+# Frontend unit tests (Vitest)
+cd frontend && npm test
+
 # Frontend type check + build
 cd frontend && npm run build
 
@@ -143,6 +152,38 @@ cd frontend && npx playwright test
 # Load testing
 cd backend && locust -f tests/locustfile.py --host http://localhost:8000
 ```
+
+## Developer Experience
+
+A `Makefile` wraps the common commands — run `make help` to list them:
+
+| Command | Description |
+|---------|-------------|
+| `make up` / `make down` | Start / stop all services |
+| `make build` | Rebuild the API image |
+| `make test` | Run the backend test suite |
+| `make test-unit` | Run fast unit tests (no DB) |
+| `make cov` | Run tests with coverage |
+| `make lint` / `make fmt` | Lint / auto-fix with ruff |
+| `make health` | Check API readiness (DB/S3/AI/cache) |
+| `make metrics` | Show Prometheus metrics |
+
+Install pre-commit hooks (ruff, trailing whitespace, private-key detection):
+
+```bash
+pip install pre-commit && pre-commit install
+```
+
+## Observability
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | Liveness probe (fast, no dependencies) |
+| `GET /health/ready` | Readiness — checks DB, S3, AI, and cache; returns 503 if degraded |
+| `GET /metrics` | Prometheus metrics (request count + latency histograms) |
+| `GET /api/v1/ai/status` | AI provider availability (OpenAI / Ollama / OCR backend) |
+
+Requests are correlated via an `X-Request-ID` header (generated if absent) and surfaced in structured logs. Redis provides response/embedding caching with a graceful in-memory fallback when unavailable.
 
 ## Deployment (AWS)
 

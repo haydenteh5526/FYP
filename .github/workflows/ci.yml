@@ -37,7 +37,7 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx ruff
+          pip install pytest pytest-asyncio pytest-cov httpx ruff
 
       - name: Lint
         run: cd backend && ruff check app/
@@ -56,7 +56,7 @@ jobs:
           S3_BUCKET: documents
           JWT_SECRET: test-secret
           OCR_BACKEND: tesseract
-        run: cd backend && pytest tests/ -v
+        run: cd backend && pytest tests/ -v --cov=app --cov-report=term-missing
 
   frontend:
     runs-on: ubuntu-latest
