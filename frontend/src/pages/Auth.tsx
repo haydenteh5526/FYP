@@ -4,6 +4,7 @@ import { ArrowLeft, Layers, Loader2, Code2, Mail, CheckCircle, ShieldCheck } fro
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordStrength } from '@/components/PasswordStrength'
+import { PinInput } from '@/components/PinInput'
 import { useAuth } from '@/lib/auth'
 import { loginUser, registerUser, verify2FA } from '@/lib/api'
 
@@ -134,7 +135,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                   setError(err instanceof Error ? err.message : 'Invalid code')
                 } finally { setLoading(false) }
               }} className="mt-6 space-y-4">
-                <Input value={totpCode} onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="h-12 text-center text-2xl tracking-[0.5em] font-mono" maxLength={6} autoFocus />
+                <PinInput value={totpCode} onChange={setTotpCode} autoFocus />
                 {error && <p className="text-sm text-destructive animate-fade-in">{error}</p>}
                 <Button type="submit" className="w-full h-11 gradient-bg border-0 text-white" disabled={loading || totpCode.length !== 6}>
                   {loading ? <Loader2 size={16} className="animate-spin" /> : 'Verify'}

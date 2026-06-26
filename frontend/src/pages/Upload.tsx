@@ -57,8 +57,14 @@ export default function UploadPage() {
               <div className="w-14 h-14 rounded-2xl gradient-bg flex items-center justify-center mx-auto shadow-lg shadow-primary/20">
                 <Loader2 className="h-6 w-6 text-white animate-spin" />
               </div>
-              <p className="mt-5 text-sm font-medium">Processing...</p>
-              <p className="text-xs text-muted-foreground mt-1">Extracting text & categorising</p>
+              <p className="mt-5 text-sm font-medium">Processing document...</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary/[0.08] px-3 py-1.5">
+                <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-xs text-primary font-medium">OpenCV preprocessing &amp; OCR extraction active</span>
+              </div>
+              <div className="mt-4 w-56 mx-auto h-1 bg-muted rounded-full overflow-hidden">
+                <div className="h-full gradient-bg animate-[progress_2s_ease-in-out_infinite]" style={{ width: '60%' }} />
+              </div>
             </div>
           ) : result ? (
             <div className="animate-scale-in text-center">
