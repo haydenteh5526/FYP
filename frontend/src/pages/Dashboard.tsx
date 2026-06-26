@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Trash2, FolderOpen, Layers } from 'lucide-react'
+import { FileText, Trash2, FolderOpen, Layers, CheckSquare, Square, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { getDocuments, deleteDocument, getCategories, type Document } from '@/lib/api'
+import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, type Document } from '@/lib/api'
 
 export default function Dashboard() {
   const [allDocs, setAllDocs] = useState<Document[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [searchParams, setSearchParams] = useSearchParams()
   const categoryFilter = searchParams.get('category')
   const navigate = useNavigate()
@@ -35,6 +36,23 @@ export default function Dashboard() {
     e.stopPropagation()
     await deleteDocument(id)
     setAllDocs(allDocs.filter(d => d.id !== id))
+  }
+
+  function toggleSelect(e: React.MouseEvent, id: string) {
+    e.stopPropagation()
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selected]
+    await bulkDeleteDocuments(ids)
+    setAllDocs(allDocs.filter(d => !selected.has(d.id)))
+    setSelected(new Set())
   }
 
   // Client-side filter — instant, no network call
@@ -108,24 +126,43 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 p-3 rounded-xl border border-primary/30 bg-primary/[0.04] animate-slide-up">
+          <span className="text-sm font-medium">{selected.size} selected</span>
+          <div className="flex-1" />
+          <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+            <Trash2 size={14} className="mr-1.5" /> Delete selected
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            <X size={14} className="mr-1" /> Clear
+          </Button>
+        </div>
+      )}
+
       {/* Grid — key on filter forces smooth re-mount animation */}
-      {!loading && docs.length > 0 && (
+      {!loading && !error && docs.length > 0 && (
         <div key={categoryFilter || 'all'} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {docs.map((doc, i) => (
+          {docs.map((doc, i) => {
+            const isSelected = selected.has(doc.id)
+            return (
             <Card
               key={doc.id}
-              className="group hover-lift cursor-pointer animate-slide-up overflow-hidden"
+              className={`group hover-lift cursor-pointer animate-slide-up overflow-hidden transition-all ${isSelected ? 'ring-2 ring-primary' : ''}`}
               style={{ animationDelay: `${Math.min(i * 40, 300)}ms`, animationFillMode: 'both' }}
               onClick={() => navigate(`/app/documents/${doc.id}`)}
             >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
-                  <div className="w-10 h-10 rounded-lg bg-primary/[0.07] flex items-center justify-center transition-all duration-200 group-hover:bg-primary/[0.12] group-hover:scale-105">
-                    <FileText size={18} className="text-primary/70" />
-                  </div>
+                  <button onClick={(e) => toggleSelect(e, doc.id)} className="text-muted-foreground hover:text-primary transition-colors" aria-label="Select document">
+                    {isSelected ? <CheckSquare size={18} className="text-primary" /> : <Square size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
+                  </button>
                   <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-all duration-200 h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(e) => handleDelete(e, doc.id)}>
                     <Trash2 size={13} />
                   </Button>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-primary/[0.07] flex items-center justify-center transition-all duration-200 group-hover:bg-primary/[0.12] group-hover:scale-105 mt-1">
+                  <FileText size={18} className="text-primary/70" />
                 </div>
                 <h3 className="font-medium text-sm mt-3.5 leading-snug line-clamp-2">{doc.title}</h3>
                 <div className="flex flex-wrap gap-1.5 mt-3">
@@ -137,7 +174,8 @@ export default function Dashboard() {
                 </p>
               </CardContent>
             </Card>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
