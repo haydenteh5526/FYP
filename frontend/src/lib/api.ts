@@ -79,8 +79,9 @@ export async function uploadDocument(file: File, title?: string): Promise<Docume
   return res.json()
 }
 
-export async function getDocuments(): Promise<{ documents: Document[]; total: number }> {
-  const res = await fetch(`${BASE}/documents`, { headers: getHeaders() })
+export async function getDocuments(categoryId?: string): Promise<{ documents: Document[]; total: number }> {
+  const url = categoryId ? `${BASE}/documents?category_id=${categoryId}` : `${BASE}/documents`
+  const res = await fetch(url, { headers: getHeaders() })
   return res.json()
 }
 
@@ -98,11 +99,16 @@ export async function searchDocuments(q: string): Promise<{ results: SearchResul
   return res.json()
 }
 
-export async function askQuestion(question: string): Promise<AskResponse> {
+export async function askQuestion(question: string, documentId?: string): Promise<AskResponse> {
   const res = await fetch(`${BASE}/ai/ask`, {
     method: 'POST',
     headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, document_id: documentId }),
   })
+  return res.json()
+}
+
+export async function getCategories(): Promise<{ id: string; name: string }[]> {
+  const res = await fetch(`${BASE}/categories`, { headers: getHeaders() })
   return res.json()
 }

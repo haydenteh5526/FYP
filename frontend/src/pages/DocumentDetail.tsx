@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getDocument, type Document } from '@/lib/api'
+import { getDocument, askQuestion, type Document } from '@/lib/api'
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [doc, setDoc] = useState<Document | null>(null)
-  const [tab, setTab] = useState<'preview' | 'text' | 'info'>('preview')
+  const [tab, setTab] = useState<'preview' | 'text' | 'info' | 'ask'>('preview')
 
   useEffect(() => {
     if (id) getDocument(id).then(setDoc)
@@ -39,6 +40,7 @@ export default function DocumentDetail() {
         <TabButton active={tab === 'preview'} onClick={() => setTab('preview')} icon={<Eye size={16} />} label="Preview" />
         <TabButton active={tab === 'text'} onClick={() => setTab('text')} icon={<FileText size={16} />} label="Text" />
         <TabButton active={tab === 'info'} onClick={() => setTab('info')} icon={<Info size={16} />} label="Info" />
+        <TabButton active={tab === 'ask'} onClick={() => setTab('ask')} icon={<MessageSquare size={16} />} label="Ask AI" />
       </div>
 
       {/* Preview tab */}
@@ -91,6 +93,9 @@ export default function DocumentDetail() {
           </CardContent>
         </Card>
       )}
+
+      {/* Ask AI tab — scoped to this document */}
+      {tab === 'ask' && <DocumentChat documentId={doc.id} documentTitle={doc.title} />}
     </div>
   )
 }
@@ -119,6 +124,76 @@ function Badge({ children }: { children: React.ReactNode }) {
     <span className="inline-flex items-center rounded-full bg-primary/[0.08] px-2.5 py-0.5 text-xs font-medium text-primary">
       {children}
     </span>
+  )
+}
+
+function DocumentChat({ documentId, documentTitle }: { documentId: string; documentTitle: string }) {
+  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!input.trim() || loading) return
+    const question = input
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', content: question }])
+    setLoading(true)
+    try {
+      const data = await askQuestion(question, documentId)
+      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }])
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="min-h-[300px] max-h-[55vh] overflow-auto space-y-4 mb-4">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-12 h-12 rounded-2xl gradient-bg flex items-center justify-center">
+                <Bot className="h-6 w-6 text-white" />
+              </div>
+              <p className="mt-4 text-sm font-medium">Ask about {documentTitle}</p>
+              <p className="text-xs text-muted-foreground mt-1">Questions are answered using only this document.</p>
+            </div>
+          ) : (
+            messages.map((msg, i) => (
+              <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                {msg.role === 'assistant' && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center"><Bot size={14} className="text-white" /></div>
+                )}
+                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${msg.role === 'user' ? 'gradient-bg text-white rounded-br-md' : 'bg-muted/70 rounded-bl-md'}`}>
+                  {msg.content}
+                </div>
+              </div>
+            ))
+          )}
+          {loading && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center"><Bot size={14} className="text-white" /></div>
+              <div className="bg-muted/70 rounded-2xl rounded-bl-md px-4 py-3">
+                <div className="flex gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce" />
+                  <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:0.15s]" />
+                  <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:0.3s]" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question about this document..." disabled={loading} className="h-10" />
+          <Button type="submit" size="icon" className="h-10 w-10 gradient-bg border-0 text-white shrink-0" disabled={loading || !input.trim()}>
+            <Send size={15} />
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
 

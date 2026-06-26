@@ -14,6 +14,7 @@ router = APIRouter()
 
 class AskRequest(BaseModel):
     question: str
+    document_id: str | None = None
 
 
 class Source(BaseModel):
@@ -34,18 +35,25 @@ async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db), user
     query_embedding = embedding_service.get_embedding(req.question)
     embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
-    # 2. Retrieve top-5 relevant chunks
+    # 2. Retrieve top-5 relevant chunks (optionally scoped to one document)
+    params = {"embedding": embedding_str, "user_id": str(user_id)}
+    doc_filter = ""
+    if req.document_id:
+        doc_filter = "AND dc.document_id = cast(:document_id as uuid)"
+        params["document_id"] = req.document_id
+
     result = await db.execute(
-        text("""
+        text(f"""
             SELECT dc.chunk_text, dc.document_id, d.title as document_title,
                    1 - (dc.embedding <=> cast(:embedding as vector)) as similarity
             FROM doc_chunks dc
             JOIN documents d ON d.id = dc.document_id
             WHERE d.user_id = cast(:user_id as uuid)
+            {doc_filter}
             ORDER BY dc.embedding <=> cast(:embedding as vector)
             LIMIT 5
         """),
-        {"embedding": embedding_str, "user_id": str(user_id)},
+        params,
     )
     rows = result.fetchall()
 

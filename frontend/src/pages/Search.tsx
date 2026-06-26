@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, FileText, Sparkles } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { searchDocuments, type SearchResult } from '@/lib/api'
 
 export default function SearchPage() {
-  const [query, setQuery] = useState('')
+  const [searchParams] = useSearchParams()
+  const [query, setQuery] = useState(searchParams.get('q') || '')
   const [results, setResults] = useState<SearchResult[]>([])
   const [searched, setSearched] = useState(false)
   const [loading, setLoading] = useState(false)

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import Landing from './pages/Landing'
@@ -11,6 +12,7 @@ import AskAI from './pages/AskAI'
 import DocumentDetail from './pages/DocumentDetail'
 import Categories from './pages/Categories'
 import { Button } from './components/ui/button'
+import { Input } from './components/ui/input'
 
 function App() {
   return (
@@ -85,16 +87,49 @@ function AppShell() {
       </aside>
 
       {/* Main content with neutral bg */}
-      <main className="flex-1 overflow-auto bg-background">
-        <Routes>
-          <Route index element={<Dashboard />} />
-          <Route path="upload" element={<UploadPage />} />
-          <Route path="documents/:id" element={<DocumentDetail />} />
-          <Route path="categories" element={<Categories />} />
-          <Route path="search" element={<SearchPage />} />
-          <Route path="ask" element={<AskAI />} />
-        </Routes>
+      <main className="flex-1 overflow-auto bg-background flex flex-col">
+        <TopBar />
+        <div className="flex-1 overflow-auto">
+          <Routes>
+            <Route index element={<Dashboard />} />
+            <Route path="upload" element={<UploadPage />} />
+            <Route path="documents/:id" element={<DocumentDetail />} />
+            <Route path="categories" element={<Categories />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="ask" element={<AskAI />} />
+          </Routes>
+        </div>
       </main>
+    </div>
+  )
+}
+
+function TopBar() {
+  const navigate = useNavigate()
+  const [q, setQ] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (q.trim()) {
+      navigate(`/app/search?q=${encodeURIComponent(q)}`)
+      setQ('')
+    }
+  }
+
+  return (
+    <div className="h-14 border-b border-border/40 glass flex items-center px-6 gap-4 sticky top-0 z-30">
+      <form onSubmit={handleSubmit} className="relative flex-1 max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search your documents..."
+          className="pl-9 h-9 text-sm bg-muted/40 border-0"
+        />
+      </form>
+      <Button size="sm" className="gradient-bg border-0 text-white" onClick={() => navigate('/app/upload')}>
+        <Upload size={15} className="mr-1.5" /> Upload
+      </Button>
     </div>
   )
 }
