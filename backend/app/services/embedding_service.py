@@ -21,7 +21,8 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
 
-    # Resolve from cache where possible
+    # Resolve from cache where possible (L1 in-process, L2 Redis)
+    from app.services.cache import cache_get, cache_set
     results: list[list[float] | None] = [None] * len(texts)
     uncached_idx: list[int] = []
     uncached_texts: list[str] = []
@@ -29,6 +30,11 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
         key = _cache_key(t)
         if key in _cache:
             results[i] = _cache[key]
+            continue
+        l2 = cache_get(f"emb:{key}")
+        if l2 is not None:
+            _cache[key] = l2
+            results[i] = l2
         else:
             uncached_idx.append(i)
             uncached_texts.append(t)
@@ -42,7 +48,9 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
             fresh = [[0.0] * EMBEDDING_DIM for _ in uncached_texts]
         for idx, emb in zip(uncached_idx, fresh):
             results[idx] = emb
-            _cache[_cache_key(texts[idx])] = emb
+            key = _cache_key(texts[idx])
+            _cache[key] = emb
+            cache_set(f"emb:{key}", emb, ttl=86400)
 
     return [r if r is not None else [0.0] * EMBEDDING_DIM for r in results]
 

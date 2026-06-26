@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     SMTP_PASS: str = ""
     SMTP_FROM: str = "noreply@docvault.app"
     RESEND_API_KEY: str = ""
+    REDIS_URL: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
