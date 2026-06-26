@@ -25,8 +25,12 @@ def get_embedding(text: str) -> list[float]:
 
 
 def _openai_embeddings(texts: list[str]) -> list[list[float]]:
+    from app.services.retry import with_retry
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    response = client.embeddings.create(input=texts, model=EMBEDDING_MODEL)
+    response = with_retry(
+        lambda: client.embeddings.create(input=texts, model=EMBEDDING_MODEL),
+        label="openai.embeddings",
+    )
     return [item.embedding for item in response.data]
 
 
