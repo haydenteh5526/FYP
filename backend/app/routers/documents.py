@@ -1,6 +1,8 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +19,15 @@ from app.services import (
 )
 
 router = APIRouter()
+
+
+class BulkDeleteRequest(BaseModel):
+    document_ids: list[uuid.UUID]
+
+
+class BulkCategoriseRequest(BaseModel):
+    document_ids: list[uuid.UUID]
+    category_id: uuid.UUID | None = None
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
@@ -217,6 +228,38 @@ async def delete_document(document_id: uuid.UUID, db: AsyncSession = Depends(get
         storage_service.delete_file(doc.s3_key_thumbnail)
     await db.delete(doc)
     await db.commit()
+
+
+@router.post("/bulk/delete", status_code=204)
+async def bulk_delete(req: BulkDeleteRequest, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    result = await db.execute(select(Document).where(Document.id.in_(req.document_ids), Document.user_id == user_id))
+    docs = result.scalars().all()
+    for doc in docs:
+        storage_service.delete_file(doc.s3_key_original)
+        if doc.s3_key_thumbnail:
+            storage_service.delete_file(doc.s3_key_thumbnail)
+    await db.execute(sa_delete(Document).where(Document.id.in_([d.id for d in docs])))
+    await db.commit()
+
+
+@router.post("/bulk/categorise")
+async def bulk_categorise(req: BulkCategoriseRequest, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    result = await db.execute(select(Document).where(Document.id.in_(req.document_ids), Document.user_id == user_id))
+    docs = result.scalars().all()
+    for doc in docs:
+        doc.category_id = req.category_id
+    await db.commit()
+    return {"updated": len(docs)}
+
+
+@router.get("/{document_id}/share")
+async def share_document(document_id: uuid.UUID, expires_hours: int = 24, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    """Generate a time-limited shareable link to view the document."""
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    expires = min(max(expires_hours, 1), 168) * 3600  # 1h–7d
+    url = storage_service.get_presigned_url(doc.s3_key_original, expires_in=expires)
+    return {"share_url": url, "expires_in_hours": expires // 3600}
+
 
 
 async def _get_doc_or_404(document_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession) -> Document:

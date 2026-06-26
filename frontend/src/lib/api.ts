@@ -95,6 +95,19 @@ export async function deleteDocument(id: string): Promise<void> {
   await fetch(`${BASE}/documents/${id}`, { method: 'DELETE', headers: getHeaders() })
 }
 
+export async function bulkDeleteDocuments(documentIds: string[]): Promise<void> {
+  await fetch(`${BASE}/documents/bulk/delete`, {
+    method: 'POST',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document_ids: documentIds }),
+  })
+}
+
+export async function shareDocument(id: string, expiresHours = 24): Promise<{ share_url: string; expires_in_hours: number }> {
+  const res = await fetch(`${BASE}/documents/${id}/share?expires_hours=${expiresHours}`, { headers: getHeaders() })
+  return res.json()
+}
+
 export async function searchDocuments(q: string): Promise<{ results: SearchResult[] }> {
   const res = await fetch(`${BASE}/search?q=${encodeURIComponent(q)}`, { headers: getHeaders() })
   return res.json()

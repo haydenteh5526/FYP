@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { getDocument, askQuestion, type Document } from '@/lib/api'
+import { getDocument, askQuestion, shareDocument, type Document } from '@/lib/api'
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
@@ -35,13 +35,14 @@ export default function DocumentDetail() {
         <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
           <ArrowLeft size={18} />
         </Button>
-        <div>
+        <div className="flex-1">
           <h2 className="text-xl font-bold tracking-tight">{doc.title}</h2>
           <div className="flex gap-2 mt-1">
             {doc.brand && <Badge>{doc.brand}</Badge>}
             {doc.document_type && <Badge>{doc.document_type}</Badge>}
           </div>
         </div>
+        <ShareButton documentId={doc.id} />
       </div>
 
       {/* Tabs */}
@@ -121,6 +122,29 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 
 function Badge({ children }: { children: React.ReactNode }) {
   return <span className="inline-flex items-center rounded-full bg-primary/[0.08] px-2.5 py-0.5 text-xs font-medium text-primary">{children}</span>
+}
+
+function ShareButton({ documentId }: { documentId: string }) {
+  const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  async function handleShare() {
+    setLoading(true)
+    try {
+      const { share_url } = await shareDocument(documentId, 24)
+      await navigator.clipboard.writeText(share_url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleShare} disabled={loading}>
+      {copied ? <><Check size={14} className="mr-1.5 text-green-600" /> Link copied</> : <><Share2 size={14} className="mr-1.5" /> Share</>}
+    </Button>
+  )
 }
 
 function EditableText({ documentId, initialText }: { documentId: string; initialText: string }) {
