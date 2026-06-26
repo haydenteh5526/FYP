@@ -150,8 +150,8 @@ async def list_documents(
 async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
     doc = await _get_doc_or_404(document_id, user_id, db)
     # Track last accessed
-    from datetime import datetime, timezone
-    doc.updated_at = datetime.now(timezone.utc)
+    from datetime import datetime
+    doc.updated_at = datetime.utcnow()
     await db.commit()
     return _to_response(doc)
 
