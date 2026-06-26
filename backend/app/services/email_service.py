@@ -14,28 +14,28 @@ def send_2fa_setup_email(to_email: str) -> None:
 
 
 def _send(to_email: str, subject: str, html: str, fallback_url: str | None = None) -> None:
+    from app.logging_config import get_logger
+    logger = get_logger("email")
+
     if settings.RESEND_API_KEY:
         try:
             import resend
+
+            from app.services.retry import with_retry
             resend.api_key = settings.RESEND_API_KEY
-            resend.Emails.send({
+            with_retry(lambda: resend.Emails.send({
                 "from": "DocVault <onboarding@resend.dev>",
                 "to": [to_email],
                 "subject": subject,
                 "html": html,
-            })
+            }), label="resend.send")
+            logger.info("Sent email to %s", to_email)
             return
-        except Exception as e:
-            print(f"\n⚠️  Resend failed: {e}\n    Falling back to console output.\n")
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Resend failed (%s); falling back to console", type(e).__name__)
 
-    # Dev fallback — print to console
-    print(f"\n{'='*50}")
-    print("📧 EMAIL (dev mode)")
-    print(f"To: {to_email}")
-    print(f"Subject: {subject}")
-    if fallback_url:
-        print(f"URL: {fallback_url}")
-    print(f"{'='*50}\n")
+    # Dev fallback — log to console
+    logger.info("EMAIL (dev) to=%s subject=%r url=%s", to_email, subject, fallback_url or "-")
 
 
 def _build_html(heading: str, message: str, button_text: str | None, button_url: str | None) -> str:
