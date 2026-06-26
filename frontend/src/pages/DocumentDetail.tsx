@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, MessageSquare, Send, Bot, Copy, Check } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,7 +10,7 @@ export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [doc, setDoc] = useState<Document | null>(null)
-  const [tab, setTab] = useState<'text' | 'info' | 'ask'>('text')
+  const [tab, setTab] = useState<'preview' | 'text' | 'info' | 'ask'>('preview')
 
   useEffect(() => {
     if (id) getDocument(id).then(setDoc)
@@ -18,12 +18,10 @@ export default function DocumentDetail() {
 
   if (!doc) {
     return (
-      <div className="p-8 max-w-7xl mx-auto animate-fade-in">
+      <div className="p-8 max-w-5xl mx-auto animate-fade-in">
         <div className="h-8 w-64 bg-muted rounded animate-pulse mb-6" />
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="h-[70vh] bg-muted rounded-xl animate-pulse" />
-          <div className="h-[70vh] bg-muted rounded-xl animate-pulse" />
-        </div>
+        <div className="h-10 w-80 bg-muted rounded animate-pulse mb-6" />
+        <div className="h-[70vh] bg-muted rounded-xl animate-pulse" />
       </div>
     )
   }
@@ -31,7 +29,7 @@ export default function DocumentDetail() {
   const isPdf = doc.image_url?.includes('.pdf')
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-8 max-w-5xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
@@ -46,65 +44,63 @@ export default function DocumentDetail() {
         </div>
       </div>
 
-      {/* Split pane */}
-      <div className="grid lg:grid-cols-2 gap-6 items-start">
-        {/* Left: preview (sticky) */}
-        <Card className="lg:sticky lg:top-20">
+      {/* Tabs */}
+      <div className="flex gap-1 border-b mb-6">
+        <TabButton active={tab === 'preview'} onClick={() => setTab('preview')} icon={<Eye size={16} />} label="Preview" />
+        <TabButton active={tab === 'text'} onClick={() => setTab('text')} icon={<FileText size={16} />} label="Text" />
+        <TabButton active={tab === 'info'} onClick={() => setTab('info')} icon={<Info size={16} />} label="Info" />
+        <TabButton active={tab === 'ask'} onClick={() => setTab('ask')} icon={<MessageSquare size={16} />} label="Ask AI" />
+      </div>
+
+      {/* Preview — full width, tall */}
+      {tab === 'preview' && (
+        <Card>
           <CardContent className="p-3">
             {doc.image_url ? (
               isPdf ? (
-                <iframe src={doc.image_url} className="w-full h-[72vh] rounded-md" title={doc.title} />
+                <iframe src={doc.image_url} className="w-full h-[80vh] rounded-md" title={doc.title} />
               ) : (
-                <img src={doc.image_url} alt={doc.title} className="w-full rounded-md max-h-[72vh] object-contain" />
+                <img src={doc.image_url} alt={doc.title} className="w-full rounded-md object-contain" />
               )
             ) : (
-              <div className="h-[72vh] flex items-center justify-center text-sm text-muted-foreground">No preview available</div>
+              <div className="h-[60vh] flex items-center justify-center text-sm text-muted-foreground">No preview available</div>
             )}
           </CardContent>
         </Card>
+      )}
 
-        {/* Right: tabs */}
-        <div>
-          <div className="flex gap-1 border-b mb-4">
-            <TabButton active={tab === 'text'} onClick={() => setTab('text')} icon={<FileText size={16} />} label="Text" />
-            <TabButton active={tab === 'info'} onClick={() => setTab('info')} icon={<Info size={16} />} label="Info" />
-            <TabButton active={tab === 'ask'} onClick={() => setTab('ask')} icon={<MessageSquare size={16} />} label="Ask AI" />
-          </div>
+      {tab === 'text' && (
+        <Card>
+          <CardContent className="p-6">
+            {doc.raw_text ? (
+              <EditableText documentId={doc.id} initialText={doc.raw_text} />
+            ) : (
+              <p className="text-muted-foreground text-sm py-12 text-center">No text extracted yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          {tab === 'text' && (
-            <Card>
-              <CardContent className="p-6">
-                {doc.raw_text ? (
-                  <EditableText documentId={doc.id} initialText={doc.raw_text} />
-                ) : (
-                  <p className="text-muted-foreground text-sm py-12 text-center">No text extracted yet.</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
+      {tab === 'info' && (
+        <Card>
+          <CardContent className="p-6">
+            <dl className="grid grid-cols-2 gap-4 text-sm max-w-md">
+              <dt className="text-muted-foreground">Brand</dt>
+              <dd>{doc.brand || '—'}</dd>
+              <dt className="text-muted-foreground">Model</dt>
+              <dd>{doc.model || '—'}</dd>
+              <dt className="text-muted-foreground">Type</dt>
+              <dd>{doc.document_type || '—'}</dd>
+              <dt className="text-muted-foreground">File size</dt>
+              <dd>{formatFileSize(doc.file_size)}</dd>
+              <dt className="text-muted-foreground">Uploaded</dt>
+              <dd>{new Date(doc.created_at).toLocaleString()}</dd>
+            </dl>
+          </CardContent>
+        </Card>
+      )}
 
-          {tab === 'info' && (
-            <Card>
-              <CardContent className="p-6">
-                <dl className="grid grid-cols-2 gap-4 text-sm">
-                  <dt className="text-muted-foreground">Brand</dt>
-                  <dd>{doc.brand || '—'}</dd>
-                  <dt className="text-muted-foreground">Model</dt>
-                  <dd>{doc.model || '—'}</dd>
-                  <dt className="text-muted-foreground">Type</dt>
-                  <dd>{doc.document_type || '—'}</dd>
-                  <dt className="text-muted-foreground">File size</dt>
-                  <dd>{formatFileSize(doc.file_size)}</dd>
-                  <dt className="text-muted-foreground">Uploaded</dt>
-                  <dd>{new Date(doc.created_at).toLocaleString()}</dd>
-                </dl>
-              </CardContent>
-            </Card>
-          )}
-
-          {tab === 'ask' && <DocumentChat documentId={doc.id} documentTitle={doc.title} />}
-        </div>
-      </div>
+      {tab === 'ask' && <DocumentChat documentId={doc.id} documentTitle={doc.title} />}
     </div>
   )
 }
@@ -160,14 +156,14 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
           </Button>
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit</Button>
         </div>
-        <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans max-h-[60vh] overflow-auto">{text}</pre>
+        <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans max-h-[65vh] overflow-auto">{text}</pre>
       </div>
     )
   }
 
   return (
     <div>
-      <textarea className="w-full h-[55vh] text-sm border rounded-md p-3 font-sans focus:outline-none focus:ring-1 focus:ring-primary" value={text} onChange={(e) => setText(e.target.value)} />
+      <textarea className="w-full h-[60vh] text-sm border rounded-md p-3 font-sans focus:outline-none focus:ring-1 focus:ring-primary" value={text} onChange={(e) => setText(e.target.value)} />
       <div className="flex gap-2 mt-2">
         <Button size="sm" className="gradient-bg border-0 text-white" onClick={handleSave} disabled={saving}>
           <Save size={14} className="mr-1" />{saving ? 'Saving...' : 'Save'}
@@ -203,7 +199,7 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="min-h-[300px] max-h-[55vh] overflow-auto space-y-4 mb-4">
+        <div className="min-h-[300px] max-h-[60vh] overflow-auto space-y-4 mb-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-12 h-12 rounded-2xl gradient-bg flex items-center justify-center"><Bot className="h-6 w-6 text-white" /></div>
