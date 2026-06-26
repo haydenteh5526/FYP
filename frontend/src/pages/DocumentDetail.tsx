@@ -20,7 +20,7 @@ export default function DocumentDetail() {
   const isPdf = doc.image_url?.includes('.pdf')
 
   return (
-    <div className="p-8 max-w-5xl mx-auto animate-fade-in">
+    <div className="p-8 max-w-7xl mx-auto animate-fade-in">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
           <ArrowLeft size={18} />
@@ -47,7 +47,7 @@ export default function DocumentDetail() {
           <CardContent className="p-4">
             {doc.image_url ? (
               isPdf ? (
-                <iframe src={doc.image_url} className="w-full h-[600px] rounded-md border" title={doc.title} />
+                <iframe src={doc.image_url} className="w-full h-[80vh] rounded-md border" title={doc.title} />
               ) : (
                 <img src={doc.image_url} alt={doc.title} className="max-w-full rounded-md" />
               )
