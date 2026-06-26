@@ -39,7 +39,8 @@ export default function AskAI() {
     setMessages(prev => [...prev, { role: 'user', content: question }])
     setLoading(true)
     try {
-      const data = await askQuestion(question)
+      const history = messages.map(m => ({ role: m.role, content: m.content }))
+      const data = await askQuestion(question, undefined, history)
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer, sources: data.sources }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }])

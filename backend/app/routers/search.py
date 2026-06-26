@@ -20,17 +20,20 @@ async def search_documents(
 ):
     results = []
 
-    # Full-text keyword search
+    # Full-text keyword search (title, brand, model, and body)
     if mode in ("keyword", "hybrid"):
         ft_result = await db.execute(
             text("""
                 SELECT d.id as document_id, d.title as document_title,
-                       ts_headline('english', d.raw_text, plainto_tsquery('english', :q),
+                       ts_headline('english', coalesce(d.raw_text, d.title), plainto_tsquery('english', :q),
                                    'MaxFragments=1,MaxWords=30') as excerpt
                 FROM documents d
                 WHERE d.user_id = cast(:user_id as uuid)
-                  AND d.raw_text IS NOT NULL
-                  AND to_tsvector('english', d.raw_text) @@ plainto_tsquery('english', :q)
+                  AND to_tsvector('english',
+                        coalesce(d.title,'') || ' ' || coalesce(d.brand,'') || ' ' ||
+                        coalesce(d.model,'') || ' ' || coalesce(d.document_type,'') || ' ' ||
+                        coalesce(d.raw_text,'')
+                      ) @@ plainto_tsquery('english', :q)
                 LIMIT :limit
             """),
             {"q": q, "user_id": str(user_id), "limit": limit},
