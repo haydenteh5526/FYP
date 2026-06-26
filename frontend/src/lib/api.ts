@@ -112,3 +112,39 @@ export async function getCategories(): Promise<{ id: string; name: string }[]> {
   const res = await fetch(`${BASE}/categories`, { headers: getHeaders() })
   return res.json()
 }
+
+// === 2FA ===
+export async function setup2FA(): Promise<{ secret: string; qr_code: string; uri: string }> {
+  const res = await fetch(`${BASE}/auth/2fa/setup`, { method: 'POST', headers: getHeaders() })
+  if (!res.ok) throw new Error('Failed to set up 2FA')
+  return res.json()
+}
+
+export async function disable2FA(): Promise<void> {
+  await fetch(`${BASE}/auth/2fa/disable`, { method: 'POST', headers: getHeaders() })
+}
+
+// === Warranties ===
+export interface Warranty {
+  id: string
+  document_id: string
+  document_title: string
+  purchase_date: string | null
+  expiry_date: string | null
+  notes: string | null
+}
+
+export async function getWarranties(): Promise<Warranty[]> {
+  const res = await fetch(`${BASE}/warranties`, { headers: getHeaders() })
+  return res.json()
+}
+
+export async function getExpiringWarranties(days = 30): Promise<{ warranty_id: string; document_title: string; expiry_date: string; days_remaining: number }[]> {
+  const res = await fetch(`${BASE}/warranties/expiring?days=${days}`, { headers: getHeaders() })
+  return res.json()
+}
+
+// === Account ===
+export async function deleteAccount(): Promise<void> {
+  await fetch(`${BASE}/auth/account`, { method: 'DELETE', headers: getHeaders() })
+}

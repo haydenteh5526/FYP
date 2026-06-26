@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen } from 'lucide-react'
+import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen, ShieldCheck, Settings as SettingsIcon } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { searchDocuments } from './lib/api'
 import Landing from './pages/Landing'
@@ -12,6 +12,8 @@ import SearchPage from './pages/Search'
 import AskAI from './pages/AskAI'
 import DocumentDetail from './pages/DocumentDetail'
 import Categories from './pages/Categories'
+import Warranties from './pages/Warranties'
+import Settings from './pages/Settings'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
 
@@ -39,8 +41,10 @@ function AppRoutes() {
         <Route path="upload" element={<UploadPage />} />
         <Route path="documents/:id" element={<DocumentDetail />} />
         <Route path="categories" element={<Categories />} />
+        <Route path="warranties" element={<Warranties />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="ask" element={<AskAI />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
@@ -71,7 +75,9 @@ function AppShell() {
           <SidebarLink to="/app" icon={<FileText size={17} />} label="Documents" end />
           <SidebarLink to="/app/upload" icon={<Upload size={17} />} label="Upload" />
           <SidebarLink to="/app/categories" icon={<FolderOpen size={17} />} label="Categories" />
+          <SidebarLink to="/app/warranties" icon={<ShieldCheck size={17} />} label="Warranties" />
           <SidebarLink to="/app/ask" icon={<MessageSquare size={17} />} label="Ask AI" />
+          <SidebarLink to="/app/settings" icon={<SettingsIcon size={17} />} label="Settings" />
         </nav>
 
         <div className="px-3 py-3 border-t border-border/40">
@@ -95,8 +101,10 @@ function AppShell() {
             <Route path="upload" element={<UploadPage />} />
             <Route path="documents/:id" element={<DocumentDetail />} />
             <Route path="categories" element={<Categories />} />
+            <Route path="warranties" element={<Warranties />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="ask" element={<AskAI />} />
+            <Route path="settings" element={<Settings />} />
           </Routes>
         </div>
       </main>
@@ -112,6 +120,7 @@ function TopBar() {
   const [loading, setLoading] = useState(false)
   const debounceRef = useState<{ t?: ReturnType<typeof setTimeout> }>({})[0]
   const wrapRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -119,6 +128,18 @@ function TopBar() {
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
+  }, [])
+
+  // Cmd+K / Ctrl+K to focus search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        inputRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
   }, [])
 
   useEffect(() => {
@@ -147,12 +168,16 @@ function TopBar() {
         <form onSubmit={handleSubmit} className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onFocus={() => q && setOpen(true)}
             placeholder="Search documents..."
-            className="pl-10 h-9 text-sm bg-muted/40 border-0 rounded-full"
+            className="pl-10 pr-16 h-9 text-sm bg-muted/40 border-0 rounded-full"
           />
+          {!loading && (
+            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/60 bg-background/80 border border-border/40 rounded px-1.5 py-0.5 pointer-events-none">⌘K</kbd>
+          )}
           {loading && <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
         </form>
 
