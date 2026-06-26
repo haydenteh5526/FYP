@@ -12,9 +12,15 @@ from app.services import embedding_service
 router = APIRouter()
 
 
+class ChatTurn(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+
+
 class AskRequest(BaseModel):
     question: str
     document_id: str | None = None
+    history: list[ChatTurn] = []
 
 
 class Source(BaseModel):
@@ -77,8 +83,8 @@ async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db), user
         f"[From: {row.document_title}]\n{row.chunk_text}" for row in rows
     )
 
-    # 4. Generate answer via LLM
-    answer = _generate_answer(req.question, context)
+    # 4. Generate answer via LLM (with conversation history)
+    answer = _generate_answer(req.question, context, req.history)
 
     # 5. Return answer + sources
     sources = [
@@ -94,32 +100,41 @@ async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db), user
     return AskResponse(answer=answer, sources=sources)
 
 
-def _generate_answer(question: str, context: str) -> str:
+def _generate_answer(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
     if not settings.OPENAI_API_KEY:
         return f"[Dev mode - no OpenAI key] Based on your documents, here are relevant excerpts:\n\n{context[:500]}"
 
     from openai import OpenAI
+
+    from app.services.retry import with_retry
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-    response = client.chat.completions.create(
+    messages: list[dict] = [
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful assistant that answers questions based on the user's stored documents. "
+                "Only answer using information from the provided context. "
+                "If the answer is not in the context, say 'I don't have information about that in your documents.' "
+                "Cite which document the answer comes from."
+            ),
+        }
+    ]
+    # Include up to the last 6 turns for follow-up context
+    if history:
+        for turn in history[-6:]:
+            if turn.role in ("user", "assistant"):
+                messages.append({"role": turn.role, "content": turn.content})
+    messages.append({
+        "role": "user",
+        "content": f"Context from my documents:\n\n{context}\n\n---\n\nQuestion: {question}",
+    })
+
+    response = with_retry(lambda: client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a helpful assistant that answers questions based on the user's stored documents. "
-                    "Only answer using information from the provided context. "
-                    "If the answer is not in the context, say 'I don't have information about that in your documents.' "
-                    "Cite which document the answer comes from."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Context from my documents:\n\n{context}\n\n---\n\nQuestion: {question}",
-            },
-        ],
+        messages=messages,
         temperature=0.3,
         max_tokens=500,
-    )
+    ), label="openai.chat")
 
     return response.choices[0].message.content

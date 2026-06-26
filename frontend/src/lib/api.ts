@@ -113,11 +113,11 @@ export async function searchDocuments(q: string): Promise<{ results: SearchResul
   return res.json()
 }
 
-export async function askQuestion(question: string, documentId?: string): Promise<AskResponse> {
+export async function askQuestion(question: string, documentId?: string, history?: { role: string; content: string }[]): Promise<AskResponse> {
   const res = await fetch(`${BASE}/ai/ask`, {
     method: 'POST',
     headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, document_id: documentId }),
+    body: JSON.stringify({ question, document_id: documentId, history: history || [] }),
   })
   return res.json()
 }
