@@ -39,10 +39,19 @@ app.state.limiter = limiter
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
+    import time
+
+    from app.metrics import REQUEST_COUNT, REQUEST_LATENCY
     rid = request.headers.get("X-Request-ID") or new_request_id()
     request_id_var.set(rid)
     logger.info("%s %s", request.method, request.url.path)
+    start = time.perf_counter()
     response = await call_next(request)
+    elapsed = time.perf_counter() - start
+    # Use route template where possible to avoid high-cardinality paths
+    path = request.scope.get("route").path if request.scope.get("route") else request.url.path
+    REQUEST_COUNT.labels(request.method, path, response.status_code).inc()
+    REQUEST_LATENCY.labels(request.method, path).observe(elapsed)
     response.headers["X-Request-ID"] = rid
     return response
 
@@ -74,6 +83,14 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    from fastapi.responses import Response
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.get("/health/ready")
 async def health_ready():
     """Readiness probe — checks DB, S3, and AI provider connectivity."""
@@ -102,6 +119,17 @@ async def health_ready():
 
     # AI provider (config presence only — no network call)
     checks["ai"] = "openai" if settings.OPENAI_API_KEY else ("ollama" if settings.OLLAMA_URL else "dev-fallback")
+
+    # Redis cache (optional — does not affect overall health)
+    if settings.REDIS_URL:
+        try:
+            import redis as _redis_lib
+            _redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=2).ping()
+            checks["cache"] = "ok"
+        except Exception as e:  # noqa: BLE001
+            checks["cache"] = f"unavailable: {type(e).__name__}"
+    else:
+        checks["cache"] = "in-memory"
 
     status_code = 200 if healthy else 503
     return JSONResponse(status_code=status_code, content={"status": "ready" if healthy else "degraded", "checks": checks})
