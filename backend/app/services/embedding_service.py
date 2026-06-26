@@ -1,3 +1,5 @@
+import hashlib
+
 import httpx
 from openai import OpenAI
 
@@ -6,18 +8,43 @@ from app.config import settings
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536
 
+# Simple in-process cache: sha256(text) -> embedding
+_cache: dict[str, list[float]] = {}
+
+
+def _cache_key(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
 
 def get_embeddings(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings via OpenAI, Ollama, or zero-vector fallback."""
+    """Generate embeddings via OpenAI, Ollama, or zero-vector fallback. Caches by content hash."""
     if not texts:
         return []
 
-    if settings.OPENAI_API_KEY:
-        return _openai_embeddings(texts)
-    elif settings.OLLAMA_URL:
-        return _ollama_embeddings(texts)
-    else:
-        return [[0.0] * EMBEDDING_DIM for _ in texts]
+    # Resolve from cache where possible
+    results: list[list[float] | None] = [None] * len(texts)
+    uncached_idx: list[int] = []
+    uncached_texts: list[str] = []
+    for i, t in enumerate(texts):
+        key = _cache_key(t)
+        if key in _cache:
+            results[i] = _cache[key]
+        else:
+            uncached_idx.append(i)
+            uncached_texts.append(t)
+
+    if uncached_texts:
+        if settings.OPENAI_API_KEY:
+            fresh = _openai_embeddings(uncached_texts)
+        elif settings.OLLAMA_URL:
+            fresh = _ollama_embeddings(uncached_texts)
+        else:
+            fresh = [[0.0] * EMBEDDING_DIM for _ in uncached_texts]
+        for idx, emb in zip(uncached_idx, fresh):
+            results[idx] = emb
+            _cache[_cache_key(texts[idx])] = emb
+
+    return [r if r is not None else [0.0] * EMBEDDING_DIM for r in results]
 
 
 def get_embedding(text: str) -> list[float]:

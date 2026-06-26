@@ -29,6 +29,18 @@ class AskResponse(BaseModel):
     sources: list[Source]
 
 
+@router.get("/status")
+async def ai_status():
+    """Report AI provider availability for the Settings page."""
+    status = {
+        "openai": bool(settings.OPENAI_API_KEY),
+        "ollama": bool(settings.OLLAMA_URL),
+        "ocr_backend": settings.OCR_BACKEND,
+        "mode": "openai" if settings.OPENAI_API_KEY else ("ollama" if settings.OLLAMA_URL else "dev-fallback"),
+    }
+    return status
+
+
 @router.post("/ask", response_model=AskResponse)
 async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
     # 1. Embed the question
