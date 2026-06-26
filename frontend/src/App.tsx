@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen, ShieldCheck, Settings as SettingsIcon } from 'lucide-react'
+import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen, ShieldCheck, Settings as SettingsIcon, Sun, Moon } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { searchDocuments } from './lib/api'
+import { useTheme } from './lib/theme'
 import Landing from './pages/Landing'
 import AuthPage from './pages/Auth'
 import VerifyEmail from './pages/VerifyEmail'
@@ -210,10 +211,22 @@ function TopBar() {
       </div>
 
       {/* Upload button with hover animation */}
-      <Button size="sm" className="gradient-bg border-0 text-white transition-all duration-200 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0" onClick={() => navigate('/app/upload')}>
-        <Upload size={15} className="mr-1.5 transition-transform group-hover:scale-110" /> Upload
-      </Button>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <Button size="sm" className="gradient-bg border-0 text-white transition-all duration-200 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0" onClick={() => navigate('/app/upload')}>
+          <Upload size={15} className="mr-1.5" /> Upload
+        </Button>
+      </div>
     </div>
+  )
+}
+
+function ThemeToggle() {
+  const { theme, toggle } = useTheme()
+  return (
+    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={toggle} aria-label="Toggle dark mode">
+      {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+    </Button>
   )
 }
 
