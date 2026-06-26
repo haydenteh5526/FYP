@@ -9,18 +9,27 @@ export default function Dashboard() {
   const [allDocs, setAllDocs] = useState<Document[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const categoryFilter = searchParams.get('category')
   const navigate = useNavigate()
 
   // Fetch everything once
-  useEffect(() => {
-    Promise.all([getDocuments(), getCategories()]).then(([docsData, catsData]) => {
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true)
+    setError(false)
+    try {
+      const [docsData, catsData] = await Promise.all([getDocuments(), getCategories()])
       setAllDocs(docsData.documents)
       setCategories(catsData)
+    } catch {
+      setError(true)
+    } finally {
       setLoading(false)
-    })
-  }, [])
+    }
+  }
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation()
@@ -65,6 +74,17 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Error state */}
+      {error && !loading && (
+        <Card className="border-destructive/30 animate-fade-in">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm font-medium text-destructive">Couldn't load your documents</p>
+            <p className="text-xs text-muted-foreground mt-1">Check your connection and try again.</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={load}>Retry</Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Skeleton — only on first load */}
       {loading && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -75,7 +95,7 @@ export default function Dashboard() {
       )}
 
       {/* Empty */}
-      {!loading && docs.length === 0 && (
+      {!loading && !error && docs.length === 0 && (
         <Card className="border-dashed border-2 border-border/60 animate-scale-in">
           <CardContent className="flex flex-col items-center justify-center py-20">
             <div className="w-16 h-16 rounded-2xl bg-primary/[0.07] flex items-center justify-center">
