@@ -13,6 +13,7 @@ export interface Document {
   brand: string | null
   model: string | null
   document_type: string | null
+  category_id: string | null
   raw_text: string | null
   file_size: number | null
   image_url: string | null
