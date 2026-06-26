@@ -32,11 +32,13 @@ def upload_file(file_bytes: bytes, user_id: str, filename: str, content_type: st
 
 def get_presigned_url(key: str, expires_in: int = 900) -> str:
     s3 = get_s3_client()
-    return s3.generate_presigned_url(
+    url = s3.generate_presigned_url(
         "get_object",
         Params={"Bucket": settings.S3_BUCKET, "Key": key},
         ExpiresIn=expires_in,
     )
+    # Replace internal Docker hostname with browser-accessible host
+    return url.replace("http://minio:9000", settings.S3_PUBLIC_ENDPOINT)
 
 
 def delete_file(key: str) -> None:
