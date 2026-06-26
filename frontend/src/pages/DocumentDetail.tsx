@@ -145,7 +145,7 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
         <div className="flex justify-end mb-3">
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit text</Button>
         </div>
-        <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans max-h-[500px] overflow-auto">{text}</pre>
+        <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans max-h-[70vh] overflow-auto">{text}</pre>
       </div>
     )
   }
