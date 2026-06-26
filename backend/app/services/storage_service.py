@@ -6,10 +6,10 @@ from botocore.config import Config
 from app.config import settings
 
 
-def get_s3_client():
+def get_s3_client(endpoint: str | None = None):
     return boto3.client(
         "s3",
-        endpoint_url=settings.S3_ENDPOINT,
+        endpoint_url=endpoint or settings.S3_ENDPOINT,
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET_KEY,
         config=Config(signature_version="s3v4"),
@@ -31,14 +31,13 @@ def upload_file(file_bytes: bytes, user_id: str, filename: str, content_type: st
 
 
 def get_presigned_url(key: str, expires_in: int = 900) -> str:
-    s3 = get_s3_client()
-    url = s3.generate_presigned_url(
+    # Sign with the public endpoint so the browser-facing URL has a valid signature
+    s3 = get_s3_client(endpoint=settings.S3_PUBLIC_ENDPOINT)
+    return s3.generate_presigned_url(
         "get_object",
         Params={"Bucket": settings.S3_BUCKET, "Key": key},
         ExpiresIn=expires_in,
     )
-    # Replace internal Docker hostname with browser-accessible host
-    return url.replace("http://minio:9000", settings.S3_PUBLIC_ENDPOINT)
 
 
 def delete_file(key: str) -> None:
