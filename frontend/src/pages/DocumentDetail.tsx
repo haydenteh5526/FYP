@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { getDocument, askQuestion, shareDocument, getTags, createTag, addTagToDocument, removeTagFromDocument, type Document, type Tag } from '@/lib/api'
+import { getDocument, askQuestion, shareDocument, getTags, createTag, addTagToDocument, removeTagFromDocument, updateDocumentText, getDocumentVersions, restoreDocumentVersion, type Document, type Tag, type DocumentVersion } from '@/lib/api'
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
@@ -227,17 +227,39 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [versions, setVersions] = useState<DocumentVersion[]>([])
+  const [loadingVersions, setLoadingVersions] = useState(false)
+
+  async function loadVersions() {
+    setLoadingVersions(true)
+    try {
+      setVersions(await getDocumentVersions(documentId))
+    } finally {
+      setLoadingVersions(false)
+    }
+  }
+
+  async function toggleHistory() {
+    const next = !showHistory
+    setShowHistory(next)
+    if (next) await loadVersions()
+  }
 
   async function handleSave() {
     setSaving(true)
-    const token = localStorage.getItem('token')
-    await fetch(`/api/v1/documents/${documentId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ raw_text: text }),
-    })
-    setSaving(false)
-    setEditing(false)
+    try {
+      await updateDocumentText(documentId, text)
+    } finally {
+      setSaving(false)
+      setEditing(false)
+    }
+  }
+
+  async function handleRestore(versionId: string) {
+    const updated = await restoreDocumentVersion(documentId, versionId)
+    setText(updated.raw_text || '')
+    await loadVersions()
   }
 
   async function handleCopy() {
@@ -250,11 +272,38 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
     return (
       <div>
         <div className="flex justify-end gap-2 mb-3">
+          <Button variant="outline" size="sm" onClick={toggleHistory}>
+            <History size={13} className="mr-1" /> History
+          </Button>
           <Button variant="outline" size="sm" onClick={handleCopy}>
             {copied ? <><Check size={13} className="mr-1 text-green-600" /> Copied</> : <><Copy size={13} className="mr-1" /> Copy</>}
           </Button>
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit</Button>
         </div>
+        {showHistory && (
+          <Card className="mb-4 animate-slide-up">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-muted-foreground mb-3">Edit history</p>
+              {loadingVersions ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : versions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No previous versions yet. Versions are saved each time you edit the text.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {versions.map(v => (
+                    <li key={v.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium">Version {v.version_number}<span className="text-muted-foreground font-normal"> · {v.char_count} chars · {v.created_at ? new Date(v.created_at).toLocaleString() : ''}</span></p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{v.preview}</p>
+                      </div>
+                      <Button variant="outline" size="sm" className="shrink-0" onClick={() => handleRestore(v.id)}>Restore</Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
         <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans max-h-[65vh] overflow-auto">{text}</pre>
       </div>
     )

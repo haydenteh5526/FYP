@@ -196,3 +196,31 @@ export async function addTagToDocument(documentId: string, tagId: string): Promi
 export async function removeTagFromDocument(documentId: string, tagId: string): Promise<void> {
   await fetch(`${BASE}/tags/documents/${documentId}/tags/${tagId}`, { method: 'DELETE', headers: getHeaders() })
 }
+
+// === Version history ===
+export interface DocumentVersion {
+  id: string
+  version_number: number
+  created_at: string | null
+  preview: string
+  char_count: number
+}
+
+export async function updateDocumentText(documentId: string, rawText: string): Promise<Document> {
+  const res = await fetch(`${BASE}/documents/${documentId}`, {
+    method: 'PATCH',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw_text: rawText }),
+  })
+  return res.json()
+}
+
+export async function getDocumentVersions(documentId: string): Promise<DocumentVersion[]> {
+  const res = await fetch(`${BASE}/documents/${documentId}/versions`, { headers: getHeaders() })
+  return res.json()
+}
+
+export async function restoreDocumentVersion(documentId: string, versionId: string): Promise<Document> {
+  const res = await fetch(`${BASE}/documents/${documentId}/versions/${versionId}/restore`, { method: 'POST', headers: getHeaders() })
+  return res.json()
+}
