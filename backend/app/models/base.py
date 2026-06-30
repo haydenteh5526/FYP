@@ -2,12 +2,21 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Index, String, Text, func
+from sqlalchemy import Column, ForeignKey, Index, String, Table, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     pass
+
+
+# Many-to-many: documents <-> tags
+document_tags = Table(
+    "document_tags",
+    Base.metadata,
+    Column("document_id", ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class User(Base):
@@ -64,6 +73,7 @@ class Document(Base):
     category: Mapped["Category | None"] = relationship(back_populates="documents")
     chunks: Mapped[list["DocChunk"]] = relationship(back_populates="document", cascade="all, delete-orphan")
     warranty: Mapped["Warranty | None"] = relationship(back_populates="document", cascade="all, delete-orphan", uselist=False)
+    tags: Mapped[list["Tag"]] = relationship(secondary=document_tags, back_populates="documents")
 
     __table_args__ = (
         Index("idx_documents_user", "user_id"),
@@ -98,3 +108,20 @@ class Warranty(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
     document: Mapped["Document"] = relationship(back_populates="warranty")
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    color: Mapped[str | None] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    documents: Mapped[list["Document"]] = relationship(secondary=document_tags, back_populates="tags")
+
+    __table_args__ = (
+        Index("idx_tags_user", "user_id"),
+        Index("uq_tags_user_name", "user_id", "name", unique=True),
+    )

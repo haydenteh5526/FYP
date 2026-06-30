@@ -4,6 +4,14 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class TagOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    color: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class DocumentOut(BaseModel):
     id: uuid.UUID
     title: str
@@ -16,6 +24,7 @@ class DocumentOut(BaseModel):
     page_count: int = 1
     ocr_confidence: float | None = None
     image_url: str | None = None
+    tags: list[TagOut] = []
     created_at: datetime
     updated_at: datetime
 

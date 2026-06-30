@@ -7,6 +7,12 @@ function getHeaders(): HeadersInit {
   return headers
 }
 
+export interface Tag {
+  id: string
+  name: string
+  color: string | null
+}
+
 export interface Document {
   id: string
   title: string
@@ -17,6 +23,7 @@ export interface Document {
   raw_text: string | null
   file_size: number | null
   image_url: string | null
+  tags?: Tag[]
   created_at: string
 }
 
@@ -161,4 +168,31 @@ export async function getExpiringWarranties(days = 30): Promise<{ warranty_id: s
 // === Account ===
 export async function deleteAccount(): Promise<void> {
   await fetch(`${BASE}/auth/account`, { method: 'DELETE', headers: getHeaders() })
+}
+
+// === Tags ===
+export async function getTags(): Promise<Tag[]> {
+  const res = await fetch(`${BASE}/tags`, { headers: getHeaders() })
+  return res.json()
+}
+
+export async function createTag(name: string, color?: string): Promise<Tag> {
+  const res = await fetch(`${BASE}/tags`, {
+    method: 'POST',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, color }),
+  })
+  return res.json()
+}
+
+export async function deleteTag(tagId: string): Promise<void> {
+  await fetch(`${BASE}/tags/${tagId}`, { method: 'DELETE', headers: getHeaders() })
+}
+
+export async function addTagToDocument(documentId: string, tagId: string): Promise<void> {
+  await fetch(`${BASE}/tags/documents/${documentId}/tags/${tagId}`, { method: 'PUT', headers: getHeaders() })
+}
+
+export async function removeTagFromDocument(documentId: string, tagId: string): Promise<void> {
+  await fetch(`${BASE}/tags/documents/${documentId}/tags/${tagId}`, { method: 'DELETE', headers: getHeaders() })
 }
