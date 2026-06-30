@@ -74,6 +74,7 @@ class Document(Base):
     chunks: Mapped[list["DocChunk"]] = relationship(back_populates="document", cascade="all, delete-orphan")
     warranty: Mapped["Warranty | None"] = relationship(back_populates="document", cascade="all, delete-orphan", uselist=False)
     tags: Mapped[list["Tag"]] = relationship(secondary=document_tags, back_populates="documents")
+    versions: Mapped[list["DocumentVersion"]] = relationship(back_populates="document", cascade="all, delete-orphan", order_by="desc(DocumentVersion.version_number)")
 
     __table_args__ = (
         Index("idx_documents_user", "user_id"),
@@ -124,4 +125,20 @@ class Tag(Base):
     __table_args__ = (
         Index("idx_tags_user", "user_id"),
         Index("uq_tags_user_name", "user_id", "name", unique=True),
+    )
+
+
+class DocumentVersion(Base):
+    __tablename__ = "document_versions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"))
+    raw_text: Mapped[str | None] = mapped_column(Text)
+    version_number: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    document: Mapped["Document"] = relationship(back_populates="versions")
+
+    __table_args__ = (
+        Index("idx_versions_document", "document_id"),
     )

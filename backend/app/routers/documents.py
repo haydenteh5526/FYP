@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user_id, get_db
-from app.models.base import DocChunk, Document
+from app.models.base import DocChunk, Document, DocumentVersion
 from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
 from app.services import (
     categorisation_service,
@@ -176,8 +176,62 @@ async def update_document(
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     doc = await _get_doc_or_404(document_id, user_id, db)
-    for field, value in update.model_dump(exclude_unset=True).items():
+    changes = update.model_dump(exclude_unset=True)
+
+    # Snapshot the previous text as a version whenever raw_text is changed
+    if "raw_text" in changes and changes["raw_text"] != doc.raw_text and doc.raw_text is not None:
+        await _snapshot_version(doc.id, doc.raw_text, db)
+
+    for field, value in changes.items():
         setattr(doc, field, value)
+    await db.commit()
+    await db.refresh(doc)
+    return _to_response(doc)
+
+
+async def _snapshot_version(document_id: uuid.UUID, raw_text: str, db: AsyncSession) -> None:
+    """Persist the given text as the next version number for a document."""
+    last = await db.execute(
+        select(func.max(DocumentVersion.version_number)).where(DocumentVersion.document_id == document_id)
+    )
+    next_num = (last.scalar() or 0) + 1
+    db.add(DocumentVersion(document_id=document_id, raw_text=raw_text, version_number=next_num))
+
+
+@router.get("/{document_id}/versions")
+async def list_versions(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    await _get_doc_or_404(document_id, user_id, db)
+    result = await db.execute(
+        select(DocumentVersion)
+        .where(DocumentVersion.document_id == document_id)
+        .order_by(DocumentVersion.version_number.desc())
+    )
+    versions = result.scalars().all()
+    return [
+        {
+            "id": str(v.id),
+            "version_number": v.version_number,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+            "preview": (v.raw_text or "")[:200],
+            "char_count": len(v.raw_text or ""),
+        }
+        for v in versions
+    ]
+
+
+@router.post("/{document_id}/versions/{version_id}/restore", response_model=DocumentOut)
+async def restore_version(document_id: uuid.UUID, version_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    result = await db.execute(
+        select(DocumentVersion).where(DocumentVersion.id == version_id, DocumentVersion.document_id == document_id)
+    )
+    version = result.scalar_one_or_none()
+    if not version:
+        raise HTTPException(404, {"code": "NOT_FOUND", "message": "Version not found."})
+    # Snapshot current text before restoring, so the restore is itself reversible
+    if doc.raw_text is not None:
+        await _snapshot_version(doc.id, doc.raw_text, db)
+    doc.raw_text = version.raw_text
     await db.commit()
     await db.refresh(doc)
     return _to_response(doc)
