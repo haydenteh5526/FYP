@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2 } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { getDocument, askQuestion, shareDocument, type Document } from '@/lib/api'
+import { getDocument, askQuestion, shareDocument, getTags, createTag, addTagToDocument, removeTagFromDocument, type Document, type Tag } from '@/lib/api'
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
@@ -97,6 +97,7 @@ export default function DocumentDetail() {
               <dt className="text-muted-foreground">Uploaded</dt>
               <dd>{new Date(doc.created_at).toLocaleString()}</dd>
             </dl>
+            <TagEditor doc={doc} onChange={setDoc} />
           </CardContent>
         </Card>
       )}
@@ -122,6 +123,80 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 
 function Badge({ children }: { children: React.ReactNode }) {
   return <span className="inline-flex items-center rounded-full bg-primary/[0.08] px-2.5 py-0.5 text-xs font-medium text-primary">{children}</span>
+}
+
+function TagEditor({ doc, onChange }: { doc: Document; onChange: (d: Document) => void }) {
+  const [allTags, setAllTags] = useState<Tag[]>([])
+  const [input, setInput] = useState('')
+  const [adding, setAdding] = useState(false)
+  const docTags = doc.tags || []
+
+  useEffect(() => { getTags().then(setAllTags) }, [])
+
+  async function attach(tag: Tag) {
+    await addTagToDocument(doc.id, tag.id)
+    onChange({ ...doc, tags: [...docTags, tag] })
+  }
+
+  async function detach(tag: Tag) {
+    await removeTagFromDocument(doc.id, tag.id)
+    onChange({ ...doc, tags: docTags.filter(t => t.id !== tag.id) })
+  }
+
+  async function createAndAttach() {
+    const name = input.trim()
+    if (!name) return
+    const tag = await createTag(name)
+    setAllTags(prev => (prev.some(t => t.id === tag.id) ? prev : [...prev, tag]))
+    if (!docTags.some(t => t.id === tag.id)) {
+      await addTagToDocument(doc.id, tag.id)
+      onChange({ ...doc, tags: [...docTags, tag] })
+    }
+    setInput('')
+    setAdding(false)
+  }
+
+  const available = allTags.filter(t => !docTags.some(dt => dt.id === t.id))
+
+  return (
+    <div className="mt-6 pt-5 border-t">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2.5">
+        <TagIcon size={13} /> Tags
+      </div>
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {docTags.map(tag => (
+          <span key={tag.id} className="inline-flex items-center gap-1 rounded-full bg-primary/[0.08] px-2.5 py-1 text-xs font-medium text-primary">
+            {tag.name}
+            <button onClick={() => detach(tag)} className="hover:text-destructive" aria-label={`Remove ${tag.name}`}><X size={12} /></button>
+          </span>
+        ))}
+        {adding ? (
+          <Input
+            autoFocus
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') createAndAttach(); if (e.key === 'Escape') { setAdding(false); setInput('') } }}
+            onBlur={() => { if (!input.trim()) setAdding(false) }}
+            placeholder="Tag name…"
+            className="h-7 w-32 text-xs"
+          />
+        ) : (
+          <button onClick={() => setAdding(true)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors">
+            <Plus size={12} /> Add tag
+          </button>
+        )}
+      </div>
+      {adding && available.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {available.map(tag => (
+            <button key={tag.id} onClick={() => attach(tag)} className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:bg-primary/[0.08] hover:text-primary transition-colors">
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ShareButton({ documentId }: { documentId: string }) {

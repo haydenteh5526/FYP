@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user_id, get_db
 from app.models.base import DocChunk, Document
@@ -127,7 +128,7 @@ async def list_documents(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    query = select(Document).where(Document.user_id == user_id)
+    query = select(Document).where(Document.user_id == user_id).options(selectinload(Document.tags))
     if brand:
         query = query.where(Document.brand == brand)
     if document_type:
@@ -263,7 +264,7 @@ async def share_document(document_id: uuid.UUID, expires_hours: int = 24, db: As
 
 
 async def _get_doc_or_404(document_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession) -> Document:
-    query = select(Document).where(Document.id == document_id, Document.user_id == user_id)
+    query = select(Document).where(Document.id == document_id, Document.user_id == user_id).options(selectinload(Document.tags))
     result = await db.execute(query)
     doc = result.scalar_one_or_none()
     if not doc:
@@ -285,6 +286,15 @@ def _to_response(doc: Document) -> DocumentOut:
         page_count=doc.page_count,
         ocr_confidence=doc.ocr_confidence,
         image_url=image_url,
+        tags=_safe_tags(doc),
         created_at=doc.created_at,
         updated_at=doc.updated_at,
     )
+
+
+def _safe_tags(doc: Document) -> list[dict]:
+    """Return serialised tags, tolerating an unloaded relationship (e.g. fresh upload)."""
+    from sqlalchemy import inspect as sa_inspect
+    if "tags" in sa_inspect(doc).unloaded:
+        return []
+    return [{"id": t.id, "name": t.name, "color": t.color} for t in doc.tags]
