@@ -24,6 +24,7 @@ class DocumentOut(BaseModel):
     page_count: int = 1
     ocr_confidence: float | None = None
     image_url: str | None = None
+    processing_status: str = "complete"
     tags: list[TagOut] = []
     created_at: datetime
     updated_at: datetime

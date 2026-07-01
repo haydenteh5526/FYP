@@ -185,6 +185,10 @@ pip install pre-commit && pre-commit install
 
 Requests are correlated via an `X-Request-ID` header (generated if absent) and surfaced in structured logs. Redis provides response/embedding caching with a graceful in-memory fallback when unavailable.
 
+### Background processing
+
+Document OCR, AI categorisation, and embedding generation run in a background **ARQ worker** (the `worker` service in Docker Compose) so uploads return immediately. Uploaded documents start with `processing_status: pending` and the frontend polls until they reach `complete`. If Redis or the worker is unavailable, the API transparently falls back to processing inline within the request — so uploads keep working with no queue.
+
 ## Deployment (AWS)
 
 ```bash

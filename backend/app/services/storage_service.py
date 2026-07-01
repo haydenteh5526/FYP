@@ -45,6 +45,13 @@ def delete_file(key: str) -> None:
     s3.delete_object(Bucket=settings.S3_BUCKET, Key=key)
 
 
+def download_file(key: str) -> tuple[bytes, str]:
+    """Fetch an object's bytes and content type from S3."""
+    s3 = get_s3_client()
+    obj = s3.get_object(Bucket=settings.S3_BUCKET, Key=key)
+    return obj["Body"].read(), obj.get("ContentType", "application/octet-stream")
+
+
 def ensure_bucket_exists() -> None:
     s3 = get_s3_client()
     try:
