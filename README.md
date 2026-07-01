@@ -189,6 +189,10 @@ Requests are correlated via an `X-Request-ID` header (generated if absent) and s
 
 Document OCR, AI categorisation, and embedding generation run in a background **ARQ worker** (the `worker` service in Docker Compose) so uploads return immediately. Uploaded documents start with `processing_status: pending` and the frontend polls until they reach `complete`. If Redis or the worker is unavailable, the API transparently falls back to processing inline within the request — so uploads keep working with no queue.
 
+### Push notifications
+
+The mobile app registers an Expo push token (`POST /api/v1/notifications/register`). A daily **ARQ cron job** checks for warranties expiring within 30 days and pushes a reminder to the owner's devices via the Expo push API; a manual `POST /api/v1/notifications/warranty-check` endpoint runs the same check on demand. Push sending degrades gracefully — failures are logged, never raised. On-device token retrieval requires a development/EAS build on a physical device; the backend and delivery pipeline are fully wired and verified against Expo's API.
+
 ## Deployment (AWS)
 
 ```bash

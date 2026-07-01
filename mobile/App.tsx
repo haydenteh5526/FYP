@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { login, register, uploadDocument, getDocuments, askQuestion } from './src/api';
+import { registerForPushNotifications } from './src/push';
 
 type Screen = 'docs' | 'ask';
 type CaptureState = { uri: string } | null;
@@ -23,6 +24,11 @@ export default function App() {
       if (t) attemptBiometric();
     });
   }, []);
+
+  // Register for push notifications whenever we have a valid session
+  useEffect(() => {
+    if (token) registerForPushNotifications();
+  }, [token]);
 
   async function attemptBiometric() {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();

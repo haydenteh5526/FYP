@@ -10,7 +10,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.logging_config import configure_logging, get_logger, new_request_id, request_id_var
-from app.routers import ai, auth, categories, documents, search, tags, warranties
+from app.routers import ai, auth, categories, documents, notifications, search, tags, warranties
 
 configure_logging()
 logger = get_logger("app")
@@ -75,6 +75,7 @@ app.include_router(categories.router, prefix="/api/v1/categories", tags=["catego
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(warranties.router, prefix="/api/v1/warranties", tags=["warranties"])
 app.include_router(tags.router, prefix="/api/v1/tags", tags=["tags"])
+app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 
 

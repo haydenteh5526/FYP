@@ -57,3 +57,12 @@ export async function askQuestion(question: string): Promise<any> {
   });
   return res.json();
 }
+
+export async function registerPushToken(token: string, platform: string): Promise<void> {
+  const headers = await getHeaders();
+  await fetch(`${API_URL}/api/v1/notifications/register`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, platform }),
+  });
+}
