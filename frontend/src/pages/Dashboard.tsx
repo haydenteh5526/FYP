@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Trash2, FolderOpen, Layers, CheckSquare, Square, X } from 'lucide-react'
+import { FileText, Trash2, FolderOpen, Layers, CheckSquare, Square, X, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, type Document } from '@/lib/api'
@@ -17,6 +17,19 @@ export default function Dashboard() {
 
   // Fetch everything once
   useEffect(() => { load() }, [])
+
+  // Poll while any document is still processing, then stop
+  useEffect(() => {
+    const anyProcessing = allDocs.some(d => d.processing_status && d.processing_status !== 'complete' && d.processing_status !== 'failed')
+    if (!anyProcessing) return
+    const timer = setInterval(async () => {
+      try {
+        const docsData = await getDocuments()
+        setAllDocs(docsData.documents)
+      } catch { /* ignore transient poll errors */ }
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [allDocs])
 
   async function load() {
     setLoading(true)
@@ -166,6 +179,11 @@ export default function Dashboard() {
                 </div>
                 <h3 className="font-medium text-sm mt-3.5 leading-snug line-clamp-2">{doc.title}</h3>
                 <div className="flex flex-wrap gap-1.5 mt-3">
+                  {doc.processing_status && doc.processing_status !== 'complete' && (
+                    doc.processing_status === 'failed'
+                      ? <Badge variant="secondary"><span className="text-destructive">Failed</span></Badge>
+                      : <Badge variant="secondary"><Loader2 size={11} className="mr-1 animate-spin" /> Processing</Badge>
+                  )}
                   {doc.brand && <Badge>{doc.brand}</Badge>}
                   {doc.document_type && <Badge variant="secondary">{doc.document_type}</Badge>}
                 </div>

@@ -23,6 +23,7 @@ export interface Document {
   raw_text: string | null
   file_size: number | null
   image_url: string | null
+  processing_status?: string
   tags?: Tag[]
   created_at: string
 }

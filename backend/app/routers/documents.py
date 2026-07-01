@@ -8,15 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user_id, get_db
-from app.models.base import DocChunk, Document, DocumentVersion
+from app.models.base import Document, DocumentVersion
 from app.schemas.document import DocumentList, DocumentOut, DocumentUpdate
 from app.services import (
-    categorisation_service,
-    chunking_service,
-    embedding_service,
-    image_processing,
-    ocr_service,
+    document_processor,
     storage_service,
+    task_queue,
 )
 
 router = APIRouter()
@@ -52,66 +49,24 @@ async def upload_document(
         file_bytes, str(user_id), file.filename or "upload", file.content_type
     )
 
-    # Pre-process image for better OCR (deskew, denoise, enhance)
-    processed_bytes = image_processing.preprocess_image(file_bytes) if file.content_type != "application/pdf" else file_bytes
-
-    raw_text = ocr_service.extract_text(processed_bytes, file.content_type)
-
-    # Auto-categorise document
-    metadata = categorisation_service.categorise_document(raw_text)
-
-    # Auto-assign category by document_type
-    category_id = None
-    if metadata.document_type:
-        from app.models.base import Category
-        cat_result = await db.execute(
-            select(Category).where(Category.user_id == user_id, Category.name == metadata.document_type)
-        )
-        cat = cat_result.scalar_one_or_none()
-        if not cat:
-            cat = Category(user_id=user_id, name=metadata.document_type)
-            db.add(cat)
-            await db.flush()
-        category_id = cat.id
-
+    # Create the document immediately in a pending state; heavy work (OCR, AI,
+    # embeddings) runs in the background worker — or inline if no queue is available.
     doc = Document(
         user_id=user_id,
-        title=title or metadata.title or file.filename or "Untitled",
+        title=title or file.filename or "Untitled",
         s3_key_original=s3_key,
         file_size=len(file_bytes),
-        raw_text=raw_text or None,
-        brand=metadata.brand,
-        model=metadata.model,
-        document_type=metadata.document_type,
-        category_id=category_id,
+        processing_status="pending",
     )
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
 
-    # Chunk text and generate embeddings with section titles
-    if raw_text:
-        chunks = chunking_service.chunk_text(raw_text)
-        texts = [c["text"] for c in chunks]
-        embeddings = embedding_service.get_embeddings(texts)
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            db.add(DocChunk(
-                document_id=doc.id,
-                chunk_index=i,
-                chunk_text=chunk["text"],
-                section_title=chunk["section_title"],
-                embedding=embedding,
-            ))
-        await db.commit()
-
-    # Auto-extract warranty dates
-    if raw_text:
-        from app.models.base import Warranty
-        from app.services import warranty_extraction
-        dates = warranty_extraction.extract_warranty_dates(raw_text)
-        if dates:
-            db.add(Warranty(document_id=doc.id, purchase_date=dates.get("purchase_date"), expiry_date=dates.get("expiry_date")))
-            await db.commit()
+    enqueued = await task_queue.enqueue_document_processing(str(doc.id))
+    if not enqueued:
+        # No worker/Redis — process inline so behaviour matches the original flow
+        await document_processor.process_document(doc.id)
+        await db.refresh(doc)
 
     return _to_response(doc)
 
@@ -240,38 +195,14 @@ async def restore_version(document_id: uuid.UUID, version_id: uuid.UUID, db: Asy
 @router.post("/{document_id}/reprocess", response_model=DocumentOut)
 async def reprocess_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
     doc = await _get_doc_or_404(document_id, user_id, db)
-
-    # Re-download file from S3 and reprocess
-    import boto3
-    from botocore.config import Config as BotoConfig
-
-    from app.config import settings
-    s3 = boto3.client("s3", endpoint_url=settings.S3_ENDPOINT, aws_access_key_id=settings.S3_ACCESS_KEY,
-                      aws_secret_access_key=settings.S3_SECRET_KEY, config=BotoConfig(signature_version="s3v4"), region_name="us-east-1")
-    obj = s3.get_object(Bucket=settings.S3_BUCKET, Key=doc.s3_key_original)
-    file_bytes = obj["Body"].read()
-    content_type = obj.get("ContentType", "image/png")
-
-    # Re-run OCR + categorisation
-    raw_text = ocr_service.extract_text(file_bytes, content_type)
-    metadata = categorisation_service.categorise_document(raw_text)
-    doc.raw_text = raw_text or None
-    doc.brand = metadata.brand or doc.brand
-    doc.model = metadata.model or doc.model
-    doc.document_type = metadata.document_type or doc.document_type
-
-    # Re-chunk and re-embed
-    await db.execute(select(DocChunk).where(DocChunk.document_id == doc.id))
-    from sqlalchemy import delete
-    await db.execute(delete(DocChunk).where(DocChunk.document_id == doc.id))
-    if raw_text:
-        chunks = chunking_service.chunk_text(raw_text)
-        embeddings = embedding_service.get_embeddings(chunks)
-        for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
-            db.add(DocChunk(document_id=doc.id, chunk_index=i, chunk_text=chunk_text, embedding=embedding))
-
+    doc.processing_status = "pending"
     await db.commit()
-    await db.refresh(doc)
+
+    enqueued = await task_queue.enqueue_document_processing(str(doc.id))
+    if not enqueued:
+        await document_processor.process_document(doc.id)
+        await db.refresh(doc)
+
     return _to_response(doc)
 
 
@@ -340,6 +271,7 @@ def _to_response(doc: Document) -> DocumentOut:
         page_count=doc.page_count,
         ocr_confidence=doc.ocr_confidence,
         image_url=image_url,
+        processing_status=doc.processing_status,
         tags=_safe_tags(doc),
         created_at=doc.created_at,
         updated_at=doc.updated_at,
