@@ -28,4 +28,4 @@ class WorkerSettings:
     cron_jobs = [cron(warranty_expiry_cron, hour=8, minute=0)]  # daily at 08:00
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL or "redis://redis:6379/0")
     max_jobs = 5
-    job_timeout = 300  # seconds — large PDFs can take a while
+    job_timeout = 900  # 15 min — large multi-page PDFs need time for OCR
