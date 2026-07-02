@@ -131,8 +131,15 @@ export default function Dashboard() {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       {/* Breadcrumb */}
+      {/* Breadcrumb — "All Documents" is a drop target when inside a folder */}
       <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6 animate-fade-in">
-        <button onClick={() => setSearchParams({})} className="hover:text-foreground transition-colors flex items-center gap-1">
+        <button
+          onClick={() => setSearchParams({})}
+          className={`hover:text-foreground transition-all flex items-center gap-1 px-2 py-1 rounded-md ${currentFolder && dragDocId ? (dragOverFolder === '__root__' ? 'ring-2 ring-primary bg-primary/[0.06] text-primary' : 'border border-dashed border-border') : ''}`}
+          onDragOver={(e) => { if (currentFolder) { e.preventDefault(); setDragOverFolder('__root__') } }}
+          onDragLeave={() => setDragOverFolder(null)}
+          onDrop={() => { if (currentFolder) handleDropOnFolder('__root__') }}
+        >
           <Home size={14} /> All Documents
         </button>
         {currentCategoryName && (
@@ -219,17 +226,6 @@ export default function Dashboard() {
       {/* Folders (only show at root level) */}
       {!loading && !error && !currentFolder && categories.length > 0 && (
         <>
-          {/* Drop zone to move back to uncategorised (shows when dragging) */}
-          {dragDocId && (
-            <div
-              className={`mb-3 p-3 rounded-xl border-2 border-dashed transition-all text-center text-sm ${dragOverFolder === '__root__' ? 'border-primary bg-primary/[0.04] text-primary' : 'border-border/60 text-muted-foreground'}`}
-              onDragOver={(e) => { e.preventDefault(); setDragOverFolder('__root__') }}
-              onDragLeave={() => setDragOverFolder(null)}
-              onDrop={() => handleDropOnFolder('__root__')}
-            >
-              Drop here to remove from folder
-            </div>
-          )}
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-6">
           {categories.map((cat, i) => {
             const count = allDocs.filter(d => d.category_id === cat.id).length
