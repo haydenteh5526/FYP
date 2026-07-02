@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [editFolderName, setEditFolderName] = useState('')
   const [dragDocId, setDragDocId] = useState<string | null>(null)
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null)
+  const [renamingDoc, setRenamingDoc] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('docvault-view') as ViewMode) || 'grid')
@@ -142,6 +144,19 @@ export default function Dashboard() {
   function switchView(mode: ViewMode) {
     setViewMode(mode)
     localStorage.setItem('docvault-view', mode)
+  }
+
+  async function handleRenameDoc(docId: string) {
+    const name = renameValue.trim()
+    if (!name) { setRenamingDoc(null); return }
+    await fetch(`/api/v1/documents/${docId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ title: name }),
+    })
+    setAllDocs(allDocs.map(d => d.id === docId ? { ...d, title: name } : d))
+    setRenamingDoc(null)
+    toast('Document renamed')
   }
 
   function handleDragOverFolder(e: React.DragEvent, folderId: string) {
@@ -507,7 +522,23 @@ export default function Dashboard() {
                       <FileText size={18} className="text-primary/70" />
                     </div>
                   )}
-                  <h3 className="font-medium text-sm mt-3.5 leading-snug line-clamp-2">{doc.title}</h3>
+                  {renamingDoc === doc.id ? (
+                    <Input
+                      autoFocus
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleRenameDoc(doc.id); if (e.key === 'Escape') setRenamingDoc(null) }}
+                      onBlur={() => handleRenameDoc(doc.id)}
+                      onClick={e => e.stopPropagation()}
+                      className="h-7 text-sm mt-3"
+                    />
+                  ) : (
+                    <h3
+                      className="font-medium text-sm mt-3.5 leading-snug line-clamp-2"
+                      title={doc.raw_text ? doc.raw_text.slice(0, 200) + '...' : undefined}
+                      onDoubleClick={(e) => { e.stopPropagation(); setRenamingDoc(doc.id); setRenameValue(doc.title) }}
+                    >{doc.title}</h3>
+                  )}
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {doc.processing_status && doc.processing_status !== 'complete' && (
                       doc.processing_status === 'failed'
