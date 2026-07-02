@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,6 +16,20 @@ export default function DocumentDetail() {
     if (id) getDocument(id).then(setDoc)
   }, [id])
 
+  // Poll while processing
+  useEffect(() => {
+    if (!doc || !id) return
+    if (doc.processing_status === 'complete' || doc.processing_status === 'failed') return
+    const timer = setInterval(async () => {
+      const updated = await getDocument(id)
+      setDoc(updated)
+      if (updated.processing_status === 'complete' || updated.processing_status === 'failed') {
+        clearInterval(timer)
+      }
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [doc?.processing_status, id])
+
   if (!doc) {
     return (
       <div className="p-8 max-w-5xl mx-auto animate-fade-in">
@@ -26,6 +40,7 @@ export default function DocumentDetail() {
     )
   }
 
+  const isProcessing = doc.processing_status && doc.processing_status !== 'complete' && doc.processing_status !== 'failed'
   const isPdf = doc.image_url?.includes('.pdf')
 
   return (
@@ -73,10 +88,16 @@ export default function DocumentDetail() {
       {tab === 'text' && (
         <Card>
           <CardContent className="p-6">
-            {doc.raw_text ? (
+            {isProcessing ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+                <Loader2 size={28} className="animate-spin text-primary mb-4" />
+                <p className="text-sm font-medium">Extracting text...</p>
+                <p className="text-xs text-muted-foreground mt-1">AI is reading your document. This usually takes 10–30 seconds.</p>
+              </div>
+            ) : doc.raw_text ? (
               <EditableText documentId={doc.id} initialText={doc.raw_text} />
             ) : (
-              <p className="text-muted-foreground text-sm py-12 text-center">No text extracted yet.</p>
+              <p className="text-muted-foreground text-sm py-12 text-center">No text could be extracted from this document.</p>
             )}
           </CardContent>
         </Card>
@@ -85,6 +106,13 @@ export default function DocumentDetail() {
       {tab === 'info' && (
         <Card>
           <CardContent className="p-6">
+            {isProcessing ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+                <Loader2 size={28} className="animate-spin text-primary mb-4" />
+                <p className="text-sm font-medium">Analysing document...</p>
+                <p className="text-xs text-muted-foreground mt-1">Detecting brand, model, and document type.</p>
+              </div>
+            ) : (
             <dl className="grid grid-cols-2 gap-4 text-sm max-w-md">
               <dt className="text-muted-foreground">Brand</dt>
               <dd>{doc.brand || '—'}</dd>
@@ -97,6 +125,7 @@ export default function DocumentDetail() {
               <dt className="text-muted-foreground">Uploaded</dt>
               <dd>{new Date(doc.created_at).toLocaleString()}</dd>
             </dl>
+            )}
             <TagEditor doc={doc} onChange={setDoc} />
           </CardContent>
         </Card>

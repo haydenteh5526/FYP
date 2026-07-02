@@ -104,7 +104,7 @@ export async function getDocuments(categoryId?: string): Promise<{ documents: Do
 }
 
 export async function getDocument(id: string): Promise<Document> {
-  const res = await fetch(`${BASE}/documents/${id}`, { headers: getHeaders() })
+  const res = handleUnauthorized(await fetch(`${BASE}/documents/${id}`, { headers: getHeaders() }))
   return res.json()
 }
 
