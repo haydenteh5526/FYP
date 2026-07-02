@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil } from 'lucide-react'
+import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Search } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, type Document } from '@/lib/api'
+
+type SortKey = 'name' | 'date' | 'size' | 'type'
+type SortDir = 'asc' | 'desc'
+type ViewMode = 'grid' | 'list'
+type FileFilter = 'all' | 'pdf' | 'image'
 
 export default function Dashboard() {
   const [allDocs, setAllDocs] = useState<Document[]>([])
@@ -18,6 +23,11 @@ export default function Dashboard() {
   const [editFolderName, setEditFolderName] = useState('')
   const [dragDocId, setDragDocId] = useState<string | null>(null)
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null)
+  const [sortKey, setSortKey] = useState<SortKey>('date')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('docvault-view') as ViewMode) || 'grid')
+  const [fileFilter, setFileFilter] = useState<FileFilter>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [searchParams, setSearchParams] = useSearchParams()
   const currentFolder = searchParams.get('folder')
   const navigate = useNavigate()
@@ -106,6 +116,16 @@ export default function Dashboard() {
     setDragDocId(docId)
   }
 
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  function switchView(mode: ViewMode) {
+    setViewMode(mode)
+    localStorage.setItem('docvault-view', mode)
+  }
+
   function handleDragOverFolder(e: React.DragEvent, folderId: string) {
     e.preventDefault()
     setDragOverFolder(folderId)
@@ -123,9 +143,39 @@ export default function Dashboard() {
 
   // Current view
   const currentCategoryName = categories.find(c => c.id === currentFolder)?.name
-  const docsInFolder = currentFolder
-    ? allDocs.filter(d => d.category_id === currentFolder)
-    : allDocs.filter(d => !d.category_id) // Root shows uncategorised docs
+  const docsInFolder = useMemo(() => {
+    let docs = currentFolder
+      ? allDocs.filter(d => d.category_id === currentFolder)
+      : allDocs.filter(d => !d.category_id)
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      docs = docs.filter(d =>
+        d.title.toLowerCase().includes(q) ||
+        d.brand?.toLowerCase().includes(q) ||
+        d.document_type?.toLowerCase().includes(q)
+      )
+    }
+
+    // File type filter
+    if (fileFilter === 'pdf') docs = docs.filter(d => d.title.toLowerCase().endsWith('.pdf'))
+    else if (fileFilter === 'image') docs = docs.filter(d => !d.title.toLowerCase().endsWith('.pdf'))
+
+    // Sort
+    docs = [...docs].sort((a, b) => {
+      let cmp = 0
+      switch (sortKey) {
+        case 'name': cmp = a.title.localeCompare(b.title); break
+        case 'date': cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); break
+        case 'size': cmp = (a.file_size || 0) - (b.file_size || 0); break
+        case 'type': cmp = (a.document_type || '').localeCompare(b.document_type || ''); break
+      }
+      return sortDir === 'desc' ? -cmp : cmp
+    })
+
+    return docs
+  }, [allDocs, currentFolder, searchQuery, fileFilter, sortKey, sortDir])
   const totalDocs = allDocs.length
 
   return (
@@ -172,6 +222,49 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Toolbar: search, filter, sort, view */}
+      {!loading && !error && (
+        <div className="flex items-center gap-2 mb-4 animate-fade-in flex-wrap">
+          {/* Search within folder */}
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search documents..."
+              className="h-8 pl-8 text-sm"
+            />
+          </div>
+
+          {/* Filter by type */}
+          <div className="flex items-center gap-0.5 border rounded-md p-0.5">
+            <button onClick={() => setFileFilter('all')} className={`px-2 py-1 rounded text-xs font-medium transition-colors ${fileFilter === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>All</button>
+            <button onClick={() => setFileFilter('pdf')} className={`px-2 py-1 rounded text-xs font-medium transition-colors ${fileFilter === 'pdf' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>PDF</button>
+            <button onClick={() => setFileFilter('image')} className={`px-2 py-1 rounded text-xs font-medium transition-colors ${fileFilter === 'image' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>Image</button>
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-0.5 border rounded-md p-0.5">
+            {(['date', 'name', 'size', 'type'] as SortKey[]).map(key => (
+              <button key={key} onClick={() => toggleSort(key)} className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-0.5 ${sortKey === key ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+                {sortKey === key && <ArrowUpDown size={10} />}
+              </button>
+            ))}
+          </div>
+
+          {/* View toggle */}
+          <div className="flex items-center gap-0.5 border rounded-md p-0.5 ml-auto">
+            <button onClick={() => switchView('grid')} className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`} aria-label="Grid view">
+              <LayoutGrid size={14} />
+            </button>
+            <button onClick={() => switchView('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`} aria-label="List view">
+              <List size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* New folder input */}
       {creatingFolder && (
@@ -297,8 +390,8 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Document grid */}
-      {!loading && !error && docsInFolder.length > 0 && (
+      {/* Document grid/list */}
+      {!loading && !error && docsInFolder.length > 0 && viewMode === 'grid' && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {docsInFolder.map((doc, i) => {
             const isSelected = selected.has(doc.id)
@@ -341,6 +434,50 @@ export default function Dashboard() {
                   </p>
                 </CardContent>
               </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {/* List/table view */}
+      {!loading && !error && docsInFolder.length > 0 && viewMode === 'list' && (
+        <div className="border rounded-xl overflow-hidden animate-fade-in">
+          {/* Table header */}
+          <div className="grid grid-cols-[1fr_100px_100px_120px_80px] gap-2 px-4 py-2.5 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <span>Name</span>
+            <span>Type</span>
+            <span>Brand</span>
+            <span>Date</span>
+            <span>Size</span>
+          </div>
+          {/* Rows */}
+          {docsInFolder.map((doc, i) => {
+            const isSelected = selected.has(doc.id)
+            return (
+              <div
+                key={doc.id}
+                className={`grid grid-cols-[1fr_100px_100px_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center cursor-pointer hover:bg-accent/50 transition-colors group animate-slide-up ${isSelected ? 'bg-primary/[0.04]' : ''}`}
+                style={{ animationDelay: `${Math.min(i * 20, 200)}ms`, animationFillMode: 'both' }}
+                onClick={() => navigate(`/app/documents/${doc.id}`)}
+                draggable
+                onDragStart={() => handleDragStart(doc.id)}
+                onDragEnd={() => { setDragDocId(null); setDragOverFolder(null) }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <button onClick={(e) => toggleSelect(e, doc.id)} className="text-muted-foreground hover:text-primary transition-colors shrink-0" aria-label="Select">
+                    {isSelected ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
+                  </button>
+                  <FileText size={16} className="text-primary/60 shrink-0" />
+                  <span className="text-sm font-medium truncate">{doc.title}</span>
+                  {doc.processing_status && doc.processing_status !== 'complete' && (
+                    <Loader2 size={12} className="animate-spin text-primary shrink-0" />
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground truncate">{doc.document_type || '—'}</span>
+                <span className="text-xs text-muted-foreground truncate">{doc.brand || '—'}</span>
+                <span className="text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: '2-digit' })}</span>
+                <span className="text-xs text-muted-foreground">{doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : '—'}</span>
+              </div>
             )
           })}
         </div>
