@@ -10,7 +10,6 @@ user created by test_api.py (which tests register). If it's unverified, the
 login tests gracefully verify the 403-unverified response.
 """
 import io
-import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -18,27 +17,6 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app
 
 BASE = "http://test"
-
-# Unique test email per run to avoid conflicts
-_EMAIL = f"int-{uuid.uuid4().hex[:6]}@example.com"
-_PASSWORD = "Int3gration!"
-
-
-@pytest.mark.asyncio
-async def test_register_new_user():
-    """Register returns 201 (or 409 if email already exists from prior CI run)."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
-        reg = await c.post("/api/v1/auth/register", json={"email": _EMAIL, "password": _PASSWORD})
-    assert reg.status_code in (201, 409)
-
-
-@pytest.mark.asyncio
-async def test_login_unverified_user():
-    """Login an unverified user returns 403 (email not verified)."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
-        res = await c.post("/api/v1/auth/login", json={"email": _EMAIL, "password": _PASSWORD})
-    # 200 if verified (unlikely in CI), 403 if not, both correct
-    assert res.status_code in (200, 403)
 
 
 @pytest.mark.asyncio
