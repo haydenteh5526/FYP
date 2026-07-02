@@ -315,6 +315,11 @@ export default function Dashboard() {
                       {isSelected ? <CheckSquare size={18} className="text-primary" /> : <Square size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
                     </button>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      {currentFolder && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-amber-600" onClick={async (e) => { e.stopPropagation(); await handleMove(doc.id, null) }} aria-label="Remove from folder">
+                          <Home size={13} />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); setMoveTarget(doc.id) }} aria-label="Move to folder">
                         <MoveRight size={13} />
                       </Button>

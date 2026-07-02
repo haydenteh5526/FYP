@@ -16,15 +16,18 @@ export default function DocumentDetail() {
     if (id) getDocument(id).then(setDoc)
   }, [id])
 
-  // Poll while processing
+  // Poll while processing — only update state when status changes to avoid re-rendering preview
   useEffect(() => {
     if (!doc || !id) return
     if (doc.processing_status === 'complete' || doc.processing_status === 'failed') return
     const timer = setInterval(async () => {
       const updated = await getDocument(id)
-      setDoc(updated)
+      if (updated.processing_status !== doc.processing_status) {
+        setDoc(updated)
+      }
       if (updated.processing_status === 'complete' || updated.processing_status === 'failed') {
         clearInterval(timer)
+        setDoc(updated) // final update with all data
       }
     }, 3000)
     return () => clearInterval(timer)
