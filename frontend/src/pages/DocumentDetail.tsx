@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -45,8 +45,9 @@ export default function DocumentDetail() {
 
   const isProcessing = doc.processing_status && doc.processing_status !== 'complete' && doc.processing_status !== 'failed'
   const isPdf = doc.image_url?.includes('.pdf')
-  // Stable image URL — presigned URL stays valid for the session, don't refresh it on polls
-  const [stableImageUrl] = useState(doc.image_url)
+  // Use the first image_url we get — don't let polling re-trigger image loads
+  const stableImageUrl = useRef(doc.image_url)
+  if (!stableImageUrl.current && doc.image_url) stableImageUrl.current = doc.image_url
 
   return (
     <div className="p-8 max-w-5xl mx-auto animate-fade-in">
@@ -95,11 +96,11 @@ export default function DocumentDetail() {
       {tab === 'preview' && (
         <Card>
           <CardContent className="p-3">
-            {stableImageUrl ? (
+            {stableImageUrl.current ? (
               isPdf ? (
-                <iframe src={stableImageUrl} className="w-full h-[80vh] rounded-md" title={doc.title} />
+                <iframe src={stableImageUrl.current} className="w-full h-[80vh] rounded-md" title={doc.title} />
               ) : (
-                <img src={stableImageUrl} alt={doc.title} className="w-full rounded-md object-contain" />
+                <img src={stableImageUrl.current} alt={doc.title} className="w-full rounded-md object-contain" />
               )
             ) : (
               <div className="h-[60vh] flex items-center justify-center text-sm text-muted-foreground">No preview available</div>
