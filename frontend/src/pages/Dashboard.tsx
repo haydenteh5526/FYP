@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, type Document } from '@/lib/api'
+import { useToast } from '@/components/Toast'
 
 type SortKey = 'name' | 'date' | 'size' | 'type'
 type SortDir = 'asc' | 'desc'
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
   const currentFolder = searchParams.get('folder')
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   useEffect(() => { load() }, [])
 
@@ -43,7 +45,18 @@ export default function Dashboard() {
     const timer = setInterval(async () => {
       try {
         const docsData = await getDocuments()
-        setAllDocs(Array.isArray(docsData?.documents) ? docsData.documents : [])
+        const updated = Array.isArray(docsData?.documents) ? docsData.documents : []
+        // Check if any doc just finished processing
+        updated.forEach(d => {
+          const prev = allDocs.find(p => p.id === d.id)
+          if (prev && prev.processing_status !== 'complete' && d.processing_status === 'complete') {
+            toast(`"${d.title}" processed successfully`, 'success')
+          }
+          if (prev && prev.processing_status !== 'failed' && d.processing_status === 'failed') {
+            toast(`"${d.title}" processing failed`, 'error')
+          }
+        })
+        setAllDocs(updated)
       } catch { /* ignore */ }
     }, 3000)
     return () => clearInterval(timer)
@@ -68,6 +81,7 @@ export default function Dashboard() {
     await deleteDocument(id)
     setAllDocs(allDocs.filter(d => d.id !== id))
     setSelected(prev => { const n = new Set(prev); n.delete(id); return n })
+    toast('Document deleted')
   }
 
   function toggleSelect(e: React.MouseEvent, id: string) {
@@ -85,6 +99,7 @@ export default function Dashboard() {
     await bulkDeleteDocuments(ids)
     setAllDocs(allDocs.filter(d => !selected.has(d.id)))
     setSelected(new Set())
+    toast(`${ids.length} document${ids.length > 1 ? 's' : ''} deleted`)
   }
 
   async function handleCreateFolder() {
@@ -94,6 +109,7 @@ export default function Dashboard() {
     setCategories([...categories, cat])
     setCreatingFolder(false)
     setNewFolderName('')
+    toast(`Folder "${name}" created`)
   }
 
   async function handleRenameFolder(id: string) {
@@ -138,6 +154,8 @@ export default function Dashboard() {
       const categoryId = folderId === '__root__' ? null : folderId
       await moveToCategory(dragDocId, categoryId)
       setAllDocs(allDocs.map(d => d.id === dragDocId ? { ...d, category_id: categoryId } : d))
+      const folderName = folderId === '__root__' ? 'All Documents' : categories.find(c => c.id === folderId)?.name || 'folder'
+      toast(`Moved to ${folderName}`)
     }
     setDragDocId(null)
     setDragOverFolder(null)
@@ -480,9 +498,15 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  <div className="w-10 h-10 rounded-lg bg-primary/[0.07] flex items-center justify-center transition-all duration-200 group-hover:bg-primary/[0.12] group-hover:scale-105 mt-1">
-                    <FileText size={18} className="text-primary/70" />
-                  </div>
+                  {doc.image_url && !doc.title.toLowerCase().endsWith('.pdf') ? (
+                    <div className="w-full h-28 rounded-lg bg-muted/50 overflow-hidden mt-1">
+                      <img src={doc.image_url} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-primary/[0.07] flex items-center justify-center transition-all duration-200 group-hover:bg-primary/[0.12] group-hover:scale-105 mt-1">
+                      <FileText size={18} className="text-primary/70" />
+                    </div>
+                  )}
                   <h3 className="font-medium text-sm mt-3.5 leading-snug line-clamp-2">{doc.title}</h3>
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {doc.processing_status && doc.processing_status !== 'complete' && (

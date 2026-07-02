@@ -4,6 +4,7 @@ import { FileText, Search, MessageSquare, Upload, LogOut, ShieldCheck, Settings 
 import { AuthProvider, useAuth } from './lib/auth'
 import { searchDocuments } from './lib/api'
 import { useTheme } from './lib/theme'
+import { ToastProvider } from './components/Toast'
 import Landing from './pages/Landing'
 import AuthPage from './pages/Auth'
 import VerifyEmail from './pages/VerifyEmail'
@@ -20,9 +21,11 @@ import { Input } from './components/ui/input'
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   )
 }
