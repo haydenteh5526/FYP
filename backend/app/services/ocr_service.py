@@ -71,37 +71,24 @@ class MistralBackend(OCRBackend):
 
         def _call():
             resp = httpx.post(
-                "https://api.mistral.ai/v1/chat/completions",
+                "https://api.mistral.ai/v1/ocr",
                 headers=headers,
                 json={
-                    "model": "pixtral-large-latest",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "image_url", "image_url": {"url": data_url}},
-                                {
-                                    "type": "text",
-                                    "text": (
-                                        "Extract ALL text from this document image. "
-                                        "Preserve structure: headings, paragraphs, tables, lists. "
-                                        "Return only the extracted text, no commentary."
-                                    ),
-                                },
-                            ],
-                        }
-                    ],
-                    "max_tokens": 16384,
-                    "temperature": 0.1,
+                    "model": "mistral-ocr-latest",
+                    "document": {
+                        "type": "image_url",
+                        "image_url": data_url,
+                    },
                 },
                 timeout=120,
             )
             resp.raise_for_status()
             return resp.json()
 
-        logger.info("Mistral Vision (image): processing %s (%d bytes)", mime, size)
-        result = with_retry(_call, label="mistral.vision", attempts=2)
-        text = result["choices"][0]["message"]["content"]
+        logger.info("Mistral OCR (image): processing %s (%d bytes)", mime, size)
+        result = with_retry(_call, label="mistral.ocr.image", attempts=2)
+        pages = result.get("pages", [])
+        text = "\n\n".join(p.get("markdown", "") for p in pages)
         logger.info("Mistral OCR: extracted %d chars", len(text))
         return text.strip()
 
