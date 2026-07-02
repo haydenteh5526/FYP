@@ -356,6 +356,7 @@ export default function Dashboard() {
       {/* Folders (only show at root level) */}
       {!loading && !error && !currentFolder && categories.length > 0 && (
         <>
+        {viewMode === 'grid' ? (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-6">
           {categories.map((cat, i) => {
             const count = allDocs.filter(d => d.category_id === cat.id).length
@@ -404,7 +405,54 @@ export default function Dashboard() {
               </Card>
             )
           })}
-        </div>
+          </div>
+        ) : (
+          <div className="border rounded-xl overflow-hidden mb-6">
+            {categories.map((cat, i) => {
+              const count = allDocs.filter(d => d.category_id === cat.id).length
+              const isDropTarget = dragOverFolder === cat.id
+              return (
+                <div
+                  key={cat.id}
+                  className={`grid grid-cols-[1fr_100px_100px_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center cursor-pointer hover:bg-accent/50 transition-colors group animate-slide-up ${isDropTarget ? 'ring-2 ring-primary bg-primary/[0.04]' : ''}`}
+                  style={{ animationDelay: `${i * 20}ms`, animationFillMode: 'both' }}
+                  onClick={() => { if (!editingFolder) setSearchParams({ folder: cat.id }) }}
+                  onDragOver={(e) => handleDragOverFolder(e, cat.id)}
+                  onDragLeave={() => setDragOverFolder(null)}
+                  onDrop={() => handleDropOnFolder(cat.id)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FolderOpen size={16} className="text-amber-600 shrink-0" />
+                    {editingFolder === cat.id ? (
+                      <Input
+                        autoFocus
+                        value={editFolderName}
+                        onChange={e => setEditFolderName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(cat.id); if (e.key === 'Escape') setEditingFolder(null) }}
+                        onBlur={() => handleRenameFolder(cat.id)}
+                        onClick={e => e.stopPropagation()}
+                        className="h-7 text-sm w-48"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium truncate">{cat.name}</span>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">Folder</span>
+                  <span className="text-xs text-muted-foreground">{count} item{count !== 1 ? 's' : ''}</span>
+                  <span className="text-xs text-muted-foreground">—</span>
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); setEditingFolder(cat.id); setEditFolderName(cat.name) }} aria-label="Rename">
+                      <Pencil size={11} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => handleDeleteFolder(e, cat.id)} aria-label="Delete">
+                      <Trash2 size={11} />
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
         </>
       )}
 
