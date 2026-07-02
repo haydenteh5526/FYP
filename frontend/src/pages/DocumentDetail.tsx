@@ -45,6 +45,24 @@ export default function DocumentDetail() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto animate-fade-in">
+      {/* Processing banner */}
+      {isProcessing && (
+        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/[0.03] p-5 animate-fade-in">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center shadow-md shadow-primary/20">
+              <Loader2 size={20} className="text-white animate-spin" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">Processing your document...</p>
+              <p className="text-xs text-muted-foreground mt-0.5">AI is extracting text, detecting metadata, and generating embeddings.</p>
+            </div>
+          </div>
+          <div className="mt-4 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="h-full gradient-bg rounded-full animate-[progress_2.5s_ease-in-out_infinite]" style={{ width: '70%' }} />
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>

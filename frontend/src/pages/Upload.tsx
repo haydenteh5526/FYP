@@ -28,10 +28,11 @@ export default function UploadPage() {
     setResult(null)
     try {
       const doc = await uploadDocument(file)
-      setResult({ id: doc.id, title: doc.title, brand: doc.brand })
+      // Navigate immediately to document detail — it shows a processing
+      // state with live polling until OCR + AI analysis completes
+      navigate(`/app/documents/${doc.id}`)
     } catch (err) {
       console.error(err)
-    } finally {
       setUploading(false)
     }
   }
