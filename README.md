@@ -46,18 +46,66 @@ Scan the QR code with Expo Go on your phone.
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph Clients
+        Web["React Web App<br/>(Vite, Tailwind, localhost:3000)"]
+        Mobile["React Native<br/>(Expo, iOS/Android)"]
+    end
+
+    subgraph Backend["Docker Compose"]
+        API["FastAPI API<br/>:8000"]
+        Worker["ARQ Worker<br/>(background processing)"]
+        Redis["Redis 7<br/>(cache + queue)"]
+        DB["PostgreSQL 16<br/>+ pgvector"]
+        S3["MinIO (S3)<br/>(Object Storage)"]
+    end
+
+    subgraph External
+        OpenAI["OpenAI API<br/>GPT-4o-mini + Embeddings"]
+        Expo["Expo Push API<br/>(Notifications)"]
+        Resend["Resend<br/>(Email)"]
+    end
+
+    Web -->|REST + JWT| API
+    Mobile -->|REST + JWT| API
+    API -->|enqueue jobs| Redis
+    Worker -->|poll jobs| Redis
+    API -->|queries + pgvector| DB
+    Worker -->|writes results| DB
+    API -->|upload/presign| S3
+    Worker -->|download for OCR| S3
+    API -->|embeddings + chat| OpenAI
+    Worker -->|embeddings + categorise| OpenAI
+    Worker -->|warranty reminders| Expo
+    API -->|email verification| Resend
+    API -->|cache get/set| Redis
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌──────────────────┐
-│  React Web App  │     │  React Native   │     │  API (FastAPI)   │
-│   localhost:3000 │────▶│  Mobile App     │────▶│   localhost:8000  │
-└─────────────────┘     └─────────────────┘     └────────┬─────────┘
-                                                          │
-                              ┌────────────────────────────┼──────────────┐
-                              │                            │              │
-                    ┌─────────▼─────┐        ┌─────────────▼──┐  ┌───────▼──────┐
-                    │ PostgreSQL    │        │ MinIO (S3)      │  │ OpenAI API   │
-                    │ + pgvector   │        │ Object Storage  │  │ GPT-4o-mini  │
-                    └──────────────┘        └─────────────────┘  └──────────────┘
+
+### Data flow: Document upload
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as API
+    participant R as Redis
+    participant W as Worker
+    participant S as S3
+    participant AI as OpenAI
+
+    U->>A: POST /documents (image)
+    A->>S: Upload original file
+    A->>A: Create doc (status: pending)
+    A->>R: Enqueue process_document
+    A-->>U: 201 {status: "pending"}
+    R->>W: Job: process_document
+    W->>S: Download file
+    W->>W: OCR (Tesseract)
+    W->>AI: Categorise + embed
+    W->>W: Chunk text, extract warranty
+    W->>W: Update doc (status: complete)
+    U->>A: GET /documents/:id (poll)
+    A-->>U: {status: "complete", raw_text, brand...}
 ```
 
 ## API Endpoints
