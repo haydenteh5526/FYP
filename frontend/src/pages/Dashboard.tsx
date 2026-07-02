@@ -389,7 +389,7 @@ export default function Dashboard() {
                     ) : (
                       <>
                         <p className="text-sm font-medium truncate">{cat.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{count} doc{count !== 1 ? 's' : ''}</p>
+                        <p className="text-[11px] text-muted-foreground">{count === 0 ? 'Empty' : `${count} document${count !== 1 ? 's' : ''}`}</p>
                       </>
                     )}
                   </div>
@@ -439,7 +439,7 @@ export default function Dashboard() {
                   </div>
                   <span className="text-xs text-muted-foreground">Folder</span>
                   <span className="text-xs text-muted-foreground">{count} item{count !== 1 ? 's' : ''}</span>
-                  <span className="text-xs text-muted-foreground">—</span>
+                  <span className="text-xs text-muted-foreground"></span>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); setEditingFolder(cat.id); setEditFolderName(cat.name) }} aria-label="Rename">
                       <Pencil size={11} />
