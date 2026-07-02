@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Search, Filter } from 'lucide-react'
+import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Filter } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +27,6 @@ export default function Dashboard() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('docvault-view') as ViewMode) || 'grid')
   const [fileFilter, setFileFilter] = useState<FileFilter>('all')
-  const [searchQuery, setSearchQuery] = useState('')
   const [showSortMenu, setShowSortMenu] = useState(false)
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [showViewMenu, setShowViewMenu] = useState(false)
@@ -151,16 +150,6 @@ export default function Dashboard() {
       ? allDocs.filter(d => d.category_id === currentFolder)
       : allDocs.filter(d => !d.category_id)
 
-    // Search filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      docs = docs.filter(d =>
-        d.title.toLowerCase().includes(q) ||
-        d.brand?.toLowerCase().includes(q) ||
-        d.document_type?.toLowerCase().includes(q)
-      )
-    }
-
     // File type filter
     if (fileFilter === 'pdf') docs = docs.filter(d => d.title.toLowerCase().endsWith('.pdf'))
     else if (fileFilter === 'image') docs = docs.filter(d => !d.title.toLowerCase().endsWith('.pdf'))
@@ -178,7 +167,7 @@ export default function Dashboard() {
     })
 
     return docs
-  }, [allDocs, currentFolder, searchQuery, fileFilter, sortKey, sortDir])
+  }, [allDocs, currentFolder, fileFilter, sortKey, sortDir])
   const totalDocs = allDocs.length
 
   return (
@@ -226,19 +215,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Toolbar: search, filter, sort, view */}
+      {/* Toolbar: filter, sort, view */}
       {!loading && !error && (
         <div className="flex items-center gap-2 mb-4 animate-fade-in">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search documents..."
-              className="h-8 pl-8 text-sm"
-            />
-          </div>
 
           {/* Sort dropdown */}
           <div className="relative">
