@@ -439,7 +439,7 @@ export default function Dashboard() {
                   </div>
                   <span className="text-xs text-muted-foreground">Folder</span>
                   <span className="text-xs text-muted-foreground">{count} item{count !== 1 ? 's' : ''}</span>
-                  <span className="text-xs text-muted-foreground"></span>
+                  <span className="text-xs text-muted-foreground">{(() => { const latest = allDocs.filter(d => d.category_id === cat.id).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]; return latest ? new Date(latest.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: '2-digit' }) : '—' })()}</span>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); setEditingFolder(cat.id); setEditFolderName(cat.name) }} aria-label="Rename">
                       <Pencil size={11} />
