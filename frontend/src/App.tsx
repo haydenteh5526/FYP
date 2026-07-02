@@ -171,9 +171,7 @@ function TopBar() {
             placeholder="Search documents..."
             className="pl-10 pr-16 h-9 text-sm bg-muted/40 border-0 rounded-full"
           />
-          {!loading && (
-            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/60 bg-background/80 border border-border/40 rounded px-1.5 py-0.5 pointer-events-none">⌘K</kbd>
-          )}
+          {!loading && <span />}
           {loading && <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
         </form>
 
