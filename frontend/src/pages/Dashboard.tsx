@@ -36,8 +36,8 @@ export default function Dashboard() {
     setError(false)
     try {
       const [docsData, catsData] = await Promise.all([getDocuments(), getCategories()])
-      setAllDocs(docsData.documents)
-      setCategories(catsData)
+      setAllDocs(Array.isArray(docsData?.documents) ? docsData.documents : [])
+      setCategories(Array.isArray(catsData) ? catsData : [])
     } catch {
       setError(true)
     } finally {

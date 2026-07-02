@@ -37,7 +37,7 @@ function AppRoutes() {
       <Route path="/login" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="login" />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="register" />} />
       <Route path="/verify" element={<VerifyEmail />} />
-      <Route path="/app" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
+      <Route path="/app/*" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
         <Route index element={<Dashboard />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="documents/:id" element={<DocumentDetail />} />

@@ -7,6 +7,15 @@ function getHeaders(): HeadersInit {
   return headers
 }
 
+/** Call after any fetch — if 401, clear stale token and redirect to login */
+function handleUnauthorized(res: Response): Response {
+  if (res.status === 401) {
+    localStorage.removeItem('token')
+    window.location.href = '/login'
+  }
+  return res
+}
+
 export interface Tag {
   id: string
   name: string
@@ -90,7 +99,7 @@ export async function uploadDocument(file: File, title?: string): Promise<Docume
 
 export async function getDocuments(categoryId?: string): Promise<{ documents: Document[]; total: number }> {
   const url = categoryId ? `${BASE}/documents?category_id=${categoryId}` : `${BASE}/documents`
-  const res = await fetch(url, { headers: getHeaders() })
+  const res = handleUnauthorized(await fetch(url, { headers: getHeaders() }))
   return res.json()
 }
 
@@ -131,7 +140,7 @@ export async function askQuestion(question: string, documentId?: string, history
 }
 
 export async function getCategories(): Promise<{ id: string; name: string }[]> {
-  const res = await fetch(`${BASE}/categories`, { headers: getHeaders() })
+  const res = handleUnauthorized(await fetch(`${BASE}/categories`, { headers: getHeaders() }))
   return res.json()
 }
 
