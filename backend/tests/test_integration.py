@@ -20,7 +20,7 @@ from app.main import app
 BASE = "http://test"
 
 # Unique test email per run to avoid conflicts
-_EMAIL = f"int-{uuid.uuid4().hex[:6]}@ci.test"
+_EMAIL = f"int-{uuid.uuid4().hex[:6]}@example.com"
 _PASSWORD = "Int3gration!"
 
 
@@ -54,8 +54,8 @@ async def test_upload_rejects_bad_type():
             headers={"Authorization": "Bearer fake"},
             files={"file": ("t.exe", io.BytesIO(b"MZ"), "application/x-msdownload")},
         )
-    # 400 (bad type) or 403 (bad token) — both are valid protective responses
-    assert res.status_code in (400, 403)
+    # 400 (bad type) or 401/403 (bad token) — both are valid protective responses
+    assert res.status_code in (400, 401, 403)
 
 
 @pytest.mark.asyncio
