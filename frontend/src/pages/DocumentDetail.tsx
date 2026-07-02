@@ -11,6 +11,7 @@ export default function DocumentDetail() {
   const navigate = useNavigate()
   const [doc, setDoc] = useState<Document | null>(null)
   const [tab, setTab] = useState<'preview' | 'text' | 'info' | 'ask'>('preview')
+  const stableImageUrl = useRef<string | null>(null)
 
   useEffect(() => {
     if (id) getDocument(id).then(setDoc)
@@ -33,6 +34,11 @@ export default function DocumentDetail() {
     return () => clearInterval(timer)
   }, [doc?.processing_status, id])
 
+  // Keep the first image_url we get stable so preview doesn't re-load on polls
+  if (doc?.image_url && !stableImageUrl.current) {
+    stableImageUrl.current = doc.image_url
+  }
+
   if (!doc) {
     return (
       <div className="p-8 max-w-5xl mx-auto animate-fade-in">
@@ -45,9 +51,6 @@ export default function DocumentDetail() {
 
   const isProcessing = doc.processing_status && doc.processing_status !== 'complete' && doc.processing_status !== 'failed'
   const isPdf = doc.image_url?.includes('.pdf')
-  // Use the first image_url we get — don't let polling re-trigger image loads
-  const stableImageUrl = useRef(doc.image_url)
-  if (!stableImageUrl.current && doc.image_url) stableImageUrl.current = doc.image_url
 
   return (
     <div className="p-8 max-w-5xl mx-auto animate-fade-in">
