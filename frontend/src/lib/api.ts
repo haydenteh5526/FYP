@@ -125,6 +125,19 @@ export async function shareDocument(id: string, expiresHours = 24): Promise<{ sh
   return res.json()
 }
 
+export interface SimilarDocument {
+  id: string
+  title: string
+  brand: string | null
+  document_type: string | null
+  similarity: number
+}
+
+export async function findSimilarDocuments(id: string): Promise<{ similar: SimilarDocument[] }> {
+  const res = await fetch(`${BASE}/documents/${id}/similar`, { headers: getHeaders() })
+  return res.json()
+}
+
 export async function searchDocuments(q: string): Promise<{ results: SearchResult[] }> {
   const res = await fetch(`${BASE}/search?q=${encodeURIComponent(q)}`, { headers: getHeaders() })
   return res.json()

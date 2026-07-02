@@ -4,7 +4,7 @@ import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, C
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { getDocument, askQuestion, shareDocument, getTags, createTag, addTagToDocument, removeTagFromDocument, updateDocumentText, getDocumentVersions, restoreDocumentVersion, type Document, type Tag, type DocumentVersion } from '@/lib/api'
+import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, updateDocumentText, getDocumentVersions, restoreDocumentVersion, type Document, type Tag, type DocumentVersion, type SimilarDocument } from '@/lib/api'
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
@@ -175,6 +175,11 @@ export default function DocumentDetail() {
         </Card>
       )}
 
+      {/* Related documents (AI-powered, shown below info or as its own section) */}
+      {tab === 'info' && !isProcessing && doc.raw_text && (
+        <RelatedDocuments documentId={doc.id} />
+      )}
+
       {tab === 'ask' && <DocumentChat documentId={doc.id} documentTitle={doc.title} />}
     </div>
   )
@@ -292,6 +297,56 @@ function ShareButton({ documentId }: { documentId: string }) {
     <Button variant="outline" size="sm" onClick={handleShare} disabled={loading}>
       {copied ? <><Check size={14} className="mr-1.5 text-green-600" /> Link copied</> : <><Share2 size={14} className="mr-1.5" /> Share</>}
     </Button>
+  )
+}
+
+function RelatedDocuments({ documentId }: { documentId: string }) {
+  const [similar, setSimilar] = useState<SimilarDocument[]>([])
+  const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    findSimilarDocuments(documentId).then(data => {
+      setSimilar(data.similar || [])
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [documentId])
+
+  if (loading) return (
+    <Card className="mt-4 animate-fade-in">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 size={14} className="animate-spin" /> Finding related documents...
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  if (similar.length === 0) return null
+
+  return (
+    <Card className="mt-4 animate-fade-in">
+      <CardContent className="p-5">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Related Documents</p>
+        <div className="space-y-2">
+          {similar.map(doc => (
+            <button
+              key={doc.id}
+              onClick={() => navigate(`/app/documents/${doc.id}`)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent/50 transition-colors text-left"
+            >
+              <FileText size={15} className="text-primary/60 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{doc.title}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {doc.brand && `${doc.brand} · `}{doc.document_type || 'Document'} · {Math.round(doc.similarity * 100)}% similar
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

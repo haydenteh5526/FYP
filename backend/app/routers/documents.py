@@ -247,6 +247,53 @@ async def share_document(document_id: uuid.UUID, expires_hours: int = 24, db: As
     return {"share_url": url, "expires_in_hours": expires // 3600}
 
 
+@router.get("/{document_id}/similar")
+async def find_similar_documents(document_id: uuid.UUID, limit: int = 5, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    """Find documents semantically similar to the given document using embeddings."""
+    from sqlalchemy import text
+
+    from app.models.base import DocChunk
+
+    # Get the average embedding of this document's chunks
+    chunks = (await db.execute(select(DocChunk).where(DocChunk.document_id == document_id))).scalars().all()
+    if not chunks or not chunks[0].embedding:
+        return {"similar": []}
+
+    # Use the first chunk's embedding as the query vector (most representative)
+    embedding = chunks[0].embedding
+    embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+
+    result = await db.execute(
+        text("""
+            SELECT DISTINCT ON (d.id) d.id, d.title, d.brand, d.document_type,
+                   1 - (dc.embedding <=> cast(:embedding as vector)) as similarity
+            FROM doc_chunks dc
+            JOIN documents d ON d.id = dc.document_id
+            WHERE d.user_id = cast(:user_id as uuid)
+              AND d.id != cast(:doc_id as uuid)
+            ORDER BY d.id, dc.embedding <=> cast(:embedding as vector)
+        """),
+        {"embedding": embedding_str, "user_id": str(user_id), "doc_id": str(document_id)},
+    )
+    rows = result.fetchall()
+    # Sort by similarity descending and take top N
+    sorted_rows = sorted(rows, key=lambda r: r.similarity if r.similarity == r.similarity else 0, reverse=True)[:limit]
+
+    return {
+        "similar": [
+            {
+                "id": str(r.id),
+                "title": r.title,
+                "brand": r.brand,
+                "document_type": r.document_type,
+                "similarity": round(r.similarity, 4) if r.similarity == r.similarity else 0.0,
+            }
+            for r in sorted_rows
+            if r.similarity and r.similarity > 0.3  # Only show reasonably similar docs
+        ]
+    }
+
+
 
 async def _get_doc_or_404(document_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession) -> Document:
     query = select(Document).where(Document.id == document_id, Document.user_id == user_id).options(selectinload(Document.tags))
