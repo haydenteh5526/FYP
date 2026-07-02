@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, MoveRight, Pencil } from 'lucide-react'
+import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,6 @@ export default function Dashboard() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
-  const [moveTarget, setMoveTarget] = useState<string | null>(null) // doc id being moved
   const [editingFolder, setEditingFolder] = useState<string | null>(null)
   const [editFolderName, setEditFolderName] = useState('')
   const [dragDocId, setDragDocId] = useState<string | null>(null)
@@ -114,17 +113,12 @@ export default function Dashboard() {
 
   async function handleDropOnFolder(folderId: string) {
     if (dragDocId) {
-      await moveToCategory(dragDocId, folderId)
-      setAllDocs(allDocs.map(d => d.id === dragDocId ? { ...d, category_id: folderId } : d))
+      const categoryId = folderId === '__root__' ? null : folderId
+      await moveToCategory(dragDocId, categoryId)
+      setAllDocs(allDocs.map(d => d.id === dragDocId ? { ...d, category_id: categoryId } : d))
     }
     setDragDocId(null)
     setDragOverFolder(null)
-  }
-
-  async function handleMove(docId: string, categoryId: string | null) {
-    await moveToCategory(docId, categoryId)
-    setAllDocs(allDocs.map(d => d.id === docId ? { ...d, category_id: categoryId } : d))
-    setMoveTarget(null)
   }
 
   // Current view
@@ -224,7 +218,19 @@ export default function Dashboard() {
 
       {/* Folders (only show at root level) */}
       {!loading && !error && !currentFolder && categories.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <>
+          {/* Drop zone to move back to uncategorised (shows when dragging) */}
+          {dragDocId && (
+            <div
+              className={`mb-3 p-3 rounded-xl border-2 border-dashed transition-all text-center text-sm ${dragOverFolder === '__root__' ? 'border-primary bg-primary/[0.04] text-primary' : 'border-border/60 text-muted-foreground'}`}
+              onDragOver={(e) => { e.preventDefault(); setDragOverFolder('__root__') }}
+              onDragLeave={() => setDragOverFolder(null)}
+              onDrop={() => handleDropOnFolder('__root__')}
+            >
+              Drop here to remove from folder
+            </div>
+          )}
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-6">
           {categories.map((cat, i) => {
             const count = allDocs.filter(d => d.category_id === cat.id).length
             const isDropTarget = dragOverFolder === cat.id
@@ -273,6 +279,7 @@ export default function Dashboard() {
             )
           })}
         </div>
+        </>
       )}
 
       {/* Section label */}
@@ -315,14 +322,6 @@ export default function Dashboard() {
                       {isSelected ? <CheckSquare size={18} className="text-primary" /> : <Square size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
                     </button>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      {currentFolder && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-amber-600" onClick={async (e) => { e.stopPropagation(); await handleMove(doc.id, null) }} aria-label="Remove from folder">
-                          <Home size={13} />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); setMoveTarget(doc.id) }} aria-label="Move to folder">
-                        <MoveRight size={13} />
-                      </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(e) => handleDelete(e, doc.id)}>
                         <Trash2 size={13} />
                       </Button>
@@ -351,34 +350,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Move to folder modal */}
-      {moveTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-fade-in" onClick={() => setMoveTarget(null)}>
-          <Card className="w-80 animate-scale-in" onClick={e => e.stopPropagation()}>
-            <CardContent className="p-5">
-              <h3 className="font-semibold text-sm mb-3">Move to folder</h3>
-              <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                <button
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left hover:bg-accent transition-colors"
-                  onClick={() => handleMove(moveTarget, null)}
-                >
-                  <Home size={15} className="text-muted-foreground" /> Uncategorised
-                </button>
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left hover:bg-accent transition-colors"
-                    onClick={() => handleMove(moveTarget, cat.id)}
-                  >
-                    <FolderOpen size={15} className="text-amber-600" /> {cat.name}
-                  </button>
-                ))}
-              </div>
-              <Button variant="ghost" size="sm" className="w-full mt-3" onClick={() => setMoveTarget(null)}>Cancel</Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   )
 }
