@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, MoveRight } from 'lucide-react'
+import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, MoveRight, Pencil } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, moveToCategory, type Document } from '@/lib/api'
+import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, type Document } from '@/lib/api'
 
 export default function Dashboard() {
   const [allDocs, setAllDocs] = useState<Document[]>([])
@@ -15,6 +15,10 @@ export default function Dashboard() {
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [moveTarget, setMoveTarget] = useState<string | null>(null) // doc id being moved
+  const [editingFolder, setEditingFolder] = useState<string | null>(null)
+  const [editFolderName, setEditFolderName] = useState('')
+  const [dragDocId, setDragDocId] = useState<string | null>(null)
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const currentFolder = searchParams.get('folder')
   const navigate = useNavigate()
@@ -79,6 +83,42 @@ export default function Dashboard() {
     setCategories([...categories, cat])
     setCreatingFolder(false)
     setNewFolderName('')
+  }
+
+  async function handleRenameFolder(id: string) {
+    const name = editFolderName.trim()
+    if (!name) return
+    const updated = await renameCategory(id, name)
+    setCategories(categories.map(c => c.id === id ? updated : c))
+    setEditingFolder(null)
+    setEditFolderName('')
+  }
+
+  async function handleDeleteFolder(e: React.MouseEvent, id: string) {
+    e.stopPropagation()
+    await deleteCategory(id)
+    setCategories(categories.filter(c => c.id !== id))
+    // Docs in this folder become uncategorised
+    setAllDocs(allDocs.map(d => d.category_id === id ? { ...d, category_id: null } : d))
+    if (currentFolder === id) setSearchParams({})
+  }
+
+  function handleDragStart(docId: string) {
+    setDragDocId(docId)
+  }
+
+  function handleDragOverFolder(e: React.DragEvent, folderId: string) {
+    e.preventDefault()
+    setDragOverFolder(folderId)
+  }
+
+  async function handleDropOnFolder(folderId: string) {
+    if (dragDocId) {
+      await moveToCategory(dragDocId, folderId)
+      setAllDocs(allDocs.map(d => d.id === dragDocId ? { ...d, category_id: folderId } : d))
+    }
+    setDragDocId(null)
+    setDragOverFolder(null)
   }
 
   async function handleMove(docId: string, categoryId: string | null) {
@@ -187,22 +227,47 @@ export default function Dashboard() {
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-6">
           {categories.map((cat, i) => {
             const count = allDocs.filter(d => d.category_id === cat.id).length
+            const isDropTarget = dragOverFolder === cat.id
             return (
               <Card
                 key={cat.id}
-                className="group hover-lift cursor-pointer animate-slide-up transition-all"
+                className={`group hover-lift cursor-pointer animate-slide-up transition-all ${isDropTarget ? 'ring-2 ring-primary bg-primary/[0.04]' : ''}`}
                 style={{ animationDelay: `${i * 30}ms`, animationFillMode: 'both' }}
-                onClick={() => setSearchParams({ folder: cat.id })}
+                onClick={() => { if (!editingFolder) setSearchParams({ folder: cat.id }) }}
+                onDragOver={(e) => handleDragOverFolder(e, cat.id)}
+                onDragLeave={() => setDragOverFolder(null)}
+                onDrop={() => handleDropOnFolder(cat.id)}
               >
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/15 transition-colors">
                     <FolderOpen size={18} className="text-amber-600" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{cat.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{count} doc{count !== 1 ? 's' : ''}</p>
+                    {editingFolder === cat.id ? (
+                      <Input
+                        autoFocus
+                        value={editFolderName}
+                        onChange={e => setEditFolderName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(cat.id); if (e.key === 'Escape') setEditingFolder(null) }}
+                        onBlur={() => handleRenameFolder(cat.id)}
+                        onClick={e => e.stopPropagation()}
+                        className="h-7 text-sm"
+                      />
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium truncate">{cat.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{count} doc{count !== 1 ? 's' : ''}</p>
+                      </>
+                    )}
                   </div>
-                  <ChevronRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); setEditingFolder(cat.id); setEditFolderName(cat.name) }} aria-label="Rename folder">
+                      <Pencil size={12} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(e) => handleDeleteFolder(e, cat.id)} aria-label="Delete folder">
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )
@@ -240,6 +305,9 @@ export default function Dashboard() {
                 className={`group hover-lift cursor-pointer animate-slide-up overflow-hidden transition-all ${isSelected ? 'ring-2 ring-primary' : ''}`}
                 style={{ animationDelay: `${Math.min(i * 40, 300)}ms`, animationFillMode: 'both' }}
                 onClick={() => navigate(`/app/documents/${doc.id}`)}
+                draggable
+                onDragStart={() => handleDragStart(doc.id)}
+                onDragEnd={() => { setDragDocId(null); setDragOverFolder(null) }}
               >
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">

@@ -153,6 +153,19 @@ export async function createCategory(name: string): Promise<{ id: string; name: 
   return res.json()
 }
 
+export async function renameCategory(id: string, name: string): Promise<{ id: string; name: string }> {
+  const res = await fetch(`${BASE}/categories/${id}`, {
+    method: 'PATCH',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+  return res.json()
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  await fetch(`${BASE}/categories/${id}`, { method: 'DELETE', headers: getHeaders() })
+}
+
 export async function moveToCategory(documentId: string, categoryId: string | null): Promise<void> {
   await fetch(`${BASE}/documents/${documentId}`, {
     method: 'PATCH',

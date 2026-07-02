@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Search, MessageSquare, Upload, LogOut, FolderOpen, ShieldCheck, Settings as SettingsIcon, Sun, Moon } from 'lucide-react'
+import { FileText, Search, MessageSquare, Upload, LogOut, ShieldCheck, Settings as SettingsIcon, Sun, Moon } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { searchDocuments } from './lib/api'
 import { useTheme } from './lib/theme'
@@ -12,7 +12,6 @@ import UploadPage from './pages/Upload'
 import SearchPage from './pages/Search'
 import AskAI from './pages/AskAI'
 import DocumentDetail from './pages/DocumentDetail'
-import Categories from './pages/Categories'
 import Warranties from './pages/Warranties'
 import Settings from './pages/Settings'
 import { Button } from './components/ui/button'
@@ -41,7 +40,6 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="documents/:id" element={<DocumentDetail />} />
-        <Route path="categories" element={<Categories />} />
         <Route path="warranties" element={<Warranties />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="ask" element={<AskAI />} />
@@ -74,8 +72,6 @@ function AppShell() {
 
         <nav className="flex-1 px-3 py-2 space-y-0.5">
           <SidebarLink to="/app" icon={<FileText size={17} />} label="Documents" end />
-          <SidebarLink to="/app/upload" icon={<Upload size={17} />} label="Upload" />
-          <SidebarLink to="/app/categories" icon={<FolderOpen size={17} />} label="Categories" />
           <SidebarLink to="/app/warranties" icon={<ShieldCheck size={17} />} label="Warranties" />
           <SidebarLink to="/app/ask" icon={<MessageSquare size={17} />} label="Ask AI" />
           <SidebarLink to="/app/settings" icon={<SettingsIcon size={17} />} label="Settings" />
@@ -101,7 +97,6 @@ function AppShell() {
             <Route index element={<Dashboard />} />
             <Route path="upload" element={<UploadPage />} />
             <Route path="documents/:id" element={<DocumentDetail />} />
-            <Route path="categories" element={<Categories />} />
             <Route path="warranties" element={<Warranties />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="ask" element={<AskAI />} />
