@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showSortMenu, setShowSortMenu] = useState(false)
   const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [showViewMenu, setShowViewMenu] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const currentFolder = searchParams.get('folder')
   const navigate = useNavigate()
@@ -241,7 +242,7 @@ export default function Dashboard() {
 
           {/* Sort dropdown */}
           <div className="relative">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false) }}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); setShowViewMenu(false) }}>
               <ArrowUpDown size={13} /> Sort
               {sortKey !== 'date' && <span className="text-primary">· {sortKey}</span>}
             </Button>
@@ -262,7 +263,7 @@ export default function Dashboard() {
 
           {/* Filter dropdown */}
           <div className="relative">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false) }}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); setShowViewMenu(false) }}>
               <Filter size={13} /> Filter
               {fileFilter !== 'all' && <span className="text-primary">· {fileFilter}</span>}
             </Button>
@@ -280,14 +281,24 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* View toggle */}
-          <div className="flex items-center gap-0.5 border rounded-md p-0.5 ml-auto">
-            <button onClick={() => switchView('grid')} className={`p-1.5 rounded transition-colors ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`} aria-label="Grid view">
-              <LayoutGrid size={14} />
-            </button>
-            <button onClick={() => switchView('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`} aria-label="List view">
-              <List size={14} />
-            </button>
+          {/* View dropdown */}
+          <div className="relative ml-auto">
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setShowViewMenu(!showViewMenu); setShowSortMenu(false); setShowFilterMenu(false) }}>
+              {viewMode === 'grid' ? <LayoutGrid size={13} /> : <List size={13} />} View
+            </Button>
+            {showViewMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowViewMenu(false)} />
+                <div className="absolute top-full mt-1 right-0 z-50 w-36 bg-background border rounded-lg shadow-lg p-1 animate-scale-in">
+                  <button onClick={() => { switchView('grid'); setShowViewMenu(false) }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${viewMode === 'grid' ? 'bg-primary/[0.08] text-primary font-medium' : 'text-foreground hover:bg-accent'}`}>
+                    <LayoutGrid size={14} /> Grid
+                  </button>
+                  <button onClick={() => { switchView('list'); setShowViewMenu(false) }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${viewMode === 'list' ? 'bg-primary/[0.08] text-primary font-medium' : 'text-foreground hover:bg-accent'}`}>
+                    <List size={14} /> List
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
