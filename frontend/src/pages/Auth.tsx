@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Layers, Loader2, Code2, Mail, CheckCircle, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Layers, Loader2, Code2, Mail, CheckCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordStrength } from '@/components/PasswordStrength'
@@ -17,6 +17,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
   const [totpCode, setTotpCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
 
@@ -187,8 +188,24 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                   )}
 
                   <div>
-                    <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required minLength={6} autoFocus className="h-11" />
-                    {isRegister && <div className="mt-2"><PasswordStrength password={password} /></div>}
+                    <div className="relative">
+                      <Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required minLength={8} autoFocus className="h-11 pr-10" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {isRegister && (
+                      <>
+                        <div className="mt-2"><PasswordStrength password={password} /></div>
+                        <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+                          <li className={password.length >= 8 ? 'text-green-600' : ''}>• Minimum 8 characters</li>
+                          <li className={/[A-Z]/.test(password) ? 'text-green-600' : ''}>• One uppercase letter</li>
+                          <li className={/[a-z]/.test(password) ? 'text-green-600' : ''}>• One lowercase letter</li>
+                          <li className={/\d/.test(password) ? 'text-green-600' : ''}>• One number</li>
+                          <li className={/[^A-Za-z0-9]/.test(password) ? 'text-green-600' : ''}>• One special character</li>
+                        </ul>
+                      </>
+                    )}
                   </div>
 
                   {error && <p className="text-sm text-destructive animate-fade-in">{error}</p>}
