@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Search } from 'lucide-react'
+import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Search, Filter } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,8 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('docvault-view') as ViewMode) || 'grid')
   const [fileFilter, setFileFilter] = useState<FileFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [showSortMenu, setShowSortMenu] = useState(false)
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const currentFolder = searchParams.get('folder')
   const navigate = useNavigate()
@@ -225,8 +227,8 @@ export default function Dashboard() {
 
       {/* Toolbar: search, filter, sort, view */}
       {!loading && !error && (
-        <div className="flex items-center gap-2 mb-4 animate-fade-in flex-wrap">
-          {/* Search within folder */}
+        <div className="flex items-center gap-2 mb-4 animate-fade-in">
+          {/* Search */}
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -237,21 +239,45 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Filter by type */}
-          <div className="flex items-center gap-0.5 border rounded-md p-0.5">
-            <button onClick={() => setFileFilter('all')} className={`px-2 py-1 rounded text-xs font-medium transition-colors ${fileFilter === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>All</button>
-            <button onClick={() => setFileFilter('pdf')} className={`px-2 py-1 rounded text-xs font-medium transition-colors ${fileFilter === 'pdf' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>PDF</button>
-            <button onClick={() => setFileFilter('image')} className={`px-2 py-1 rounded text-xs font-medium transition-colors ${fileFilter === 'image' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>Image</button>
+          {/* Sort dropdown */}
+          <div className="relative">
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false) }}>
+              <ArrowUpDown size={13} /> Sort
+              {sortKey !== 'date' && <span className="text-primary">· {sortKey}</span>}
+            </Button>
+            {showSortMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
+                <div className="absolute top-full mt-1 left-0 z-50 w-44 bg-background border rounded-lg shadow-lg p-1 animate-scale-in">
+                  {(['date', 'name', 'size', 'type'] as SortKey[]).map(key => (
+                    <button key={key} onClick={() => { toggleSort(key); setShowSortMenu(false) }} className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${sortKey === key ? 'bg-primary/[0.08] text-primary font-medium' : 'text-foreground hover:bg-accent'}`}>
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                      {sortKey === key && <span className="text-xs opacity-70">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Sort */}
-          <div className="flex items-center gap-0.5 border rounded-md p-0.5">
-            {(['date', 'name', 'size', 'type'] as SortKey[]).map(key => (
-              <button key={key} onClick={() => toggleSort(key)} className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-0.5 ${sortKey === key ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
-                {key.charAt(0).toUpperCase() + key.slice(1)}
-                {sortKey === key && <ArrowUpDown size={10} />}
-              </button>
-            ))}
+          {/* Filter dropdown */}
+          <div className="relative">
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false) }}>
+              <Filter size={13} /> Filter
+              {fileFilter !== 'all' && <span className="text-primary">· {fileFilter}</span>}
+            </Button>
+            {showFilterMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
+                <div className="absolute top-full mt-1 left-0 z-50 w-36 bg-background border rounded-lg shadow-lg p-1 animate-scale-in">
+                  {([['all', 'All files'], ['pdf', 'PDFs only'], ['image', 'Images only']] as [FileFilter, string][]).map(([key, label]) => (
+                    <button key={key} onClick={() => { setFileFilter(key); setShowFilterMenu(false) }} className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${fileFilter === key ? 'bg-primary/[0.08] text-primary font-medium' : 'text-foreground hover:bg-accent'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* View toggle */}
