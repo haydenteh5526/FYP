@@ -439,7 +439,7 @@ export default function Dashboard() {
                   </div>
                   <span className="text-xs text-muted-foreground">Folder</span>
                   <span className="text-xs text-muted-foreground">{count} item{count !== 1 ? 's' : ''}</span>
-                  <span className="text-xs text-muted-foreground">{(() => { const latest = allDocs.filter(d => d.category_id === cat.id).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]; return latest ? new Date(latest.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: '2-digit' }) : '—' })()}</span>
+                  <span className="text-xs text-muted-foreground">{(() => { const latest = allDocs.filter(d => d.category_id === cat.id).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]; return latest ? new Date(latest.created_at).toLocaleString('en-IE', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—' })()}</span>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); setEditingFolder(cat.id); setEditFolderName(cat.name) }} aria-label="Rename">
                       <Pencil size={11} />
@@ -560,7 +560,7 @@ export default function Dashboard() {
                 </div>
                 <span className="text-xs text-muted-foreground truncate">{doc.document_type || '—'}</span>
                 <span className="text-xs text-muted-foreground truncate">{doc.brand || '—'}</span>
-                <span className="text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: '2-digit' })}</span>
+                <span className="text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleString('en-IE', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                 <span className="text-xs text-muted-foreground">{doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : '—'}</span>
               </div>
             )
