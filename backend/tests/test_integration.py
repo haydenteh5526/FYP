@@ -25,15 +25,20 @@ _PASSWORD = "Int3gration!"
 
 
 @pytest.mark.asyncio
-async def test_register_and_login_flow():
-    """Register returns 201; login may return token or 403 (unverified)."""
+async def test_register_new_user():
+    """Register returns 201 (or 409 if email already exists from prior CI run)."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         reg = await c.post("/api/v1/auth/register", json={"email": _EMAIL, "password": _PASSWORD})
-        assert reg.status_code in (201, 409)
+    assert reg.status_code in (201, 409)
 
-        login_res = await c.post("/api/v1/auth/login", json={"email": _EMAIL, "password": _PASSWORD})
-        # 200 if verified, 403 if not — both are correct behaviour
-        assert login_res.status_code in (200, 403)
+
+@pytest.mark.asyncio
+async def test_login_unverified_user():
+    """Login an unverified user returns 403 (email not verified)."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.post("/api/v1/auth/login", json={"email": _EMAIL, "password": _PASSWORD})
+    # 200 if verified (unlikely in CI), 403 if not, both correct
+    assert res.status_code in (200, 403)
 
 
 @pytest.mark.asyncio
