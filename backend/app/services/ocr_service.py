@@ -17,52 +17,75 @@ class OCRBackend(ABC):
 
 
 class MistralBackend(OCRBackend):
-    """Mistral OCR (Pixtral) — LLM-powered document understanding.
-
-    Sends the document to Mistral's vision API which returns structured
-    markdown with full text, headings, tables, and layout preserved.
-    Dramatically faster and more accurate than Tesseract on complex documents.
-    """
+    """Mistral OCR — uses /v1/ocr for PDFs, pixtral vision for images."""
 
     def extract_text(self, file_bytes: bytes, content_type: str) -> str:
         import base64
 
+
+        b64 = base64.standard_b64encode(file_bytes).decode("utf-8")
+        mime = content_type or "application/pdf"
+        headers = {
+            "Authorization": f"Bearer {settings.MISTRAL_API_KEY}",
+            "Content-Type": "application/json",
+        }
+
+        if mime == "application/pdf":
+            return self._ocr_pdf(b64, headers, len(file_bytes))
+        return self._ocr_image(b64, mime, headers, len(file_bytes))
+
+    def _ocr_pdf(self, b64: str, headers: dict, size: int) -> str:
         import httpx
 
         from app.services.retry import with_retry
 
-        b64 = base64.standard_b64encode(file_bytes).decode("utf-8")
-        mime = content_type or "application/pdf"
+        def _call():
+            resp = httpx.post(
+                "https://api.mistral.ai/v1/ocr",
+                headers=headers,
+                json={
+                    "model": "mistral-ocr-latest",
+                    "document": {
+                        "type": "document_url",
+                        "document_url": f"data:application/pdf;base64,{b64}",
+                    },
+                },
+                timeout=180,
+            )
+            resp.raise_for_status()
+            return resp.json()
 
-        # Use the document/image understanding endpoint
-        if mime == "application/pdf":
-            data_url = f"data:{mime};base64,{b64}"
-        else:
-            data_url = f"data:{mime};base64,{b64}"
+        logger.info("Mistral OCR (PDF): processing %d bytes", size)
+        result = with_retry(_call, label="mistral.ocr.pdf", attempts=2)
+        pages = result.get("pages", [])
+        text = "\n\n".join(p.get("markdown", "") for p in pages)
+        logger.info("Mistral OCR: extracted %d chars from %d pages", len(text), len(pages))
+        return text.strip()
+
+    def _ocr_image(self, b64: str, mime: str, headers: dict, size: int) -> str:
+        import httpx
+
+        from app.services.retry import with_retry
+
+        data_url = f"data:{mime};base64,{b64}"
 
         def _call():
             resp = httpx.post(
                 "https://api.mistral.ai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.MISTRAL_API_KEY}",
-                    "Content-Type": "application/json",
-                },
+                headers=headers,
                 json={
                     "model": "pixtral-large-latest",
                     "messages": [
                         {
                             "role": "user",
                             "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": data_url},
-                                },
+                                {"type": "image_url", "image_url": {"url": data_url}},
                                 {
                                     "type": "text",
                                     "text": (
-                                        "Extract ALL text from this document. "
-                                        "Preserve the structure: headings, paragraphs, tables, lists. "
-                                        "Return only the extracted text content, no commentary."
+                                        "Extract ALL text from this document image. "
+                                        "Preserve structure: headings, paragraphs, tables, lists. "
+                                        "Return only the extracted text, no commentary."
                                     ),
                                 },
                             ],
@@ -76,8 +99,8 @@ class MistralBackend(OCRBackend):
             resp.raise_for_status()
             return resp.json()
 
-        logger.info("Mistral OCR: processing %s (%d bytes)", mime, len(file_bytes))
-        result = with_retry(_call, label="mistral.ocr", attempts=2)
+        logger.info("Mistral Vision (image): processing %s (%d bytes)", mime, size)
+        result = with_retry(_call, label="mistral.vision", attempts=2)
         text = result["choices"][0]["message"]["content"]
         logger.info("Mistral OCR: extracted %d chars", len(text))
         return text.strip()

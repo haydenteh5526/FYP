@@ -45,6 +45,8 @@ export default function DocumentDetail() {
 
   const isProcessing = doc.processing_status && doc.processing_status !== 'complete' && doc.processing_status !== 'failed'
   const isPdf = doc.image_url?.includes('.pdf')
+  // Stable image URL — presigned URL stays valid for the session, don't refresh it on polls
+  const [stableImageUrl] = useState(doc.image_url)
 
   return (
     <div className="p-8 max-w-5xl mx-auto animate-fade-in">
@@ -93,11 +95,11 @@ export default function DocumentDetail() {
       {tab === 'preview' && (
         <Card>
           <CardContent className="p-3">
-            {doc.image_url ? (
+            {stableImageUrl ? (
               isPdf ? (
-                <iframe src={doc.image_url} className="w-full h-[80vh] rounded-md" title={doc.title} />
+                <iframe src={stableImageUrl} className="w-full h-[80vh] rounded-md" title={doc.title} />
               ) : (
-                <img src={doc.image_url} alt={doc.title} className="w-full rounded-md object-contain" />
+                <img src={stableImageUrl} alt={doc.title} className="w-full rounded-md object-contain" />
               )
             ) : (
               <div className="h-[60vh] flex items-center justify-center text-sm text-muted-foreground">No preview available</div>
