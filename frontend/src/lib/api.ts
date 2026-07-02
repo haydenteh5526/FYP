@@ -144,6 +144,23 @@ export async function getCategories(): Promise<{ id: string; name: string }[]> {
   return res.json()
 }
 
+export async function createCategory(name: string): Promise<{ id: string; name: string }> {
+  const res = await fetch(`${BASE}/categories`, {
+    method: 'POST',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+  return res.json()
+}
+
+export async function moveToCategory(documentId: string, categoryId: string | null): Promise<void> {
+  await fetch(`${BASE}/documents/${documentId}`, {
+    method: 'PATCH',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category_id: categoryId }),
+  })
+}
+
 // === 2FA ===
 export async function setup2FA(): Promise<{ secret: string; qr_code: string; uri: string }> {
   const res = await fetch(`${BASE}/auth/2fa/setup`, { method: 'POST', headers: getHeaders() })
