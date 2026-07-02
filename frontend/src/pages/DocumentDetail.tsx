@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2 } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2, FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -69,6 +69,23 @@ export default function DocumentDetail() {
           <div className="mt-4 h-1.5 bg-muted rounded-full overflow-hidden">
             <div className="h-full gradient-bg rounded-full animate-[progress_2.5s_ease-in-out_infinite]" style={{ width: '70%' }} />
           </div>
+        </div>
+      )}
+
+      {/* Folder suggestion */}
+      {!isProcessing && doc.document_type && !doc.category_id && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-4 py-3 animate-fade-in">
+          <FolderOpen size={16} className="text-amber-600 shrink-0" />
+          <p className="text-sm flex-1">AI suggests moving this to <span className="font-medium">{doc.document_type}</span></p>
+          <Button size="sm" variant="outline" className="shrink-0 h-7 text-xs" onClick={async () => {
+            const { createCategory, moveToCategory, getCategories } = await import('@/lib/api')
+            const cats = await getCategories()
+            let cat = cats.find((c: { name: string }) => c.name === doc.document_type)
+            if (!cat) cat = await createCategory(doc.document_type!)
+            await moveToCategory(doc.id, cat.id)
+            setDoc({ ...doc, category_id: cat.id })
+          }}>Move</Button>
+          <Button size="sm" variant="ghost" className="shrink-0 h-7 text-xs text-muted-foreground" onClick={() => setDoc({ ...doc, document_type: null })}>Dismiss</Button>
         </div>
       )}
 

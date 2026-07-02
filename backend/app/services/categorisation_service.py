@@ -14,9 +14,67 @@ class DocumentMetadata:
 
 def categorise_document(text: str) -> DocumentMetadata:
     """Extract brand, model, document type from document text using LLM."""
-    if not text or not settings.OPENAI_API_KEY:
+    if not text:
+        return DocumentMetadata()
+
+    if settings.OPENAI_API_KEY:
+        return _categorise_openai(text)
+    if settings.MISTRAL_API_KEY:
+        return _categorise_mistral(text)
+    return _fallback_categorise(text)
+
+
+def _categorise_mistral(text: str) -> DocumentMetadata:
+    """Use Mistral for metadata extraction."""
+    import httpx
+
+    from app.services.retry import with_retry
+
+    def _call():
+        resp = httpx.post(
+            "https://api.mistral.ai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.MISTRAL_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "mistral-small-latest",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Extract metadata from this document text. Return JSON only with these fields: "
+                            "brand, model, document_type (e.g. 'User Manual', 'Quick Start Guide', 'Warranty Card'), "
+                            "suggested_title. Use null for fields you cannot determine. "
+                            "For 'model', extract the specific product model number/name (e.g. 'DR-HSH004', 'Galaxy S24')."
+                        ),
+                    },
+                    {"role": "user", "content": text[:2000]},
+                ],
+                "temperature": 0,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    try:
+        result = with_retry(_call, label="mistral.categorise", attempts=2)
+        content = result["choices"][0]["message"]["content"]
+        data = json.loads(content)
+        return DocumentMetadata(
+            brand=data.get("brand"),
+            model=data.get("model"),
+            document_type=data.get("document_type"),
+            title=data.get("suggested_title"),
+        )
+    except Exception:
         return _fallback_categorise(text)
 
+
+def _categorise_openai(text: str) -> DocumentMetadata:
+    """Use OpenAI for metadata extraction."""
     from openai import OpenAI
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -28,10 +86,11 @@ def categorise_document(text: str) -> DocumentMetadata:
                 "content": (
                     "Extract metadata from this document text. Return JSON only with these fields: "
                     "brand, model, document_type (e.g. 'User Manual', 'Quick Start Guide', 'Warranty Card'), "
-                    "suggested_title. Use null for fields you cannot determine."
+                    "suggested_title. Use null for fields you cannot determine. "
+                    "For 'model', extract the specific product model number/name (e.g. 'DR-HSH004', 'Galaxy S24')."
                 ),
             },
-            {"role": "user", "content": text[:1500]},
+            {"role": "user", "content": text[:2000]},
         ],
         temperature=0,
         response_format={"type": "json_object"},

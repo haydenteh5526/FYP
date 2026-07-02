@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.dependencies import async_session
 from app.logging_config import get_logger
-from app.models.base import Category, DocChunk, Document, Warranty
+from app.models.base import DocChunk, Document, Warranty
 from app.services import (
     categorisation_service,
     chunking_service,
@@ -52,23 +52,12 @@ async def process_document(document_id: str | uuid.UUID) -> None:
             file_bytes, content_type = await asyncio.to_thread(storage_service.download_file, doc.s3_key_original)
             raw_text, metadata = await asyncio.to_thread(_run_ocr_and_metadata, file_bytes, content_type)
 
-            # Auto-assign a category by document_type
-            category_id = None
-            if metadata.document_type:
-                cat = (await db.execute(
-                    select(Category).where(Category.user_id == doc.user_id, Category.name == metadata.document_type)
-                )).scalar_one_or_none()
-                if not cat:
-                    cat = Category(user_id=doc.user_id, name=metadata.document_type)
-                    db.add(cat)
-                    await db.flush()
-                category_id = cat.id
-
+            # Don't auto-assign category — keep document at root.
+            # The detected document_type is stored as metadata for the user to see.
             doc.raw_text = raw_text or None
             doc.brand = metadata.brand
             doc.model = metadata.model
             doc.document_type = metadata.document_type
-            doc.category_id = category_id
             if (not doc.title or doc.title == "Untitled") and metadata.title:
                 doc.title = metadata.title
 
