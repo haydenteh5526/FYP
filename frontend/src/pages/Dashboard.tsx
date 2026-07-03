@@ -80,10 +80,19 @@ export default function Dashboard() {
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation()
-    await deleteDocument(id)
+    const doc = allDocs.find(d => d.id === id)
+    // Optimistically remove from UI
     setAllDocs(allDocs.filter(d => d.id !== id))
     setSelected(prev => { const n = new Set(prev); n.delete(id); return n })
-    toast('Document deleted')
+    // Delay actual deletion — allow undo
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      if (!cancelled) await deleteDocument(id)
+    }, 5000)
+    toast(`"${doc?.title || 'Document'}" deleted`, 'info', {
+      label: 'Undo',
+      onClick: () => { cancelled = true; clearTimeout(timer); if (doc) setAllDocs(prev => [...prev, doc]) },
+    })
   }
 
   function toggleSelect(e: React.MouseEvent, id: string) {

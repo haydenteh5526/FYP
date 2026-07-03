@@ -7,10 +7,11 @@ interface Toast {
   id: string
   message: string
   type: ToastType
+  action?: { label: string; onClick: () => void }
 }
 
 interface ToastContextType {
-  toast: (message: string, type?: ToastType) => void
+  toast: (message: string, type?: ToastType, action?: { label: string; onClick: () => void }) => void
 }
 
 const ToastContext = createContext<ToastContextType>({ toast: () => {} })
@@ -22,9 +23,9 @@ export function useToast() {
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const addToast = useCallback((message: string, type: ToastType = 'success') => {
+  const addToast = useCallback((message: string, type: ToastType = 'success', action?: { label: string; onClick: () => void }) => {
     const id = Math.random().toString(36).slice(2)
-    setToasts(prev => [...prev, { id, message, type }])
+    setToasts(prev => [...prev, { id, message, type, action }])
   }, [])
 
   const removeToast = useCallback((id: string) => {
@@ -46,9 +47,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), 4000)
+    const timer = setTimeout(() => onDismiss(toast.id), toast.action ? 6000 : 4000)
     return () => clearTimeout(timer)
-  }, [toast.id, onDismiss])
+  }, [toast.id, toast.action, onDismiss])
 
   const icons = {
     success: <CheckCircle size={16} className="text-green-600 shrink-0" />,
@@ -60,6 +61,11 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
     <div className="pointer-events-auto flex items-center gap-3 bg-background border border-border/60 shadow-lg rounded-xl px-4 py-3 min-w-[280px] max-w-sm animate-slide-up">
       {icons[toast.type]}
       <p className="text-sm flex-1">{toast.message}</p>
+      {toast.action && (
+        <button onClick={() => { toast.action!.onClick(); onDismiss(toast.id) }} className="text-xs font-medium text-primary hover:underline shrink-0">
+          {toast.action.label}
+        </button>
+      )}
       <button onClick={() => onDismiss(toast.id)} className="text-muted-foreground hover:text-foreground transition-colors">
         <X size={14} />
       </button>

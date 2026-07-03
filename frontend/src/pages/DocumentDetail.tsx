@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2, FolderOpen } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2, FolderOpen, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -101,7 +101,16 @@ export default function DocumentDetail() {
             {doc.document_type && <Badge>{doc.document_type}</Badge>}
           </div>
         </div>
-        <ShareButton documentId={doc.id} />
+        <div className="flex gap-2">
+          {stableImageUrl.current && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={stableImageUrl.current} download={doc.title} target="_blank" rel="noopener noreferrer">
+                <Download size={14} className="mr-1.5" /> Download
+              </a>
+            </Button>
+          )}
+          <ShareButton documentId={doc.id} />
+        </div>
       </div>
 
       {/* Tabs */}
