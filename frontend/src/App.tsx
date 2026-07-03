@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Search, MessageSquare, Upload, LogOut, ShieldCheck, Settings as SettingsIcon, Sun, Moon } from 'lucide-react'
+import { FileText, Search, MessageSquare, Upload, LogOut, ShieldCheck, Settings as SettingsIcon, Sun, Moon, User } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { searchDocuments } from './lib/api'
 import { useTheme } from './lib/theme'
@@ -66,15 +66,17 @@ function AppShell() {
       {/* Sidebar — responsive: hidden on mobile, fixed on desktop */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[260px] flex flex-col glass border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-5 py-5">
-          <div className="flex items-center gap-2.5">
+          <button onClick={() => navigate('/app')} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shadow-md shadow-primary/25">
-              <span className="text-white text-sm font-bold">D</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
+                <path d="M7 18h10V6H7v12zM5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1zm4 4h6v2h-6V8zm0 4h6v2h-6v-2z" fill="currentColor"/>
+              </svg>
             </div>
             <div>
               <h1 className="text-[15px] font-semibold leading-none">DocVault</h1>
               <p className="text-[10px] text-muted-foreground mt-0.5">AI Document Assistant</p>
             </div>
-          </div>
+          </button>
         </div>
 
         <nav className="flex-1 px-3 py-2 space-y-0.5" onClick={() => setSidebarOpen(false)}>
@@ -84,7 +86,8 @@ function AppShell() {
           <SidebarLink to="/app/settings" icon={<SettingsIcon size={17} />} label="Settings" />
         </nav>
 
-        <div className="px-3 py-3 border-t border-border/40">
+        <div className="px-3 py-3 border-t border-border/40 space-y-0.5">
+          <SidebarLink to="/app/settings" icon={<User size={17} />} label="Profile" />
           <Button
             variant="ghost"
             size="sm"
