@@ -172,6 +172,33 @@ async def reset_password(req: ResetPasswordRequest, db: AsyncSession = Depends(g
     return {"message": "If the email exists, the password has been reset"}
 
 
+@router.get("/me")
+async def get_profile(db: AsyncSession = Depends(get_db), user_id=Depends(get_current_user_id)):
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+    return {
+        "email": user.email,
+        "display_name": user.display_name,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: str | None = None
+
+
+@router.patch("/me")
+async def update_profile(req: UpdateProfileRequest, db: AsyncSession = Depends(get_db), user_id=Depends(get_current_user_id)):
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if req.display_name is not None:
+        user.display_name = req.display_name
+    await db.commit()
+    return {"email": user.email, "display_name": user.display_name}
+
+
 @router.delete("/account", status_code=204)
 async def delete_account(
     db: AsyncSession = Depends(get_db),
