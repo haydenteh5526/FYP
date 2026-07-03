@@ -518,8 +518,8 @@ export default function Dashboard() {
                       <img src={doc.image_url} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-primary/[0.07] flex items-center justify-center transition-all duration-200 group-hover:bg-primary/[0.12] group-hover:scale-105 mt-1">
-                      <FileText size={18} className="text-primary/70" />
+                    <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center mt-1">
+                      <FileText size={18} className="text-red-600" />
                     </div>
                   )}
                   {renamingDoc === doc.id ? (
@@ -538,6 +538,9 @@ export default function Dashboard() {
                       title={doc.raw_text ? doc.raw_text.slice(0, 200) + '...' : undefined}
                       onDoubleClick={(e) => { e.stopPropagation(); setRenamingDoc(doc.id); setRenameValue(doc.title) }}
                     >{doc.title}</h3>
+                  )}
+                  {doc.summary && (
+                    <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">{doc.summary}</p>
                   )}
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {doc.processing_status && doc.processing_status !== 'complete' && (

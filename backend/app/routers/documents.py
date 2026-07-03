@@ -314,6 +314,7 @@ def _to_response(doc: Document) -> DocumentOut:
         document_type=doc.document_type,
         category_id=doc.category_id,
         raw_text=doc.raw_text,
+        summary=doc.summary,
         file_size=doc.file_size,
         page_count=doc.page_count,
         ocr_confidence=doc.ocr_confidence,

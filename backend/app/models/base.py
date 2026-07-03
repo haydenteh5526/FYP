@@ -61,6 +61,7 @@ class Document(Base):
     model: Mapped[str | None] = mapped_column(String(100))
     document_type: Mapped[str | None] = mapped_column(String(50))
     raw_text: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(String(500))
     s3_key_original: Mapped[str] = mapped_column(String(500), nullable=False)
     s3_key_thumbnail: Mapped[str | None] = mapped_column(String(500))
     file_size: Mapped[int | None]

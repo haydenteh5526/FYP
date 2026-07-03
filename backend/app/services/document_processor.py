@@ -61,6 +61,10 @@ async def process_document(document_id: str | uuid.UUID) -> None:
             if (not doc.title or doc.title == "Untitled") and metadata.title:
                 doc.title = metadata.title
 
+            # Generate a short AI summary
+            if raw_text:
+                doc.summary = await asyncio.to_thread(_generate_summary, raw_text)
+
             # Replace any existing chunks, then chunk + embed
             existing = (await db.execute(select(DocChunk).where(DocChunk.document_id == doc.id))).scalars().all()
             for c in existing:
@@ -103,3 +107,40 @@ async def process_document(document_id: str | uuid.UUID) -> None:
                 failed.processing_status = "failed"
                 await db.commit()
             raise
+
+
+def _generate_summary(raw_text: str) -> str | None:
+    """Generate a 2-3 sentence summary of the document using Mistral or fallback."""
+    from app.config import settings
+
+    if settings.MISTRAL_API_KEY:
+        import httpx
+
+        from app.services.retry import with_retry
+
+        def _call():
+            resp = httpx.post(
+                "https://api.mistral.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {settings.MISTRAL_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "mistral-small-latest",
+                    "messages": [
+                        {"role": "system", "content": "Summarise this document in 1-2 short sentences. Be specific about what the document covers. Max 150 characters."},
+                        {"role": "user", "content": raw_text[:3000]},
+                    ],
+                    "temperature": 0.2,
+                    "max_tokens": 100,
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+        try:
+            result = with_retry(_call, label="mistral.summary", attempts=2)
+            return result["choices"][0]["message"]["content"].strip()[:500]
+        except Exception:
+            pass
+
+    # Fallback: first 150 chars of text
+    return (raw_text[:147] + "...") if len(raw_text) > 150 else raw_text
