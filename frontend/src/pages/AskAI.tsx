@@ -83,7 +83,14 @@ export default function AskAI() {
             <h3 className="mt-5 font-semibold">Ask anything about your documents</h3>
             <p className="text-sm text-muted-foreground mt-1.5 max-w-sm">I'll find the answer in your uploaded manuals and guides.</p>
             <div className="flex flex-wrap gap-2 mt-6 justify-center max-w-md">
-              {['What temperature for delicates?', 'How to reset my router?', 'When does my warranty expire?'].map(q => (
+              {[
+                'What are the safety warnings?',
+                'How do I set up this device?',
+                'What are the specifications?',
+                'When does my warranty expire?',
+                'How to clean and maintain?',
+                'What\'s in the box?',
+              ].map(q => (
                 <button key={q} onClick={() => setInput(q)} className="text-xs px-3 py-1.5 rounded-full border border-border/60 hover:bg-accent hover:border-primary/20 transition-all duration-200 text-muted-foreground">
                   {q}
                 </button>

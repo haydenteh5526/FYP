@@ -56,11 +56,15 @@ function AppRoutes() {
 function AppShell() {
   const { logout } = useAuth()
   const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <div className="flex h-screen bg-muted/20">
-      {/* Sidebar — glass, no hard border, subtle shadow instead */}
-      <aside className="w-[260px] flex flex-col glass border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)]">
+      {/* Mobile overlay */}
+      {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+
+      {/* Sidebar — responsive: hidden on mobile, fixed on desktop */}
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[260px] flex flex-col glass border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-5 py-5">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shadow-md shadow-primary/25">
@@ -73,7 +77,7 @@ function AppShell() {
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
+        <nav className="flex-1 px-3 py-2 space-y-0.5" onClick={() => setSidebarOpen(false)}>
           <SidebarLink to="/app" icon={<FileText size={17} />} label="Documents" end />
           <SidebarLink to="/app/warranties" icon={<ShieldCheck size={17} />} label="Warranties" />
           <SidebarLink to="/app/ask" icon={<MessageSquare size={17} />} label="Ask AI" />
@@ -94,7 +98,7 @@ function AppShell() {
 
       {/* Main content with neutral bg */}
       <main className="flex-1 overflow-auto bg-background flex flex-col">
-        <TopBar />
+        <TopBar onMenuClick={() => setSidebarOpen(true)} />
         <div className="flex-1 overflow-auto">
           <Routes>
             <Route index element={<Dashboard />} />
@@ -111,7 +115,7 @@ function AppShell() {
   )
 }
 
-function TopBar() {
+function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [results, setResults] = useState<{ document_id: string; document_title: string; chunk_text: string }[]>([])
@@ -160,7 +164,11 @@ function TopBar() {
 
   return (
     <div className="h-14 border-b border-border/40 glass flex items-center justify-between px-6 gap-4 sticky top-0 z-30">
-      <div className="w-20" /> {/* spacer for centering */}
+      {/* Mobile menu button */}
+      <button onClick={onMenuClick} className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground" aria-label="Open menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+      <div className="w-20 hidden lg:block" /> {/* spacer for centering on desktop */}
 
       {/* Centered search */}
       <div ref={wrapRef} className="relative flex-1 max-w-lg">
