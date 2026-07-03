@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Search, MessageSquare, Upload, LogOut, ShieldCheck, Settings as SettingsIcon, Sun, Moon, User } from 'lucide-react'
+import { FileText, Search, MessageSquare, Upload, LogOut, ShieldCheck, Settings as SettingsIcon, Sun, Moon } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { searchDocuments } from './lib/api'
 import { useTheme } from './lib/theme'
@@ -15,6 +15,7 @@ import AskAI from './pages/AskAI'
 import DocumentDetail from './pages/DocumentDetail'
 import Warranties from './pages/Warranties'
 import Settings from './pages/Settings'
+import ProfilePage from './pages/Profile'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
 
@@ -54,9 +55,19 @@ function AppRoutes() {
 }
 
 function AppShell() {
-  const { logout } = useAuth()
+  const { logout, token } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userName, setUserName] = useState('')
+
+  useEffect(() => {
+    if (token) {
+      fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setUserName(data.display_name || data.email.split('@')[0]) })
+        .catch(() => {})
+    }
+  }, [token])
 
   return (
     <div className="flex h-screen bg-muted/20">
@@ -83,15 +94,25 @@ function AppShell() {
           <SidebarLink to="/app" icon={<FileText size={17} />} label="Documents" end />
           <SidebarLink to="/app/warranties" icon={<ShieldCheck size={17} />} label="Warranties" />
           <SidebarLink to="/app/ask" icon={<MessageSquare size={17} />} label="Ask AI" />
-          <SidebarLink to="/app/settings" icon={<SettingsIcon size={17} />} label="Settings" />
         </nav>
 
-        <div className="px-3 py-3 border-t border-border/40 space-y-0.5">
-          <SidebarLink to="/app/settings" icon={<User size={17} />} label="Profile" />
+        <div className="px-3 py-3 border-t border-border/40">
+          <div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => { navigate('/app/profile'); setSidebarOpen(false) }}>
+            <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold shadow-sm">
+              {userName ? userName[0].toUpperCase() : 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{userName || 'User'}</p>
+              <p className="text-[10px] text-muted-foreground">Free plan</p>
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); navigate('/app/settings'); setSidebarOpen(false) }} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" aria-label="Settings">
+              <SettingsIcon size={15} />
+            </button>
+          </div>
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground transition-all duration-200"
+            className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground transition-all duration-200 mt-1"
             onClick={() => { logout(); navigate('/') }}
           >
             <LogOut size={15} /> Sign out
@@ -110,6 +131,7 @@ function AppShell() {
             <Route path="warranties" element={<Warranties />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="ask" element={<AskAI />} />
+            <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<Settings />} />
           </Routes>
         </div>
