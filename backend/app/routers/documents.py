@@ -247,6 +247,14 @@ async def share_document(document_id: uuid.UUID, expires_hours: int = 24, db: As
     return {"share_url": url, "expires_in_hours": expires // 3600}
 
 
+@router.post("/{document_id}/favourite")
+async def toggle_favourite(document_id: uuid.UUID, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
+    doc = await _get_doc_or_404(document_id, user_id, db)
+    doc.is_favourite = not doc.is_favourite
+    await db.commit()
+    return {"is_favourite": doc.is_favourite}
+
+
 @router.get("/{document_id}/similar")
 async def find_similar_documents(document_id: uuid.UUID, limit: int = 5, db: AsyncSession = Depends(get_db), user_id: uuid.UUID = Depends(get_current_user_id)):
     """Find documents semantically similar to the given document using embeddings."""
@@ -320,6 +328,7 @@ def _to_response(doc: Document) -> DocumentOut:
         ocr_confidence=doc.ocr_confidence,
         image_url=image_url,
         processing_status=doc.processing_status,
+        is_favourite=doc.is_favourite,
         tags=_safe_tags(doc),
         created_at=doc.created_at,
         updated_at=doc.updated_at,

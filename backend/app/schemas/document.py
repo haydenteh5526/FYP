@@ -26,6 +26,7 @@ class DocumentOut(BaseModel):
     ocr_confidence: float | None = None
     image_url: str | None = None
     processing_status: str = "complete"
+    is_favourite: bool = False
     tags: list[TagOut] = []
     created_at: datetime
     updated_at: datetime

@@ -68,6 +68,7 @@ class Document(Base):
     page_count: Mapped[int] = mapped_column(default=1)
     ocr_confidence: Mapped[float | None]
     processing_status: Mapped[str] = mapped_column(String(20), server_default="complete")
+    is_favourite: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 

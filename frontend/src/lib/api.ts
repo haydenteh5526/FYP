@@ -34,6 +34,7 @@ export interface Document {
   file_size: number | null
   image_url: string | null
   processing_status?: string
+  is_favourite?: boolean
   tags?: Tag[]
   created_at: string
 }
@@ -119,6 +120,11 @@ export async function bulkDeleteDocuments(documentIds: string[]): Promise<void> 
     headers: { ...getHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ document_ids: documentIds }),
   })
+}
+
+export async function toggleFavourite(id: string): Promise<{ is_favourite: boolean }> {
+  const res = await fetch(`${BASE}/documents/${id}/favourite`, { method: 'POST', headers: getHeaders() })
+  return res.json()
 }
 
 export async function shareDocument(id: string, expiresHours = 24): Promise<{ share_url: string; expires_in_hours: number }> {

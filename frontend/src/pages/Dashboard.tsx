@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Filter } from 'lucide-react'
+import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, X, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Filter, Star } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, type Document } from '@/lib/api'
+import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, type Document } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 
 type SortKey = 'name' | 'date' | 'size' | 'type'
@@ -168,6 +168,12 @@ export default function Dashboard() {
     toast('Document renamed')
   }
 
+  async function handleToggleFavourite(e: React.MouseEvent, docId: string) {
+    e.stopPropagation()
+    const result = await toggleFavourite(docId)
+    setAllDocs(allDocs.map(d => d.id === docId ? { ...d, is_favourite: result.is_favourite } : d))
+  }
+
   function handleDragOverFolder(e: React.DragEvent, folderId: string) {
     e.preventDefault()
     setDragOverFolder(folderId)
@@ -196,8 +202,10 @@ export default function Dashboard() {
     if (fileFilter === 'pdf') docs = docs.filter(d => d.title.toLowerCase().endsWith('.pdf'))
     else if (fileFilter === 'image') docs = docs.filter(d => !d.title.toLowerCase().endsWith('.pdf'))
 
-    // Sort
+    // Sort (favourites always first)
     docs = [...docs].sort((a, b) => {
+      if (a.is_favourite && !b.is_favourite) return -1
+      if (!a.is_favourite && b.is_favourite) return 1
       let cmp = 0
       switch (sortKey) {
         case 'name': cmp = a.title.localeCompare(b.title); break
@@ -516,7 +524,10 @@ export default function Dashboard() {
                     <button onClick={(e) => toggleSelect(e, doc.id)} className="text-muted-foreground hover:text-primary transition-colors" aria-label="Select">
                       {isSelected ? <CheckSquare size={18} className="text-primary" /> : <Square size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
                     </button>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <div className={`flex items-center gap-1 transition-all ${doc.is_favourite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                      <button onClick={(e) => handleToggleFavourite(e, doc.id)} className={`p-1 rounded transition-colors ${doc.is_favourite ? 'text-amber-500 opacity-100' : 'text-muted-foreground hover:text-amber-500'}`} aria-label="Favourite">
+                        <Star size={14} fill={doc.is_favourite ? 'currentColor' : 'none'} />
+                      </button>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(e) => handleDelete(e, doc.id)}>
                         <Trash2 size={13} />
                       </Button>
