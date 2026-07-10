@@ -47,10 +47,18 @@ export default function SearchPage() {
 
       {!searched && !query && (
         <div className="flex flex-col items-center justify-center py-24 text-center animate-fade-in">
-          <div className="w-12 h-12 rounded-xl bg-primary/[0.07] flex items-center justify-center">
-            <Sparkles className="h-6 w-6 text-primary/50" />
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl gradient-bg opacity-[0.08] absolute inset-0 blur-xl" />
+            <div className="w-16 h-16 rounded-2xl bg-primary/[0.07] flex items-center justify-center relative">
+              <Sparkles className="h-7 w-7 text-primary/50" />
+            </div>
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">Start typing to search — results appear instantly</p>
+          <p className="mt-5 text-sm font-medium">Semantic search across all your documents</p>
+          <p className="mt-1.5 text-xs text-muted-foreground">Start typing to search — results appear instantly</p>
+          <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground/50">
+            <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 text-[10px] font-medium">⌘K</kbd>
+            <span>to search from anywhere</span>
+          </div>
         </div>
       )}
 
