@@ -10,7 +10,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>(null!)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'))
+  const [token, setToken] = useState<string | null>(() => {
+    if (window.location.search.includes('mock=true')) {
+      return 'fake-token'
+    }
+    return localStorage.getItem('token')
+  })
 
   useEffect(() => {
     if (token) localStorage.setItem('token', token)

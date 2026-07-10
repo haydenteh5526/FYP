@@ -22,14 +22,9 @@ document_tags = Table(
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(100))
-    cognito_id: Mapped[str | None] = mapped_column(String(255), unique=True)
-    is_verified: Mapped[bool] = mapped_column(default=False)
-    verification_token: Mapped[str | None] = mapped_column(String(255))
-    totp_secret: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 

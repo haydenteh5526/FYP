@@ -1,60 +1,36 @@
 import uuid
-
-import boto3
-from botocore.config import Config
-
+from supabase import create_client, Client
 from app.config import settings
 
-
-def get_s3_client(endpoint: str | None = None):
-    return boto3.client(
-        "s3",
-        endpoint_url=endpoint or settings.S3_ENDPOINT,
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET_KEY,
-        config=Config(signature_version="s3v4"),
-        region_name="us-east-1",
-    )
-
+def get_supabase_client() -> Client:
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 def upload_file(file_bytes: bytes, user_id: str, filename: str, content_type: str) -> str:
-    s3 = get_s3_client()
+    supabase = get_supabase_client()
     ext = filename.rsplit(".", 1)[-1] if "." in filename else "bin"
     key = f"users/{user_id}/{uuid.uuid4()}.{ext}"
-    s3.put_object(
-        Bucket=settings.S3_BUCKET,
-        Key=key,
-        Body=file_bytes,
-        ContentType=content_type,
+    supabase.storage.from_(settings.S3_BUCKET).upload(
+        path=key,
+        file=file_bytes,
+        file_options={"content-type": content_type}
     )
     return key
 
-
 def get_presigned_url(key: str, expires_in: int = 900) -> str:
-    # Sign with the public endpoint so the browser-facing URL has a valid signature
-    s3 = get_s3_client(endpoint=settings.S3_PUBLIC_ENDPOINT)
-    return s3.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": settings.S3_BUCKET, "Key": key},
-        ExpiresIn=expires_in,
-    )
-
+    supabase = get_supabase_client()
+    return supabase.storage.from_(settings.S3_BUCKET).create_signed_url(key, expires_in)
 
 def delete_file(key: str) -> None:
-    s3 = get_s3_client()
-    s3.delete_object(Bucket=settings.S3_BUCKET, Key=key)
-
+    supabase = get_supabase_client()
+    supabase.storage.from_(settings.S3_BUCKET).remove([key])
 
 def download_file(key: str) -> tuple[bytes, str]:
-    """Fetch an object's bytes and content type from S3."""
-    s3 = get_s3_client()
-    obj = s3.get_object(Bucket=settings.S3_BUCKET, Key=key)
-    return obj["Body"].read(), obj.get("ContentType", "application/octet-stream")
-
+    supabase = get_supabase_client()
+    res = supabase.storage.from_(settings.S3_BUCKET).download(key)
+    return res, "application/octet-stream"
 
 def ensure_bucket_exists() -> None:
-    s3 = get_s3_client()
-    try:
-        s3.head_bucket(Bucket=settings.S3_BUCKET)
-    except s3.exceptions.ClientError:
-        s3.create_bucket(Bucket=settings.S3_BUCKET)
+    supabase = get_supabase_client()
+    buckets = supabase.storage.list_buckets()
+    if not any(b.name == settings.S3_BUCKET for b in buckets):
+        supabase.storage.create_bucket(settings.S3_BUCKET, options={"public": True})
