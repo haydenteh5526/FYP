@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2, FolderOpen, Download } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2, FolderOpen, Download, Star, Trash2, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, updateDocumentText, getDocumentVersions, restoreDocumentVersion, type Document, type Tag, type DocumentVersion, type SimilarDocument } from '@/lib/api'
+import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, updateDocumentText, getDocumentVersions, restoreDocumentVersion, deleteDocument, toggleFavourite, type Document, type Tag, type DocumentVersion, type SimilarDocument } from '@/lib/api'
+import { useToast } from '@/components/Toast'
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
@@ -12,6 +13,7 @@ export default function DocumentDetail() {
   const [doc, setDoc] = useState<Document | null>(null)
   const [tab, setTab] = useState<'preview' | 'text' | 'info' | 'ask'>('preview')
   const stableImageUrl = useRef<string | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (id) getDocument(id).then(setDoc)
@@ -52,144 +54,223 @@ export default function DocumentDetail() {
   const isProcessing = doc.processing_status && doc.processing_status !== 'complete' && doc.processing_status !== 'failed'
   const isPdf = doc.image_url?.includes('.pdf')
 
+  async function handleDelete() {
+    if (!doc || !window.confirm('Are you sure you want to delete this document?')) return
+    try {
+      await deleteDocument(doc.id)
+      toast('Document deleted', 'success')
+      navigate('/app')
+    } catch {
+      toast('Failed to delete document', 'error')
+    }
+  }
+
+  async function handleToggleFavourite() {
+    if (!doc) return
+    const nextState = !doc.is_favourite
+    setDoc({ ...doc, is_favourite: nextState })
+    try {
+      await toggleFavourite(doc.id)
+      toast(nextState ? 'Added to favourites' : 'Removed from favourites', 'success')
+    } catch {
+      setDoc({ ...doc, is_favourite: !nextState }) // revert on error
+    }
+  }
+
   return (
-    <div className="p-8 max-w-5xl mx-auto animate-fade-in">
-      {/* Processing banner */}
-      {isProcessing && (
-        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/[0.03] p-5 animate-fade-in">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center shadow-md shadow-primary/20">
-              <Loader2 size={20} className="text-white animate-spin" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">Processing your document...</p>
-              <p className="text-xs text-muted-foreground mt-0.5">AI is extracting text, detecting metadata, and generating embeddings.</p>
-            </div>
-          </div>
-          <div className="mt-4 h-1.5 bg-muted rounded-full overflow-hidden">
-            <div className="h-full gradient-bg rounded-full animate-[progress_2.5s_ease-in-out_infinite]" style={{ width: '70%' }} />
-          </div>
-        </div>
-      )}
-
-      {/* Folder suggestion */}
-      {!isProcessing && doc.document_type && !doc.category_id && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-4 py-3 animate-fade-in">
-          <FolderOpen size={16} className="text-amber-600 shrink-0" />
-          <p className="text-sm flex-1">AI suggests moving this to <span className="font-medium">{doc.document_type}</span></p>
-          <Button size="sm" variant="outline" className="shrink-0 h-7 text-xs" onClick={async () => {
-            const { createCategory, moveToCategory, getCategories } = await import('@/lib/api')
-            const cats = await getCategories()
-            let cat = cats.find((c: { name: string }) => c.name === doc.document_type)
-            if (!cat) cat = await createCategory(doc.document_type!)
-            await moveToCategory(doc.id, cat.id)
-            setDoc({ ...doc, category_id: cat.id })
-          }}>Move</Button>
-          <Button size="sm" variant="ghost" className="shrink-0 h-7 text-xs text-muted-foreground" onClick={() => setDoc({ ...doc, document_type: null })}>Dismiss</Button>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/app')}>
-          <ArrowLeft size={18} />
-        </Button>
-        <div className="flex-1">
-          <h2 className="text-xl font-bold tracking-tight">{doc.title}</h2>
-          <div className="flex gap-2 mt-1">
-            {doc.brand && <Badge>{doc.brand}</Badge>}
-            {doc.document_type && <Badge>{doc.document_type}</Badge>}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {stableImageUrl.current && (
-            <Button variant="outline" size="sm" asChild>
-              <a href={stableImageUrl.current} download={doc.title} target="_blank" rel="noopener noreferrer">
-                <Download size={14} className="mr-1.5" /> Download
-              </a>
+    <div className="flex flex-col h-full bg-muted/10">
+      {/* Hero Section */}
+      <div className="relative border-b border-border/40 bg-background/80 backdrop-blur-xl overflow-hidden shrink-0 z-10">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.05] via-purple-500/[0.05] to-transparent pointer-events-none" />
+        
+        <div className="relative px-8 pt-6 pb-4">
+          <div className="flex items-start gap-5">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/app')} className="shrink-0 rounded-full hover:bg-background/80 hover:shadow-sm">
+              <ArrowLeft size={18} className="text-muted-foreground" />
             </Button>
+            
+            <div className="flex-1 min-w-0 pt-0.5">
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold tracking-tight truncate text-foreground/90">{doc.title}</h2>
+                {doc.is_favourite && <Star className="h-5 w-5 text-amber-500 fill-amber-500 shrink-0 drop-shadow-sm" />}
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                {doc.brand && <Badge variant="secondary">{doc.brand}</Badge>}
+                {doc.document_type && <Badge variant="outline">{doc.document_type}</Badge>}
+                {doc.category_id && <Badge variant="outline" className="bg-primary/[0.03] text-primary border-primary/20">Categorised</Badge>}
+                <span className="text-xs text-muted-foreground font-medium pl-1">
+                  {formatFileSize(doc.file_size)} • Uploaded {new Date(doc.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Top right actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              {stableImageUrl.current && (
+                <Button variant="outline" size="sm" className="h-9 rounded-full bg-background/50 hover:bg-background shadow-sm hover:shadow transition-all" asChild>
+                  <a href={stableImageUrl.current} download={doc.title} target="_blank" rel="noopener noreferrer">
+                    <Download size={14} className="mr-1.5" /> Download
+                  </a>
+                </Button>
+              )}
+              <ShareButton documentId={doc.id} />
+            </div>
+          </div>
+
+          {/* Processing banner inline */}
+          {isProcessing && (
+            <div className="mt-5 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 flex items-center gap-4 animate-fade-in shadow-inner">
+              <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shrink-0">
+                <Loader2 size={16} className="text-white animate-spin" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-primary">Processing document...</p>
+                <div className="mt-1.5 h-1.5 bg-primary/10 rounded-full overflow-hidden">
+                  <div className="h-full gradient-bg rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '60%' }} />
+                </div>
+              </div>
+            </div>
           )}
-          <ShareButton documentId={doc.id} />
+
+          {/* Folder suggestion inline */}
+          {!isProcessing && doc.document_type && !doc.category_id && (
+            <div className="mt-5 flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 animate-fade-in">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                <FolderOpen size={16} className="text-amber-600" />
+              </div>
+              <p className="text-sm flex-1 text-amber-900/80 dark:text-amber-200/80">AI suggests moving this to <span className="font-semibold text-amber-900 dark:text-amber-200">{doc.document_type}</span></p>
+              <Button size="sm" className="shrink-0 h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white border-0 shadow-sm" onClick={async () => {
+                const { createCategory, moveToCategory, getCategories } = await import('@/lib/api')
+                const cats = await getCategories()
+                let cat = cats.find((c: { name: string }) => c.name === doc.document_type)
+                if (!cat) cat = await createCategory(doc.document_type!)
+                await moveToCategory(doc.id, cat.id)
+                setDoc({ ...doc, category_id: cat.id })
+              }}>Move</Button>
+              <Button size="sm" variant="ghost" className="shrink-0 h-8 text-xs text-amber-700/60 hover:text-amber-700 hover:bg-amber-500/10" onClick={() => setDoc({ ...doc, document_type: null })}>Dismiss</Button>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="flex gap-1 mt-6 -mb-4">
+            <TabButton active={tab === 'preview'} onClick={() => setTab('preview')} icon={<Eye size={14} />} label="Preview" />
+            <TabButton active={tab === 'text'} onClick={() => setTab('text')} icon={<FileText size={14} />} label="Text" />
+            <TabButton active={tab === 'info'} onClick={() => setTab('info')} icon={<Info size={14} />} label="Details" />
+            <TabButton active={tab === 'ask'} onClick={() => setTab('ask')} icon={<MessageSquare size={14} />} label="Ask AI" />
+          </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b mb-6">
-        <TabButton active={tab === 'preview'} onClick={() => setTab('preview')} icon={<Eye size={16} />} label="Preview" />
-        <TabButton active={tab === 'text'} onClick={() => setTab('text')} icon={<FileText size={16} />} label="Text" />
-        <TabButton active={tab === 'info'} onClick={() => setTab('info')} icon={<Info size={16} />} label="Info" />
-        <TabButton active={tab === 'ask'} onClick={() => setTab('ask')} icon={<MessageSquare size={16} />} label="Ask AI" />
-      </div>
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-auto p-8 relative">
+        <div className="max-w-5xl mx-auto space-y-6 pb-20">
 
-      {/* Preview — full width, tall */}
+      {/* Preview */}
       {tab === 'preview' && (
-        <Card>
-          <CardContent className="p-3">
+        <Card className="border-border/50 shadow-sm animate-slide-up overflow-hidden">
+          <CardContent className="p-0 bg-background/50">
             {stableImageUrl.current ? (
               isPdf ? (
-                <iframe src={stableImageUrl.current} className="w-full h-[80vh] rounded-md" title={doc.title} />
+                <iframe src={stableImageUrl.current} className="w-full h-[75vh] border-0" title={doc.title} />
               ) : (
-                <img src={stableImageUrl.current} alt={doc.title} className="w-full rounded-md object-contain" />
+                <div className="flex items-center justify-center p-8 bg-black/5">
+                  <img src={stableImageUrl.current} alt={doc.title} className="max-w-full max-h-[75vh] rounded-lg shadow-xl" />
+                </div>
               )
             ) : (
-              <div className="h-[60vh] flex items-center justify-center text-sm text-muted-foreground">No preview available</div>
+              <div className="h-[60vh] flex flex-col items-center justify-center text-muted-foreground bg-muted/10">
+                <FileText size={48} className="mb-4 opacity-20" />
+                <p className="text-sm font-medium">No preview available</p>
+              </div>
             )}
           </CardContent>
         </Card>
       )}
 
       {tab === 'text' && (
-        <Card>
-          <CardContent className="p-6">
+        <Card className="border-border/50 shadow-sm animate-slide-up">
+          <CardContent className="p-8">
             {isProcessing ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
-                <Loader2 size={28} className="animate-spin text-primary mb-4" />
-                <p className="text-sm font-medium">Extracting text...</p>
-                <p className="text-xs text-muted-foreground mt-1">AI is reading your document. This usually takes 10–30 seconds.</p>
+              <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+                <Loader2 size={32} className="animate-spin text-primary mb-5" />
+                <p className="text-base font-semibold">Extracting text...</p>
+                <p className="text-sm text-muted-foreground mt-1.5">AI is reading your document. This usually takes 10–30 seconds.</p>
               </div>
             ) : doc.raw_text ? (
               <EditableText documentId={doc.id} initialText={doc.raw_text} />
             ) : (
-              <p className="text-muted-foreground text-sm py-12 text-center">No text could be extracted from this document.</p>
+              <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
+                <FileText size={40} className="mb-4 opacity-20" />
+                <p className="text-sm font-medium">No text could be extracted from this document.</p>
+              </div>
             )}
           </CardContent>
         </Card>
       )}
 
       {tab === 'info' && (
-        <Card>
-          <CardContent className="p-6">
-            {isProcessing ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
-                <Loader2 size={28} className="animate-spin text-primary mb-4" />
-                <p className="text-sm font-medium">Analysing document...</p>
-                <p className="text-xs text-muted-foreground mt-1">Detecting brand, model, and document type.</p>
-              </div>
-            ) : (
-            <dl className="grid grid-cols-2 gap-4 text-sm max-w-md">
-              <dt className="text-muted-foreground">Brand</dt>
-              <dd>{doc.brand || '—'}</dd>
-              <dt className="text-muted-foreground">Model</dt>
-              <dd>{doc.model || '—'}</dd>
-              <dt className="text-muted-foreground">Type</dt>
-              <dd>{doc.document_type || '—'}</dd>
-              <dt className="text-muted-foreground">File size</dt>
-              <dd>{formatFileSize(doc.file_size)}</dd>
-              <dt className="text-muted-foreground">Uploaded</dt>
-              <dd>{new Date(doc.created_at).toLocaleString()}</dd>
-            </dl>
-            )}
-            <TagEditor doc={doc} onChange={setDoc} />
-          </CardContent>
-        </Card>
+        <div className="animate-slide-up">
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="p-8">
+              {isProcessing ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+                  <Loader2 size={28} className="animate-spin text-primary mb-4" />
+                  <p className="text-sm font-medium">Analysing document...</p>
+                  <p className="text-xs text-muted-foreground mt-1">Detecting brand, model, and document type.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                  <div>
+                    <h3 className="text-sm font-semibold mb-4 text-foreground/80 flex items-center gap-2">
+                      <Info size={16} className="text-primary" /> Document Details
+                    </h3>
+                    <dl className="space-y-3 text-sm">
+                      <div className="flex justify-between border-b border-border/40 pb-2"><dt className="text-muted-foreground">Brand</dt><dd className="font-medium">{doc.brand || '—'}</dd></div>
+                      <div className="flex justify-between border-b border-border/40 pb-2"><dt className="text-muted-foreground">Model</dt><dd className="font-medium">{doc.model || '—'}</dd></div>
+                      <div className="flex justify-between border-b border-border/40 pb-2"><dt className="text-muted-foreground">Type</dt><dd className="font-medium">{doc.document_type || '—'}</dd></div>
+                      <div className="flex justify-between border-b border-border/40 pb-2"><dt className="text-muted-foreground">File size</dt><dd className="font-medium">{formatFileSize(doc.file_size)}</dd></div>
+                      <div className="flex justify-between"><dt className="text-muted-foreground">Uploaded</dt><dd className="font-medium">{new Date(doc.created_at).toLocaleString()}</dd></div>
+                    </dl>
+                  </div>
+                  <div>
+                    <TagEditor doc={doc} onChange={setDoc} />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {!isProcessing && doc.raw_text && (
+            <div className="mt-6">
+              <RelatedDocuments documentId={doc.id} />
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Related documents (AI-powered, shown below info or as its own section) */}
-      {tab === 'info' && !isProcessing && doc.raw_text && (
-        <RelatedDocuments documentId={doc.id} />
+      {tab === 'ask' && (
+        <div className="animate-slide-up h-[75vh]">
+          <DocumentChat documentId={doc.id} documentTitle={doc.title} />
+        </div>
       )}
+        </div>
+      </div>
 
-      {tab === 'ask' && <DocumentChat documentId={doc.id} documentTitle={doc.title} />}
+      {/* Floating Action Bar (Bottom) */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-slide-up" style={{ animationDelay: '200ms' }}>
+        <div className="flex items-center gap-1.5 p-1.5 rounded-full bg-background/80 backdrop-blur-xl border border-border/50 shadow-lg shadow-black/5">
+          <Button variant="ghost" size="sm" className="h-9 rounded-full px-4 text-xs font-medium hover:bg-muted" onClick={handleToggleFavourite}>
+            <Star size={14} className={`mr-1.5 ${doc.is_favourite ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}`} />
+            {doc.is_favourite ? 'Favourited' : 'Favourite'}
+          </Button>
+          <div className="w-px h-5 bg-border/60" />
+          <Button variant="ghost" size="sm" className="h-9 rounded-full px-4 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleDelete}>
+            <Trash2 size={14} className="mr-1.5" />
+            Delete
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -202,14 +283,28 @@ function formatFileSize(bytes: number | null): string {
 
 function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-all duration-200 ${active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-      {icon}{label}
+    <button onClick={onClick} className="relative px-5 py-2.5 text-sm font-semibold transition-colors duration-200 group flex items-center gap-2">
+      <span className={`relative z-10 flex items-center gap-2 ${active ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground/80'}`}>
+        <span className={active ? 'text-primary' : ''}>{icon}</span>
+        {label}
+      </span>
+      {active && (
+        <div className="absolute inset-0 bg-background rounded-t-lg border-t border-l border-r border-border/50 z-0" />
+      )}
+      {!active && (
+        <div className="absolute inset-0 bg-accent/0 group-hover:bg-accent/50 rounded-t-lg z-0 transition-colors" />
+      )}
     </button>
   )
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="inline-flex items-center rounded-full bg-primary/[0.08] px-2.5 py-0.5 text-xs font-medium text-primary">{children}</span>
+function Badge({ children, variant = 'secondary', className = '' }: { children: React.ReactNode, variant?: 'secondary' | 'outline', className?: string }) {
+  const base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors"
+  const variants = {
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-transparent",
+    outline: "border border-border/60 text-foreground"
+  }
+  return <span className={`${base} ${variants[variant]} ${className}`}>{children}</span>
 }
 
 function TagEditor({ doc, onChange }: { doc: Document; onChange: (d: Document) => void }) {
@@ -303,8 +398,8 @@ function ShareButton({ documentId }: { documentId: string }) {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleShare} disabled={loading}>
-      {copied ? <><Check size={14} className="mr-1.5 text-green-600" /> Link copied</> : <><Share2 size={14} className="mr-1.5" /> Share</>}
+    <Button variant="outline" size="sm" onClick={handleShare} disabled={loading} className="h-9 rounded-full bg-background/50 hover:bg-background shadow-sm hover:shadow transition-all w-24">
+      {copied ? <><Check size={14} className="mr-1.5 text-green-600" /> Copied</> : <><Share2 size={14} className="mr-1.5" /> Share</>}
     </Button>
   )
 }
@@ -463,6 +558,11 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [loading, setLoading] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -482,34 +582,79 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
   }
 
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="min-h-[300px] max-h-[60vh] overflow-auto space-y-4 mb-4">
+    <Card className="h-full border-border/50 shadow-sm flex flex-col overflow-hidden">
+      <CardContent className="p-0 flex flex-col h-full bg-background/50">
+        <div className="flex-1 overflow-auto p-6 space-y-6">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-12 h-12 rounded-2xl gradient-bg flex items-center justify-center"><Bot className="h-6 w-6 text-white" /></div>
-              <p className="mt-4 text-sm font-medium">Ask about {documentTitle}</p>
-              <p className="text-xs text-muted-foreground mt-1">Answered using only this document.</p>
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="relative w-20 h-20 mb-4">
+                <div className="absolute inset-0 m-auto w-16 h-16 rounded-full gradient-bg opacity-10 blur-xl animate-pulse" />
+                <div className="absolute inset-0 m-auto w-12 h-12 rounded-xl bg-background border border-border/50 shadow-lg flex items-center justify-center z-10">
+                  <Bot className="h-5 w-5 text-primary/70" />
+                </div>
+              </div>
+              <h3 className="font-semibold text-foreground">Ask about {documentTitle}</h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-[250px]">Get answers specifically from this document's contents.</p>
             </div>
           ) : (
             messages.map((msg, i) => (
-              <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                {msg.role === 'assistant' && <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center"><Bot size={14} className="text-white" /></div>}
-                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${msg.role === 'user' ? 'gradient-bg text-white rounded-br-md' : 'bg-muted/70 rounded-bl-md'}`}>{msg.content}</div>
+              <div key={i} className={`flex gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                {msg.role === 'assistant' && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center shadow-sm shadow-primary/20">
+                    <Bot size={14} className="text-white" />
+                  </div>
+                )}
+                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  msg.role === 'user' 
+                    ? 'gradient-bg text-white rounded-br-md shadow-sm shadow-primary/15' 
+                    : 'bg-card/60 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-sm'
+                }`}>
+                  {msg.content}
+                </div>
+                {msg.role === 'user' && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center shadow-sm">
+                    <User size={14} className="text-secondary-foreground" />
+                  </div>
+                )}
               </div>
             ))
           )}
           {loading && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center"><Bot size={14} className="text-white" /></div>
-              <div className="bg-muted/70 rounded-2xl rounded-bl-md px-4 py-3"><div className="flex gap-1.5"><div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce" /><div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:0.15s]" /><div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:0.3s]" /></div></div>
+            <div className="flex gap-3 animate-fade-in">
+              <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center shadow-sm shadow-primary/20">
+                <Bot size={14} className="text-white" />
+              </div>
+              <div className="bg-card/60 backdrop-blur-md border border-border/40 rounded-2xl rounded-bl-md px-5 py-3.5 shadow-sm">
+                <div className="flex gap-1.5 items-center">
+                  <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:0.15s]" />
+                  <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:0.3s]" />
+                </div>
+              </div>
             </div>
           )}
+          <div ref={bottomRef} />
         </div>
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about this document..." disabled={loading} className="h-10" />
-          <Button type="submit" size="icon" className="h-10 w-10 gradient-bg border-0 text-white shrink-0" disabled={loading || !input.trim()}><Send size={15} /></Button>
-        </form>
+        
+        <div className="p-4 bg-card border-t border-border/40">
+          <form onSubmit={handleSubmit} className="relative group flex items-end gap-2 bg-background border border-border/60 rounded-xl p-1.5 shadow-sm group-focus-within:border-primary/30 transition-all duration-300">
+            <Input 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              placeholder="Ask a question about this document..." 
+              disabled={loading} 
+              className="border-0 shadow-none focus-visible:ring-0 h-10 px-3" 
+            />
+            <Button 
+              type="submit" 
+              size="icon" 
+              className="h-10 w-10 rounded-lg gradient-bg border-0 text-white shrink-0 shadow-md shadow-primary/20 transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none" 
+              disabled={loading || !input.trim()}
+            >
+              <Send size={15} />
+            </Button>
+          </form>
+        </div>
       </CardContent>
     </Card>
   )
