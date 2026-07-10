@@ -31,7 +31,7 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', -apple-system, 'SF Pro Display', system-ui, sans-serif;
   }
 }
 
@@ -85,11 +85,126 @@
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
   }
   .hover-lift:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.12);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(99, 60, 255, 0.04);
+  }
+
+  /* Gradient icon background for feature cards */
+  .icon-gradient-blue {
+    background: linear-gradient(135deg, oklch(0.92 0.04 264), oklch(0.96 0.02 264));
+  }
+  .icon-gradient-purple {
+    background: linear-gradient(135deg, oklch(0.92 0.04 300), oklch(0.96 0.02 300));
+  }
+  .icon-gradient-green {
+    background: linear-gradient(135deg, oklch(0.92 0.06 155), oklch(0.96 0.03 155));
+  }
+  .icon-gradient-amber {
+    background: linear-gradient(135deg, oklch(0.92 0.06 85), oklch(0.96 0.03 85));
+  }
+
+  .dark .icon-gradient-blue {
+    background: linear-gradient(135deg, oklch(0.28 0.04 264), oklch(0.24 0.03 264));
+  }
+  .dark .icon-gradient-purple {
+    background: linear-gradient(135deg, oklch(0.28 0.04 300), oklch(0.24 0.03 300));
+  }
+  .dark .icon-gradient-green {
+    background: linear-gradient(135deg, oklch(0.28 0.05 155), oklch(0.24 0.03 155));
+  }
+  .dark .icon-gradient-amber {
+    background: linear-gradient(135deg, oklch(0.28 0.05 85), oklch(0.24 0.03 85));
+  }
+
+  /* Animated gradient for the auth left panel */
+  .animated-gradient {
+    background: linear-gradient(
+      -45deg,
+      oklch(0.40 0.2 264),
+      oklch(0.45 0.22 280),
+      oklch(0.50 0.25 300),
+      oklch(0.42 0.2 264)
+    );
+    background-size: 400% 400%;
+    animation: gradientShift 12s ease infinite;
+  }
+
+  /* Floating action bar for bulk operations */
+  .floating-bar {
+    animation: floatUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Shimmer effect for skeleton loaders */
+  .shimmer {
+    background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.08) 50%, transparent 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Upload drop zone pulse */
+  .drop-zone-active {
+    animation: dropPulse 1.5s ease-in-out infinite;
+  }
+  
+  /* Document Wireframe for Fallback Icons */
+  .doc-wireframe {
+    background: linear-gradient(180deg, 
+      transparent 0%, 
+      transparent 20%, 
+      oklch(0.9 0 0 / 0.5) 20%, 
+      oklch(0.9 0 0 / 0.5) 23%, 
+      transparent 23%, 
+      transparent 35%, 
+      oklch(0.9 0 0 / 0.5) 35%, 
+      oklch(0.9 0 0 / 0.5) 38%, 
+      transparent 38%, 
+      transparent 50%, 
+      oklch(0.9 0 0 / 0.5) 50%, 
+      oklch(0.9 0 0 / 0.5) 53%, 
+      transparent 53%, 
+      transparent 65%, 
+      oklch(0.9 0 0 / 0.5) 65%, 
+      oklch(0.9 0 0 / 0.5) 68%, 
+      transparent 68%, 
+      transparent 100%
+    );
+  }
+  .dark .doc-wireframe {
+    background: linear-gradient(180deg, 
+      transparent 0%, 
+      transparent 20%, 
+      oklch(0.3 0 0 / 0.5) 20%, 
+      oklch(0.3 0 0 / 0.5) 23%, 
+      transparent 23%, 
+      transparent 35%, 
+      oklch(0.3 0 0 / 0.5) 35%, 
+      oklch(0.3 0 0 / 0.5) 38%, 
+      transparent 38%, 
+      transparent 50%, 
+      oklch(0.3 0 0 / 0.5) 50%, 
+      oklch(0.3 0 0 / 0.5) 53%, 
+      transparent 53%, 
+      transparent 65%, 
+      oklch(0.3 0 0 / 0.5) 65%, 
+      oklch(0.3 0 0 / 0.5) 68%, 
+      transparent 68%, 
+      transparent 100%
+    );
+  }
+  
+  /* Dropzone Animations */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .animate-float-delayed {
+    animation: float 6s ease-in-out 3s infinite;
   }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -105,4 +220,56 @@
 @keyframes progress {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(250%); }
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes floatUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes dropPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 60, 255, 0.15); }
+  50% { box-shadow: 0 0 0 12px rgba(99, 60, 255, 0); }
+}
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scanLine {
+  0%, 100% { transform: scaleX(0.2) translateX(-200%); opacity: 0.6; }
+  50% { transform: scaleX(1) translateX(0); opacity: 1; }
+}
+
+/* ======================================
+   Dark mode specific fixes
+   ====================================== */
+
+/* Amber warning banners in dark mode */
+.dark .dark\:border-amber-900\/40 { border-color: oklch(0.35 0.1 85 / 0.4); }
+.dark .dark\:bg-amber-950\/20 { background-color: oklch(0.20 0.08 85 / 0.2); }
+
+/* Improved shimmer for dark mode */
+.dark .shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
+  background-size: 200% 100%;
+}
+
+/* cmdk command palette reset */
+[cmdk-input-wrapper] { width: 100%; }
+[cmdk-item] { outline: none; }
+[cmdk-group-heading] { padding: 0; }
+[cmdk-list] { scrollbar-width: thin; scrollbar-color: oklch(0.7 0 0 / 0.3) transparent; }
+[cmdk-list]::-webkit-scrollbar { width: 4px; }
+[cmdk-list]::-webkit-scrollbar-thumb { background: oklch(0.7 0 0 / 0.3); border-radius: 4px; }
+
+/* Mobile — prevent sidebar overlap */
+@media (max-width: 1023px) {
+  .app-main { min-width: 0; }
 }

@@ -5,6 +5,9 @@ import { AuthProvider, useAuth } from './lib/auth'
 import { searchDocuments } from './lib/api'
 import { useTheme } from './lib/theme'
 import { ToastProvider } from './components/Toast'
+import { CommandPalette } from './components/CommandPalette'
+import { OnboardingTour } from './components/OnboardingTour'
+import { NotificationCenter, useNotifications } from './components/NotificationCenter'
 import Landing from './pages/Landing'
 import AuthPage from './pages/Auth'
 import VerifyEmail from './pages/VerifyEmail'
@@ -59,6 +62,8 @@ function AppShell() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userName, setUserName] = useState('')
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const notifs = useNotifications()
 
   useEffect(() => {
     if (token) {
@@ -69,12 +74,25 @@ function AppShell() {
     }
   }, [token])
 
+  // Global ⌘K → command palette
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setPaletteOpen(o => !o)
+      }
+      if (e.key === 'Escape') setPaletteOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <div className="flex h-screen bg-muted/20">
       {/* Mobile overlay */}
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Sidebar — responsive: hidden on mobile, fixed on desktop */}
+      {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[260px] flex flex-col glass border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-5 py-5">
           <button onClick={() => navigate('/app')} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
@@ -120,9 +138,13 @@ function AppShell() {
         </div>
       </aside>
 
-      {/* Main content with neutral bg */}
-      <main className="flex-1 overflow-auto bg-background flex flex-col">
-        <TopBar onMenuClick={() => setSidebarOpen(true)} />
+      {/* Main content */}
+      <main className="flex-1 overflow-auto bg-background flex flex-col min-w-0">
+        <TopBar
+          onMenuClick={() => setSidebarOpen(true)}
+          onPaletteOpen={() => setPaletteOpen(true)}
+          notifications={notifs}
+        />
         <div className="flex-1 overflow-auto">
           <Routes>
             <Route index element={<Dashboard />} />
@@ -136,16 +158,23 @@ function AppShell() {
           </Routes>
         </div>
       </main>
+
+      {/* Global overlays */}
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <OnboardingTour />
     </div>
   )
 }
 
-function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
+function TopBar({ onMenuClick, onPaletteOpen, notifications }: {
+  onMenuClick: () => void
+  onPaletteOpen: () => void
+  notifications: ReturnType<typeof useNotifications>
+}) {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [results, setResults] = useState<{ document_id: string; document_title: string; chunk_text: string }[]>([])
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const debounceRef = useState<{ t?: ReturnType<typeof setTimeout> }>({})[0]
   const wrapRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -158,27 +187,13 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  // Cmd+K / Ctrl+K to focus search
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        inputRef.current?.focus()
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
-
   useEffect(() => {
     if (!q.trim()) { setResults([]); setOpen(false); return }
     if (debounceRef.t) clearTimeout(debounceRef.t)
     debounceRef.t = setTimeout(async () => {
-      setLoading(true)
       const data = await searchDocuments(q)
       setResults(data.results.slice(0, 5))
       setOpen(true)
-      setLoading(false)
     }, 300)
   }, [q])
 
@@ -188,30 +203,44 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   }
 
   return (
-    <div className="h-14 border-b border-border/40 glass flex items-center justify-between px-6 gap-4 sticky top-0 z-30">
+    <div className="h-14 border-b border-border/40 glass flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-4 sticky top-0 z-30">
       {/* Mobile menu button */}
       <button onClick={onMenuClick} className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground" aria-label="Open menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
       </button>
-      <div className="w-20 hidden lg:block" /> {/* spacer for centering on desktop */}
+      <div className="w-20 hidden lg:block" />
 
-      {/* Centered search */}
+      {/* Search — click to open palette on mobile, inline on desktop */}
       <div ref={wrapRef} className="relative flex-1 max-w-lg">
-        <form onSubmit={handleSubmit} className="relative">
+        {/* On mobile, just a search icon that opens the palette */}
+        <button
+          className="sm:hidden p-2 text-muted-foreground hover:text-foreground"
+          onClick={onPaletteOpen}
+          aria-label="Search"
+        >
+          <Search className="h-5 w-5" />
+        </button>
+
+        {/* Desktop inline search */}
+        <form onSubmit={handleSubmit} className="relative hidden sm:block">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            id="topbar-search"
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onFocus={() => q && setOpen(true)}
-            placeholder="Search documents..."
-            className="pl-10 pr-16 h-9 text-sm bg-muted/40 border-0 rounded-full"
+            onClick={onPaletteOpen}
+            readOnly
+            placeholder="Search documents…"
+            className="pl-10 pr-16 h-9 text-sm bg-muted/40 border-0 rounded-full cursor-pointer"
           />
-          {!loading && <span />}
-          {loading && <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
+          <kbd className="absolute right-3.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 text-[10px] text-muted-foreground font-medium pointer-events-none">
+            ⌘K
+          </kbd>
         </form>
 
-        {/* Live dropdown */}
+        {/* Live dropdown (kept for keyboard search fallback) */}
         {open && results.length > 0 && (
           <div className="absolute top-11 left-0 right-0 bg-card border border-border/50 rounded-xl shadow-xl overflow-hidden animate-scale-in z-50">
             {results.map((r, i) => (
@@ -232,18 +261,32 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
             </button>
           </div>
         )}
-        {open && results.length === 0 && !loading && q && (
-          <div className="absolute top-11 left-0 right-0 bg-card border border-border/50 rounded-xl shadow-xl p-4 text-center text-sm text-muted-foreground animate-scale-in z-50">
-            No results for "{q}"
-          </div>
-        )}
       </div>
 
-      {/* Upload button with hover animation */}
-      <div className="flex items-center gap-2">
+      {/* Right actions */}
+      <div className="flex items-center gap-1 sm:gap-2">
         <ThemeToggle />
-        <Button size="sm" className="gradient-bg border-0 text-white transition-all duration-200 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0" onClick={() => navigate('/app/upload')}>
+        <NotificationCenter
+          notifications={notifications.notifications}
+          unreadCount={notifications.unreadCount}
+          onMarkAllRead={notifications.markAllRead}
+          onRemove={notifications.remove}
+        />
+        <Button
+          id="topbar-upload"
+          size="sm"
+          className="gradient-bg border-0 text-white transition-all duration-200 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0 hidden sm:flex"
+          onClick={() => navigate('/app/upload')}
+        >
           <Upload size={15} className="mr-1.5" /> Upload
+        </Button>
+        {/* Mobile upload icon */}
+        <Button
+          size="icon"
+          className="gradient-bg border-0 text-white h-8 w-8 sm:hidden"
+          onClick={() => navigate('/app/upload')}
+        >
+          <Upload size={15} />
         </Button>
       </div>
     </div>
