@@ -93,7 +93,7 @@ function AppShell() {
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[260px] flex flex-col glass border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[260px] flex flex-col bg-background/80 backdrop-blur-2xl border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-5 py-5">
           <button onClick={() => navigate('/app')} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shadow-md shadow-primary/25">
@@ -139,7 +139,7 @@ function AppShell() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto bg-background flex flex-col min-w-0">
+      <main className="flex-1 overflow-auto bg-background/50 flex flex-col min-w-0">
         <TopBar
           onMenuClick={() => setSidebarOpen(true)}
           onPaletteOpen={() => setPaletteOpen(true)}
@@ -203,7 +203,7 @@ function TopBar({ onMenuClick, onPaletteOpen, notifications }: {
   }
 
   return (
-    <div className="h-14 border-b border-border/40 glass flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-4 sticky top-0 z-30">
+    <div className="h-14 border-b border-border/30 bg-background/60 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-4 sticky top-0 z-30">
       {/* Mobile menu button */}
       <button onClick={onMenuClick} className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground" aria-label="Open menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
