@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     S3_BUCKET: str = "documents"
     OPENAI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
     MISTRAL_API_KEY: str = ""
     OCR_BACKEND: str = "tesseract"
     AWS_REGION: str = "eu-west-1"

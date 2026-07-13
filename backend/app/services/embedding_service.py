@@ -17,7 +17,7 @@ def _cache_key(text: str) -> str:
 
 
 def get_embeddings(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings via OpenAI, Ollama, or zero-vector fallback. Caches by content hash."""
+    """Generate embeddings via Gemini, OpenAI, Ollama, or zero-vector fallback. Caches by content hash."""
     if not texts:
         return []
 
@@ -40,8 +40,8 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
             uncached_texts.append(t)
 
     if uncached_texts:
-        if settings.OPENAI_API_KEY:
-            fresh = _openai_embeddings(uncached_texts)
+        if settings.GEMINI_API_KEY:
+            fresh = _gemini_embeddings(uncached_texts)
         elif settings.OLLAMA_URL:
             fresh = _ollama_embeddings(uncached_texts)
         else:
@@ -57,6 +57,31 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
 
 def get_embedding(text: str) -> list[float]:
     return get_embeddings([text])[0]
+
+
+def _gemini_embeddings(texts: list[str]) -> list[list[float]]:
+    from google import genai
+
+    from app.services.retry import with_retry
+
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    def _call():
+        result = client.models.embed_content(
+            model="gemini-embedding-001",
+            contents=texts,
+        )
+        return result
+
+    response = with_retry(_call, label="gemini.embeddings")
+    embeddings = []
+    for emb in response.embeddings:
+        vec = list(emb.values)
+        # Gemini gemini-embedding-001 outputs 3072 dims; truncate/pad to EMBEDDING_DIM for pgvector compatibility
+        if len(vec) < EMBEDDING_DIM:
+            vec = vec + [0.0] * (EMBEDDING_DIM - len(vec))
+        embeddings.append(vec[:EMBEDDING_DIM])
+    return embeddings
 
 
 def _openai_embeddings(texts: list[str]) -> list[list[float]]:
