@@ -17,11 +17,90 @@ def categorise_document(text: str) -> DocumentMetadata:
     if not text:
         return DocumentMetadata()
 
-    if settings.OPENAI_API_KEY:
-        return _categorise_openai(text)
+    if settings.GROQ_API_KEY:
+        return _categorise_groq(text)
+    if settings.GEMINI_API_KEY:
+        return _categorise_gemini(text)
     if settings.MISTRAL_API_KEY:
         return _categorise_mistral(text)
     return _fallback_categorise(text)
+
+
+def _categorise_groq(text: str) -> DocumentMetadata:
+    """Use Groq (Llama 3.3 70B) for metadata extraction."""
+    from openai import OpenAI
+
+    from app.services.retry import with_retry
+
+    client = OpenAI(api_key=settings.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
+
+    def _call():
+        return client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Extract metadata from this document text. Return JSON only with these fields: "
+                        "brand, model, document_type (e.g. 'User Manual', 'Quick Start Guide', 'Warranty Card'), "
+                        "suggested_title. Use null for fields you cannot determine. "
+                        "For 'model', extract the specific product model number/name (e.g. 'DR-HSH004', 'Galaxy S24')."
+                    ),
+                },
+                {"role": "user", "content": text[:2000]},
+            ],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+
+    try:
+        response = with_retry(_call, label="groq.categorise", attempts=2)
+        data = json.loads(response.choices[0].message.content)
+        return DocumentMetadata(
+            brand=data.get("brand"),
+            model=data.get("model"),
+            document_type=data.get("document_type"),
+            title=data.get("suggested_title"),
+        )
+    except Exception:
+        return _fallback_categorise(text)
+
+
+def _categorise_gemini(text: str) -> DocumentMetadata:
+    """Use Gemini for metadata extraction."""
+    from google import genai
+
+    from app.services.retry import with_retry
+
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    prompt = (
+        "Extract metadata from this document text. Return JSON only with these fields: "
+        "brand, model, document_type (e.g. 'User Manual', 'Quick Start Guide', 'Warranty Card'), "
+        "suggested_title. Use null for fields you cannot determine. "
+        "For 'model', extract the specific product model number/name (e.g. 'DR-HSH004', 'Galaxy S24').\n\n"
+        f"{text[:2000]}"
+    )
+
+    try:
+        response = with_retry(lambda: client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config={
+                "temperature": 0,
+                "response_mime_type": "application/json",
+            },
+        ), label="gemini.categorise", attempts=2)
+
+        data = json.loads(response.text)
+        return DocumentMetadata(
+            brand=data.get("brand"),
+            model=data.get("model"),
+            document_type=data.get("document_type"),
+            title=data.get("suggested_title"),
+        )
+    except Exception:
+        return _fallback_categorise(text)
 
 
 def _categorise_mistral(text: str) -> DocumentMetadata:

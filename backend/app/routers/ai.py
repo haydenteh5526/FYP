@@ -39,10 +39,16 @@ class AskResponse(BaseModel):
 async def ai_status():
     """Report AI provider availability for the Settings page."""
     status = {
-        "openai": bool(settings.OPENAI_API_KEY),
+        "groq": bool(settings.GROQ_API_KEY),
+        "gemini": bool(settings.GEMINI_API_KEY),
         "ollama": bool(settings.OLLAMA_URL),
         "ocr_backend": settings.OCR_BACKEND,
-        "mode": "openai" if settings.OPENAI_API_KEY else ("ollama" if settings.OLLAMA_URL else "dev-fallback"),
+        "mode": (
+            "groq" if settings.GROQ_API_KEY
+            else "gemini" if settings.GEMINI_API_KEY
+            else "ollama" if settings.OLLAMA_URL
+            else "dev-fallback"
+        ),
     }
     return status
 
@@ -101,9 +107,92 @@ async def ask_question(req: AskRequest, db: AsyncSession = Depends(get_db), user
 
 
 def _generate_answer(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
-    if not settings.OPENAI_API_KEY:
-        return f"[Dev mode - no OpenAI key] Based on your documents, here are relevant excerpts:\n\n{context[:500]}"
+    if settings.GROQ_API_KEY:
+        return _generate_answer_groq(question, context, history)
+    if settings.GEMINI_API_KEY:
+        return _generate_answer_gemini(question, context, history)
+    return f"[Dev mode - no AI key] Based on your documents, here are relevant excerpts:\n\n{context[:500]}"
 
+
+def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
+    from openai import OpenAI
+
+    from app.services.retry import with_retry
+
+    client = OpenAI(api_key=settings.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
+
+    messages: list[dict] = [
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful assistant that answers questions based on the user's stored documents. "
+                "Only answer using information from the provided context. "
+                "If the answer is not in the context, say 'I don't have information about that in your documents.' "
+                "Cite which document the answer comes from."
+            ),
+        }
+    ]
+    if history:
+        for turn in history[-6:]:
+            if turn.role in ("user", "assistant"):
+                messages.append({"role": turn.role, "content": turn.content})
+    messages.append({
+        "role": "user",
+        "content": f"Context from my documents:\n\n{context}\n\n---\n\nQuestion: {question}",
+    })
+
+    response = with_retry(lambda: client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+        temperature=0.3,
+        max_tokens=500,
+    ), label="groq.chat")
+
+    return response.choices[0].message.content
+
+
+def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
+    from google import genai
+
+    from app.services.retry import with_retry
+
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    system_instruction = (
+        "You are a helpful assistant that answers questions based on the user's stored documents. "
+        "Only answer using information from the provided context. "
+        "If the answer is not in the context, say 'I don't have information about that in your documents.' "
+        "Cite which document the answer comes from."
+    )
+
+    # Build conversation contents
+    contents: list[dict] = []
+    if history:
+        for turn in history[-6:]:
+            if turn.role == "user":
+                contents.append({"role": "user", "parts": [{"text": turn.content}]})
+            elif turn.role == "assistant":
+                contents.append({"role": "model", "parts": [{"text": turn.content}]})
+
+    contents.append({
+        "role": "user",
+        "parts": [{"text": f"Context from my documents:\n\n{context}\n\n---\n\nQuestion: {question}"}],
+    })
+
+    response = with_retry(lambda: client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=contents,
+        config={
+            "system_instruction": system_instruction,
+            "temperature": 0.3,
+            "max_output_tokens": 500,
+        },
+    ), label="gemini.chat")
+
+    return response.text
+
+
+def _generate_answer_openai(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
     from openai import OpenAI
 
     from app.services.retry import with_retry
