@@ -28,7 +28,7 @@ class BulkCategoriseRequest(BaseModel):
     category_id: uuid.UUID | None = None
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
-MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 
 
 @router.post("", response_model=DocumentOut, status_code=201)
