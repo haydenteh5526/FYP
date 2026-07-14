@@ -33,6 +33,29 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', -apple-system, 'SF Pro Display', system-ui, sans-serif;
   }
+
+  /* Hide scrollbars globally, keep scroll functionality */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  *:hover {
+    scrollbar-color: oklch(0.5 0.02 264 / 0.3) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background: oklch(0.5 0.02 264 / 0.3);
+  }
 }
 
 /* Dark mode overrides */

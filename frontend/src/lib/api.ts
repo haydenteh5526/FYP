@@ -284,3 +284,57 @@ export async function restoreDocumentVersion(documentId: string, versionId: stri
   const res = await fetch(`${BASE}/documents/${documentId}/versions/${versionId}/restore`, { method: 'POST', headers: getHeaders() })
   return res.json()
 }
+
+// === Conversations ===
+export interface Conversation {
+  id: string
+  title: string
+  created_at: string
+  updated_at: string
+  message_count?: number
+}
+
+export interface ConversationMessage {
+  id: string
+  conversation_id: string
+  role: 'user' | 'assistant'
+  content: string
+  sources: AskResponse['sources'] | null
+  created_at: string
+}
+
+export interface ConversationDetail extends Conversation {
+  messages: ConversationMessage[]
+}
+
+export async function listConversations(): Promise<Conversation[]> {
+  const res = handleUnauthorized(await fetch(`${BASE}/conversations`, { headers: getHeaders() }))
+  return res.json()
+}
+
+export async function createConversation(title?: string): Promise<Conversation> {
+  const res = await fetch(`${BASE}/conversations`, {
+    method: 'POST',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  })
+  return res.json()
+}
+
+export async function getConversation(id: string): Promise<ConversationDetail> {
+  const res = handleUnauthorized(await fetch(`${BASE}/conversations/${id}`, { headers: getHeaders() }))
+  return res.json()
+}
+
+export async function deleteConversation(id: string): Promise<void> {
+  await fetch(`${BASE}/conversations/${id}`, { method: 'DELETE', headers: getHeaders() })
+}
+
+export async function sendMessage(conversationId: string, question: string, documentId?: string): Promise<{ user_message: ConversationMessage; assistant_message: ConversationMessage }> {
+  const res = await fetch(`${BASE}/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, document_id: documentId || null }),
+  })
+  return res.json()
+}

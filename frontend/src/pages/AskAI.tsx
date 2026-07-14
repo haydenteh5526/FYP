@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Send, Bot, User, FileText, Sparkles, ShieldCheck, Wrench, Package, Zap, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { askQuestion, type AskResponse } from '@/lib/api'
+import { askQuestion, type AskResponse, getConversation, createConversation, sendMessage as sendConversationMessage } from '@/lib/api'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -11,12 +11,45 @@ interface Message {
 }
 
 export default function AskAI() {
+  const { conversationId } = useParams<{ conversationId?: string }>()
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationId || null)
+  const skipReloadRef = useRef(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const navigate = useNavigate()
+
+  // Load conversation messages when conversationId changes
+  useEffect(() => {
+    if (conversationId) {
+      setActiveConversationId(conversationId)
+      // Skip reload if we just created this conversation locally
+      if (skipReloadRef.current) {
+        skipReloadRef.current = false
+        return
+      }
+      getConversation(conversationId)
+        .then(data => {
+          setMessages(
+            data.messages.map(m => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+              sources: m.sources || undefined,
+            }))
+          )
+        })
+        .catch(() => {
+          // Conversation not found, redirect to fresh ask
+          navigate('/app/ask', { replace: true })
+        })
+    } else {
+      // New chat — reset state
+      setActiveConversationId(null)
+      setMessages([])
+    }
+  }, [conversationId, navigate])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -38,12 +71,38 @@ export default function AskAI() {
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: question }])
     setLoading(true)
+
     try {
-      const history = messages.map(m => ({ role: m.role, content: m.content }))
-      const data = await askQuestion(question, undefined, history)
-      setMessages(prev => [...prev, { role: 'assistant', content: data.answer, sources: data.sources }])
+      let convId = activeConversationId
+
+      // If no active conversation, create one first
+      if (!convId) {
+        const conv = await createConversation()
+        convId = conv.id
+        setActiveConversationId(convId)
+        skipReloadRef.current = true
+        navigate(`/app/ask/${convId}`, { replace: true })
+      }
+
+      // Send message via conversation API
+      const data = await sendConversationMessage(convId, question)
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: data.assistant_message.content,
+          sources: data.assistant_message.sources || undefined,
+        },
+      ])
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }])
+      // Fallback: try the standalone ask endpoint
+      try {
+        const history = messages.map(m => ({ role: m.role, content: m.content }))
+        const data = await askQuestion(question, undefined, history)
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer, sources: data.sources }])
+      } catch {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }])
+      }
     } finally {
       setLoading(false)
     }

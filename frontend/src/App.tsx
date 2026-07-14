@@ -1,9 +1,8 @@
-import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
-import { FileText, Search, MessageSquare, Upload, LogOut, ShieldCheck, Settings as SettingsIcon, Sun, Moon } from 'lucide-react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { FileText, Search, MessageSquare, Upload, Settings as SettingsIcon, Layers, Plus, Trash2, LogOut, ExternalLink, Sparkles } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
-import { searchDocuments } from './lib/api'
-import { useTheme } from './lib/theme'
+import { searchDocuments, listConversations, deleteConversation, type Conversation } from './lib/api'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
 import { OnboardingTour } from './components/OnboardingTour'
@@ -14,6 +13,7 @@ import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
 import UploadPage from './pages/Upload'
 import SearchPage from './pages/Search'
+import SearchChats from './pages/SearchChats'
 import AskAI from './pages/AskAI'
 import DocumentDetail from './pages/DocumentDetail'
 import Warranties from './pages/Warranties'
@@ -44,12 +44,14 @@ function AppRoutes() {
       <Route path="/register" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="register" />} />
       <Route path="/verify" element={<VerifyEmail />} />
       <Route path="/app/*" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<AskAI />} />
+        <Route path="documents" element={<Dashboard />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="documents/:id" element={<DocumentDetail />} />
         <Route path="warranties" element={<Warranties />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="ask" element={<AskAI />} />
+        <Route path="ask/:conversationId" element={<AskAI />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
@@ -60,9 +62,15 @@ function AppRoutes() {
 function AppShell() {
   const { logout, token } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<'general' | 'account' | 'billing'>('general')
   const [userName, setUserName] = useState('')
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const notifs = useNotifications()
 
   useEffect(() => {
@@ -73,6 +81,23 @@ function AppShell() {
         .catch(() => {})
     }
   }, [token])
+
+  // Fetch conversations on mount and when navigating to Ask AI
+  const fetchConversations = useCallback(() => {
+    listConversations()
+      .then(data => setConversations(data.filter(c => !c.title.startsWith('[')).slice(0, 10)))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetchConversations()
+  }, [fetchConversations])
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/app/ask')) {
+      fetchConversations()
+    }
+  }, [location.pathname, fetchConversations])
 
   // Global ⌘K → command palette
   useEffect(() => {
@@ -93,48 +118,137 @@ function AppShell() {
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-[260px] flex flex-col bg-background/80 backdrop-blur-2xl border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="px-5 py-5">
-          <button onClick={() => navigate('/app')} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shadow-md shadow-primary/25">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-white">
-                <path d="M7 18h10V6H7v12zM5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1zm4 4h6v2h-6V8zm0 4h6v2h-6v-2z" fill="currentColor"/>
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-[15px] font-semibold leading-none">DocVault</h1>
-              <p className="text-[10px] text-muted-foreground mt-0.5">AI Document Assistant</p>
-            </div>
-          </button>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-0 lg:w-0 overflow-hidden' : 'w-[260px]'} flex flex-col bg-background/80 backdrop-blur-2xl border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 !w-[260px]' : !sidebarCollapsed ? '' : '-translate-x-full'}`}>
+        {/* Top: Logo + Nav */}
+        <div className="px-3 pt-4 pb-2">
+          <div className="flex items-center justify-between px-2 mb-4">
+            <button onClick={() => navigate('/app')} className="flex items-center gap-2 group hover:opacity-80 transition-opacity">
+              <Layers size={20} className="text-primary transition-transform duration-300 group-hover:rotate-12" />
+              <span className="text-base font-bold gradient-text tracking-tight">DocVault</span>
+            </button>
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              className="p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-colors hidden lg:block"
+              title="Collapse sidebar"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/></svg>
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <button
+              onClick={() => { navigate('/app/ask'); setSidebarOpen(false) }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border/50 text-sm font-medium text-foreground/80 hover:bg-accent/50 hover:border-border transition-all duration-200"
+            >
+              <Plus size={16} className="text-muted-foreground" />
+              New chat
+            </button>
+
+            <button
+              onClick={() => { navigate('/app/chats'); setSidebarOpen(false) }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                location.pathname === '/app/chats'
+                  ? 'bg-accent/80 text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
+              }`}
+            >
+              <Search size={16} />
+              Search chats
+            </button>
+
+            <button
+              onClick={() => { navigate('/app/documents'); setSidebarOpen(false) }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                location.pathname.startsWith('/app/documents')
+                  ? 'bg-accent/80 text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
+              }`}
+            >
+              <FileText size={16} />
+              Documents
+            </button>
+          </div>
         </div>
 
-        <nav className="flex-1 px-3 py-2 space-y-0.5" onClick={() => setSidebarOpen(false)}>
-          <SidebarLink to="/app" icon={<FileText size={17} />} label="Documents" end />
-          <SidebarLink to="/app/warranties" icon={<ShieldCheck size={17} />} label="Warranties" />
-          <SidebarLink to="/app/ask" icon={<MessageSquare size={17} />} label="Ask AI" />
-        </nav>
+        {/* Conversations list */}
+        <div className="flex-1 overflow-auto px-3 py-2 min-h-0 border-t border-border/30 mt-1" onClick={() => setSidebarOpen(false)}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 px-3 mb-2">Recent chats</p>
+          {conversations.map(conv => (
+            <div key={conv.id} className="group relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate(`/app/ask/${conv.id}`); setSidebarOpen(false) }}
+                className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-left transition-all duration-200 ${
+                  location.pathname === `/app/ask/${conv.id}`
+                    ? 'bg-accent/80 text-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
+                }`}
+              >
+                <MessageSquare size={13} className="shrink-0 opacity-50" />
+                <span className="truncate flex-1">{conv.title || 'New conversation'}</span>
+                <span className="text-[10px] text-muted-foreground/50 shrink-0 group-hover:hidden">{formatRelativeTime(conv.updated_at || conv.created_at)}</span>
+              </button>
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  await deleteConversation(conv.id)
+                  setConversations(prev => prev.filter(c => c.id !== conv.id))
+                  if (location.pathname === `/app/ask/${conv.id}`) navigate('/app/ask')
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                title="Delete conversation"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+          {conversations.length === 0 && (
+            <p className="text-[11px] text-muted-foreground/40 px-3 py-4 text-center">Your conversations will appear here</p>
+          )}
+        </div>
 
-        <div className="px-3 py-3 border-t border-border/40">
-          <div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => { navigate('/app/profile'); setSidebarOpen(false) }}>
+        {/* Bottom: User with dropdown menu */}
+        <div className="px-3 py-3 border-t border-border/40 relative">
+          {/* Dropdown menu */}
+          {userMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+              <div className="absolute bottom-full left-3 right-3 mb-2 bg-card border border-border/50 rounded-xl shadow-xl z-50 animate-scale-in overflow-hidden">
+                <div className="px-4 py-3 border-b border-border/30">
+                  <p className="text-xs text-muted-foreground truncate">{userName || 'User'}</p>
+                </div>
+                <div className="py-1">
+                  <button onClick={() => { setSettingsOpen(true); setSettingsTab('general'); setUserMenuOpen(false) }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
+                    <SettingsIcon size={15} className="text-muted-foreground" /> Settings
+                  </button>
+                  <button onClick={() => { setSettingsOpen(true); setSettingsTab('billing'); setUserMenuOpen(false) }} className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
+                    <span className="flex items-center gap-3"><Sparkles size={15} className="text-muted-foreground" /> Upgrade plan</span>
+                  </button>
+                  <button onClick={() => { window.open('https://github.com/haydenteh5526/FYP', '_blank'); setUserMenuOpen(false) }} className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
+                    <span className="flex items-center gap-3"><ExternalLink size={15} className="text-muted-foreground" /> Learn more</span>
+                    <ExternalLink size={12} className="text-muted-foreground/40" />
+                  </button>
+                </div>
+                <div className="border-t border-border/30 py-1">
+                  <button onClick={() => { logout(); navigate('/'); setUserMenuOpen(false) }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
+                    <LogOut size={15} className="text-muted-foreground" /> Log out
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <button
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent/50 transition-colors"
+          >
             <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold shadow-sm">
               {userName ? userName[0].toUpperCase() : 'U'}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium truncate">{userName || 'User'}</p>
               <p className="text-[10px] text-muted-foreground">Free plan</p>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); navigate('/app/settings'); setSidebarOpen(false) }} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" aria-label="Settings">
-              <SettingsIcon size={15} />
-            </button>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground transition-all duration-200 mt-1"
-            onClick={() => { logout(); navigate('/') }}
-          >
-            <LogOut size={15} /> Sign out
-          </Button>
+          </button>
         </div>
       </aside>
 
@@ -144,15 +258,20 @@ function AppShell() {
           onMenuClick={() => setSidebarOpen(true)}
           onPaletteOpen={() => setPaletteOpen(true)}
           notifications={notifs}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(false)}
         />
         <div className="flex-1 overflow-auto">
           <Routes>
-            <Route index element={<Dashboard />} />
+            <Route index element={<AskAI />} />
+            <Route path="documents" element={<Dashboard />} />
             <Route path="upload" element={<UploadPage />} />
             <Route path="documents/:id" element={<DocumentDetail />} />
             <Route path="warranties" element={<Warranties />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="ask" element={<AskAI />} />
+            <Route path="ask/:conversationId" element={<AskAI />} />
+            <Route path="chats" element={<SearchChats />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<Settings />} />
           </Routes>
@@ -162,16 +281,36 @@ function AppShell() {
       {/* Global overlays */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <OnboardingTour />
+
+      {/* Settings modal */}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSettingsOpen(false)} />
+          <div className="relative w-full max-w-4xl h-[85vh] bg-card border border-border/50 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
+            <button
+              onClick={() => setSettingsOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors z-10"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+            </button>
+            <Settings initialTab={settingsTab} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function TopBar({ onMenuClick, onPaletteOpen, notifications }: {
+function TopBar({ onMenuClick, onPaletteOpen, notifications, sidebarCollapsed, onToggleSidebar }: {
   onMenuClick: () => void
   onPaletteOpen: () => void
   notifications: ReturnType<typeof useNotifications>
+  sidebarCollapsed: boolean
+  onToggleSidebar: () => void
 }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const showSearch = location.pathname === '/app/documents' || location.pathname === '/app/documents/'
   const [q, setQ] = useState('')
   const [results, setResults] = useState<{ document_id: string; document_title: string; chunk_text: string }[]>([])
   const [open, setOpen] = useState(false)
@@ -204,13 +343,20 @@ function TopBar({ onMenuClick, onPaletteOpen, notifications }: {
 
   return (
     <div className="h-14 border-b border-border/30 bg-background/60 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-4 sticky top-0 z-30">
-      {/* Mobile menu button */}
-      <button onClick={onMenuClick} className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground" aria-label="Open menu">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-      </button>
-      <div className="w-20 hidden lg:block" />
+      {/* Left: menu/expand button */}
+      <div className="flex items-center gap-2">
+        <button onClick={onMenuClick} className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground" aria-label="Open menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        {sidebarCollapsed && (
+          <button onClick={onToggleSidebar} className="hidden lg:block p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors" aria-label="Expand sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/></svg>
+          </button>
+        )}
+      </div>
 
-      {/* Search — click to open palette on mobile, inline on desktop */}
+      {/* Search — only on Documents page */}
+      {showSearch ? (
       <div ref={wrapRef} className="relative flex-1 max-w-lg">
         {/* On mobile, just a search icon that opens the palette */}
         <button
@@ -262,10 +408,12 @@ function TopBar({ onMenuClick, onPaletteOpen, notifications }: {
           </div>
         )}
       </div>
+      ) : (
+        <div className="flex-1" />
+      )}
 
       {/* Right actions */}
       <div className="flex items-center gap-1 sm:gap-2">
-        <ThemeToggle />
         <NotificationCenter
           notifications={notifications.notifications}
           unreadCount={notifications.unreadCount}
@@ -293,32 +441,23 @@ function TopBar({ onMenuClick, onPaletteOpen, notifications }: {
   )
 }
 
-function ThemeToggle() {
-  const { theme, toggle } = useTheme()
-  return (
-    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={toggle} aria-label="Toggle dark mode">
-      {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-    </Button>
-  )
-}
 
-function SidebarLink({ to, icon, label, end }: { to: string; icon: React.ReactNode; label: string; end?: boolean }) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) =>
-        `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200 ${
-          isActive
-            ? 'gradient-bg text-white shadow-md shadow-primary/20'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
-        }`
-      }
-    >
-      {icon}
-      {label}
-    </NavLink>
-  )
+
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now()
+  // Ensure UTC interpretation if no timezone specified
+  const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z'
+  const date = new Date(normalized).getTime()
+  const diffMs = now - date
+  const diffMins = Math.floor(diffMs / 60000)
+  if (diffMins < 1) return 'now'
+  if (diffMins < 60) return `${diffMins}m`
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return `${diffHours}h`
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 7) return `${diffDays}d`
+  const diffWeeks = Math.floor(diffDays / 7)
+  return `${diffWeeks}w`
 }
 
 export default App
