@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { FileText, Search, MessageSquare, Upload, Settings as SettingsIcon, Layers, Plus, Trash2, LogOut, ExternalLink, Sparkles } from 'lucide-react'
+import { FileText, Search, Upload, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, Sparkles, MoreHorizontal, Pin, Pencil, Trash2 } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
-import { searchDocuments, listConversations, deleteConversation, type Conversation } from './lib/api'
+import { searchDocuments, listConversations, deleteConversation, renameConversation, togglePinConversation, type Conversation } from './lib/api'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
 import { OnboardingTour } from './components/OnboardingTour'
@@ -71,6 +71,9 @@ function AppShell() {
   const [userName, setUserName] = useState('')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
   const notifs = useNotifications()
 
   useEffect(() => {
@@ -171,34 +174,99 @@ function AppShell() {
         </div>
 
         {/* Conversations list */}
-        <div className="flex-1 overflow-auto px-3 py-2 min-h-0 border-t border-border/30 mt-1" onClick={() => setSidebarOpen(false)}>
+        <div className="flex-1 overflow-auto px-3 py-2 min-h-0 border-t border-border/30 mt-1" onClick={() => { setSidebarOpen(false); setMenuOpenId(null) }}>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 px-3 mb-2">Recent chats</p>
           {conversations.map(conv => (
             <div key={conv.id} className="group relative">
-              <button
-                onClick={(e) => { e.stopPropagation(); navigate(`/app/ask/${conv.id}`); setSidebarOpen(false) }}
-                className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-left transition-all duration-200 ${
-                  location.pathname === `/app/ask/${conv.id}`
-                    ? 'bg-accent/80 text-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
-                }`}
-              >
-                <MessageSquare size={13} className="shrink-0 opacity-50" />
-                <span className="truncate flex-1">{conv.title || 'New conversation'}</span>
-                <span className="text-[10px] text-muted-foreground/50 shrink-0 group-hover:hidden">{formatRelativeTime(conv.updated_at || conv.created_at)}</span>
-              </button>
-              <button
-                onClick={async (e) => {
-                  e.stopPropagation()
-                  await deleteConversation(conv.id)
-                  setConversations(prev => prev.filter(c => c.id !== conv.id))
-                  if (location.pathname === `/app/ask/${conv.id}`) navigate('/app/ask')
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-                title="Delete conversation"
-              >
-                <Trash2 size={12} />
-              </button>
+              {renamingId === conv.id ? (
+                <form
+                  className="px-3 py-2.5"
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    if (renameValue.trim()) {
+                      await renameConversation(conv.id, renameValue.trim())
+                      setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, title: renameValue.trim() } : c))
+                    }
+                    setRenamingId(null)
+                  }}
+                >
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={() => setRenamingId(null)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setRenamingId(null) }}
+                    className="w-full bg-accent/60 border border-border/60 rounded-md px-2 py-1 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                </form>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); navigate(`/app/ask/${conv.id}`); setSidebarOpen(false); setMenuOpenId(null) }}
+                  className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-3 text-[13px] text-left transition-all duration-200 ${
+                    location.pathname === `/app/ask/${conv.id}`
+                      ? 'bg-accent/80 text-foreground font-medium'
+                      : 'text-foreground/70 hover:text-foreground hover:bg-accent/40'
+                  }`}
+                >
+                  {conv.is_pinned && <Pin size={12} className="shrink-0 text-primary/70" />}
+                  <span className="truncate flex-1 font-medium">{conv.title || 'New conversation'}</span>
+                  <span className="text-[10px] text-muted-foreground/50 shrink-0 group-hover:hidden">{formatRelativeTime(conv.updated_at || conv.created_at)}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv.id ? null : conv.id) }}
+                    className="p-1 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                </button>
+              )}
+
+              {/* 3-dot dropdown menu */}
+              {menuOpenId === conv.id && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setMenuOpenId(null) }} />
+                  <div className="absolute right-2 top-full mt-1 w-44 bg-card border border-border/50 rounded-xl shadow-xl z-50 animate-scale-in overflow-hidden">
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        const newPinned = !conv.is_pinned
+                        await togglePinConversation(conv.id, newPinned)
+                        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, is_pinned: newPinned } : c))
+                        setMenuOpenId(null)
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors"
+                    >
+                      <Pin size={14} className="text-muted-foreground" />
+                      {conv.is_pinned ? 'Unpin' : 'Pin conversation'}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setRenameValue(conv.title || '')
+                        setRenamingId(conv.id)
+                        setMenuOpenId(null)
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors"
+                    >
+                      <Pencil size={14} className="text-muted-foreground" />
+                      Rename
+                    </button>
+                    <div className="border-t border-border/30" />
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        await deleteConversation(conv.id)
+                        setConversations(prev => prev.filter(c => c.id !== conv.id))
+                        if (location.pathname === `/app/ask/${conv.id}`) navigate('/app/ask')
+                        setMenuOpenId(null)
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ))}
           {conversations.length === 0 && (
