@@ -4,7 +4,7 @@ import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, C
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, updateDocumentText, getDocumentVersions, restoreDocumentVersion, deleteDocument, toggleFavourite, type Document, type Tag, type DocumentVersion, type SimilarDocument } from '@/lib/api'
+import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, updateDocumentText, getDocumentVersions, restoreDocumentVersion, deleteDocument, toggleFavourite, listConversations, createConversation, getConversation, sendMessage as sendConversationMessage, type Document, type Tag, type DocumentVersion, type SimilarDocument } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 
 export default function DocumentDetail() {
@@ -107,6 +107,9 @@ export default function DocumentDetail() {
 
             {/* Top right actions */}
             <div className="flex items-center gap-2 shrink-0">
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-amber-500/10" onClick={handleToggleFavourite}>
+                <Star size={16} className={doc.is_favourite ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'} />
+              </Button>
               {stableImageUrl.current && (
                 <Button variant="outline" size="sm" className="h-9 rounded-full bg-background/50 hover:bg-background shadow-sm hover:shadow transition-all" asChild>
                   <a href={stableImageUrl.current} download={doc.title} target="_blank" rel="noopener noreferrer">
@@ -115,6 +118,9 @@ export default function DocumentDetail() {
                 </Button>
               )}
               <ShareButton documentId={doc.id} />
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-destructive/10" onClick={handleDelete}>
+                <Trash2 size={16} className="text-muted-foreground hover:text-destructive" />
+              </Button>
             </div>
           </div>
 
@@ -163,10 +169,37 @@ export default function DocumentDetail() {
       </div>
 
       {/* Main Content Area */}
+      {tab === 'ask' ? (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <DocumentChat documentId={doc.id} documentTitle={doc.title} />
+        </div>
+      ) : tab === 'text' ? (
+        <div className="flex-1 overflow-hidden p-8">
+          <div className="max-w-5xl mx-auto h-full">
+            {isProcessing ? (
+              <Card className="border-border/50 shadow-sm animate-slide-up">
+                <CardContent className="p-8">
+                  <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+                    <Loader2 size={32} className="animate-spin text-primary mb-5" />
+                    <p className="text-base font-semibold">Extracting text...</p>
+                    <p className="text-sm text-muted-foreground mt-1.5">AI is reading your document. This usually takes 10–30 seconds.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : doc.raw_text ? (
+              <EditableText documentId={doc.id} initialText={doc.raw_text} />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                <FileText size={40} className="mb-4 opacity-20" />
+                <p className="text-sm font-medium">No text could be extracted from this document.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
       <div className="flex-1 overflow-auto p-8 relative">
         <div className="max-w-5xl mx-auto space-y-6 pb-20">
 
-      {/* Preview */}
       {tab === 'preview' && (
         <Card className="border-border/50 shadow-sm animate-slide-up overflow-hidden">
           <CardContent className="p-0 bg-background/50">
@@ -188,26 +221,7 @@ export default function DocumentDetail() {
         </Card>
       )}
 
-      {tab === 'text' && (
-        <Card className="border-border/50 shadow-sm animate-slide-up">
-          <CardContent className="p-8">
-            {isProcessing ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-                <Loader2 size={32} className="animate-spin text-primary mb-5" />
-                <p className="text-base font-semibold">Extracting text...</p>
-                <p className="text-sm text-muted-foreground mt-1.5">AI is reading your document. This usually takes 10–30 seconds.</p>
-              </div>
-            ) : doc.raw_text ? (
-              <EditableText documentId={doc.id} initialText={doc.raw_text} />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
-                <FileText size={40} className="mb-4 opacity-20" />
-                <p className="text-sm font-medium">No text could be extracted from this document.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      
 
       {tab === 'info' && (
         <div className="animate-slide-up">
@@ -249,28 +263,10 @@ export default function DocumentDetail() {
         </div>
       )}
 
-      {tab === 'ask' && (
-        <div className="animate-slide-up h-[75vh]">
-          <DocumentChat documentId={doc.id} documentTitle={doc.title} />
         </div>
+      </div>
       )}
-        </div>
-      </div>
 
-      {/* Floating Action Bar (Bottom) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-slide-up" style={{ animationDelay: '200ms' }}>
-        <div className="flex items-center gap-1.5 p-1.5 rounded-full bg-background/80 backdrop-blur-xl border border-border/50 shadow-lg shadow-black/5">
-          <Button variant="ghost" size="sm" className="h-9 rounded-full px-4 text-xs font-medium hover:bg-muted" onClick={handleToggleFavourite}>
-            <Star size={14} className={`mr-1.5 ${doc.is_favourite ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}`} />
-            {doc.is_favourite ? 'Favourited' : 'Favourite'}
-          </Button>
-          <div className="w-px h-5 bg-border/60" />
-          <Button variant="ghost" size="sm" className="h-9 rounded-full px-4 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleDelete}>
-            <Trash2 size={14} className="mr-1.5" />
-            Delete
-          </Button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -463,6 +459,10 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
   const [versions, setVersions] = useState<DocumentVersion[]>([])
   const [loadingVersions, setLoadingVersions] = useState(false)
 
+  const lines = text.split('\n')
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length
+  const charCount = text.length
+
   async function loadVersions() {
     setLoadingVersions(true)
     try {
@@ -502,20 +502,34 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
 
   if (!editing) {
     return (
-      <div>
-        <div className="flex justify-end gap-2 mb-3">
-          <Button variant="outline" size="sm" onClick={toggleHistory}>
-            <History size={13} className="mr-1" /> History
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleCopy}>
-            {copied ? <><Check size={13} className="mr-1 text-green-600" /> Copied</> : <><Copy size={13} className="mr-1" /> Copy</>}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit</Button>
+      <div className="h-full flex flex-col">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span>{lines.length} lines</span>
+            <span className="w-1 h-1 rounded-full bg-border" />
+            <span>{wordCount.toLocaleString()} words</span>
+            <span className="w-1 h-1 rounded-full bg-border" />
+            <span>{charCount.toLocaleString()} chars</span>
+          </div>
+          <div className="flex gap-1.5">
+            <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={toggleHistory}>
+              <History size={13} className="mr-1.5" /> History
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={handleCopy}>
+              {copied ? <><Check size={13} className="mr-1.5 text-green-600" /> Copied</> : <><Copy size={13} className="mr-1.5" /> Copy</>}
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          </div>
         </div>
+
+        {/* Version history panel */}
         {showHistory && (
-          <Card className="mb-4 animate-slide-up">
+          <Card className="mb-4 animate-slide-up border-border/50">
             <CardContent className="p-4">
-              <p className="text-xs font-medium text-muted-foreground mb-3">Edit history</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Edit history</p>
               {loadingVersions ? (
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : versions.length === 0 ? (
@@ -523,12 +537,12 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
               ) : (
                 <ul className="space-y-2">
                   {versions.map(v => (
-                    <li key={v.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                    <li key={v.id} className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3 hover:bg-accent/30 transition-colors">
                       <div className="min-w-0">
                         <p className="text-xs font-medium">Version {v.version_number}<span className="text-muted-foreground font-normal"> · {v.char_count} chars · {v.created_at ? new Date(v.created_at).toLocaleString() : ''}</span></p>
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{v.preview}</p>
                       </div>
-                      <Button variant="outline" size="sm" className="shrink-0" onClick={() => handleRestore(v.id)}>Restore</Button>
+                      <Button variant="outline" size="sm" className="shrink-0 h-7 text-xs" onClick={() => handleRestore(v.id)}>Restore</Button>
                     </li>
                   ))}
                 </ul>
@@ -536,17 +550,36 @@ function EditableText({ documentId, initialText }: { documentId: string; initial
             </CardContent>
           </Card>
         )}
-        <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans max-h-[65vh] overflow-auto">{text}</pre>
+
+        {/* Text content with line numbers */}
+        <div className="rounded-lg border border-border/50 bg-muted/20 overflow-hidden flex-1">
+          <div className="h-full overflow-auto">
+            <table className="w-full border-collapse">
+              <tbody>
+                {lines.map((line, i) => (
+                  <tr key={i} className="hover:bg-accent/30 transition-colors">
+                    <td className="select-none text-right pr-4 pl-4 py-0.5 text-[11px] text-muted-foreground/40 font-mono w-12 border-r border-border/30 align-top sticky left-0 bg-muted/30">
+                      {i + 1}
+                    </td>
+                    <td className="pl-4 pr-6 py-0.5">
+                      <span className="text-sm leading-7 font-[system-ui] whitespace-pre-wrap break-words">{line || '\u00A0'}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div>
-      <textarea className="w-full h-[60vh] text-sm border rounded-md p-3 font-sans focus:outline-none focus:ring-1 focus:ring-primary" value={text} onChange={(e) => setText(e.target.value)} />
-      <div className="flex gap-2 mt-2">
+      <textarea className="w-full h-[60vh] text-sm border border-border/50 rounded-lg p-4 font-[system-ui] leading-7 bg-muted/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all" value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="flex gap-2 mt-3">
         <Button size="sm" className="gradient-bg border-0 text-white" onClick={handleSave} disabled={saving}>
-          <Save size={14} className="mr-1" />{saving ? 'Saving...' : 'Save'}
+          <Save size={14} className="mr-1.5" />{saving ? 'Saving...' : 'Save changes'}
         </Button>
         <Button variant="outline" size="sm" onClick={() => { setText(initialText); setEditing(false) }}>Cancel</Button>
       </div>
@@ -558,11 +591,26 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [loading, setLoading] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  // Load existing document-scoped conversation on mount
+  useEffect(() => {
+    listConversations().then(convs => {
+      // Find most recent conversation for this document (title starts with doc title)
+      const docConv = convs.find(c => c.title.startsWith(`[${documentTitle}]`))
+      if (docConv) {
+        setConversationId(docConv.id)
+        getConversation(docConv.id).then(data => {
+          setMessages(data.messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
+        })
+      }
+    })
+  }, [documentId, documentTitle])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -572,19 +620,32 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
     setMessages(prev => [...prev, { role: 'user', content: question }])
     setLoading(true)
     try {
-      const data = await askQuestion(question, documentId)
-      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }])
+      let convId = conversationId
+      if (!convId) {
+        const conv = await createConversation(`[${documentTitle}] Chat`)
+        convId = conv.id
+        setConversationId(convId)
+      }
+      const data = await sendConversationMessage(convId, question, documentId)
+      setMessages(prev => [...prev, { role: 'assistant', content: data.assistant_message.content }])
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }])
+      // Fallback to non-persisted ask
+      try {
+        const data = await askQuestion(question, documentId)
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer }])
+      } catch {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }])
+      }
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Card className="h-full border-border/50 shadow-sm flex flex-col overflow-hidden">
-      <CardContent className="p-0 flex flex-col h-full bg-background/50">
-        <div className="flex-1 overflow-auto p-6 space-y-6">
+    <div className="h-full flex flex-col">
+      {/* Messages — scrollable area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="relative w-20 h-20 mb-4">
@@ -635,9 +696,11 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
           )}
           <div ref={bottomRef} />
         </div>
+        </div>
         
-        <div className="p-4 bg-card border-t border-border/40">
-          <form onSubmit={handleSubmit} className="relative group flex items-end gap-2 bg-background border border-border/60 rounded-xl p-1.5 shadow-sm group-focus-within:border-primary/30 transition-all duration-300">
+        {/* Input bar — always visible at bottom */}
+        <div className="shrink-0 border-t border-border/40 bg-background/80 backdrop-blur-md p-4">
+          <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative group flex items-end gap-2 bg-card border border-border/60 rounded-xl p-1.5 shadow-sm focus-within:border-primary/30 transition-all duration-300">
             <Input 
               value={input} 
               onChange={(e) => setInput(e.target.value)} 
@@ -654,8 +717,8 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
               <Send size={15} />
             </Button>
           </form>
+          <p className="text-center text-[10px] text-muted-foreground/40 mt-2">Answers are grounded in this document only</p>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   )
 }
