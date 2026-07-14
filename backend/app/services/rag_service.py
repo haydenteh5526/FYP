@@ -57,8 +57,6 @@ async def generate_rag_answer(
     Returns:
         RAGResult with the generated answer and source references.
     """
-    from app.config import settings
-
     # 1. Embed the question
     query_embedding = embedding_service.get_embedding(question)
     embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
