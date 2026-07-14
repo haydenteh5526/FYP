@@ -1,17 +1,17 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Save, Eye, MessageSquare, Send, Bot, Copy, Check, Share2, X, Plus, Tag as TagIcon, History, Loader2, FolderOpen, Download, Star, Trash2, User } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Eye, MessageSquare, Send, Bot, Check, Share2, X, Plus, Tag as TagIcon, Loader2, FolderOpen, Download, Star, Trash2, User, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, updateDocumentText, getDocumentVersions, restoreDocumentVersion, deleteDocument, toggleFavourite, listConversations, createConversation, getConversation, sendMessage as sendConversationMessage, type Document, type Tag, type DocumentVersion, type SimilarDocument } from '@/lib/api'
+import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, deleteDocument, toggleFavourite, listConversations, createConversation, getConversation, sendMessage as sendConversationMessage, type Document, type Tag, type SimilarDocument } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [doc, setDoc] = useState<Document | null>(null)
-  const [tab, setTab] = useState<'preview' | 'text' | 'info' | 'ask'>('preview')
+  const [tab, setTab] = useState<'preview' | 'info' | 'ask'>('info')
   const stableImageUrl = useRef<string | null>(null)
   const { toast } = useToast()
 
@@ -85,11 +85,18 @@ export default function DocumentDetail() {
         
         <div className="relative px-8 pt-6 pb-4">
           <div className="flex items-start gap-5">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/app')} className="shrink-0 rounded-full hover:bg-background/80 hover:shadow-sm">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-background/80 hover:shadow-sm">
               <ArrowLeft size={18} className="text-muted-foreground" />
             </Button>
             
             <div className="flex-1 min-w-0 pt-0.5">
+              {/* Breadcrumbs */}
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <button onClick={() => navigate('/app/documents')} className="hover:text-foreground transition-colors">All Documents</button>
+                <span>/</span>
+                {doc.document_type && <><button onClick={() => navigate(`/app/documents?type=${encodeURIComponent(doc.document_type!)}`)} className="hover:text-foreground transition-colors">{doc.document_type}</button><span>/</span></>}
+                <span className="text-foreground/70 truncate">{doc.title}</span>
+              </div>
               <div className="flex items-center gap-3">
                 <h2 className="text-2xl font-bold tracking-tight truncate text-foreground/90">{doc.title}</h2>
                 {doc.is_favourite && <Star className="h-5 w-5 text-amber-500 fill-amber-500 shrink-0 drop-shadow-sm" />}
@@ -160,9 +167,8 @@ export default function DocumentDetail() {
 
           {/* Tabs */}
           <div className="flex gap-1 mt-6 -mb-4">
+            <TabButton active={tab === 'info'} onClick={() => setTab('info')} icon={<FileText size={14} />} label="Summary" />
             <TabButton active={tab === 'preview'} onClick={() => setTab('preview')} icon={<Eye size={14} />} label="Preview" />
-            <TabButton active={tab === 'text'} onClick={() => setTab('text')} icon={<FileText size={14} />} label="Text" />
-            <TabButton active={tab === 'info'} onClick={() => setTab('info')} icon={<Info size={14} />} label="Details" />
             <TabButton active={tab === 'ask'} onClick={() => setTab('ask')} icon={<MessageSquare size={14} />} label="Ask AI" />
           </div>
         </div>
@@ -172,29 +178,6 @@ export default function DocumentDetail() {
       {tab === 'ask' ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           <DocumentChat documentId={doc.id} documentTitle={doc.title} />
-        </div>
-      ) : tab === 'text' ? (
-        <div className="flex-1 overflow-hidden p-8">
-          <div className="max-w-5xl mx-auto h-full">
-            {isProcessing ? (
-              <Card className="border-border/50 shadow-sm animate-slide-up">
-                <CardContent className="p-8">
-                  <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-                    <Loader2 size={32} className="animate-spin text-primary mb-5" />
-                    <p className="text-base font-semibold">Extracting text...</p>
-                    <p className="text-sm text-muted-foreground mt-1.5">AI is reading your document. This usually takes 10–30 seconds.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : doc.raw_text ? (
-              <EditableText documentId={doc.id} initialText={doc.raw_text} />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                <FileText size={40} className="mb-4 opacity-20" />
-                <p className="text-sm font-medium">No text could be extracted from this document.</p>
-              </div>
-            )}
-          </div>
         </div>
       ) : (
       <div className="flex-1 overflow-auto p-8 relative">
@@ -224,41 +207,83 @@ export default function DocumentDetail() {
       
 
       {tab === 'info' && (
-        <div className="animate-slide-up">
-          <Card className="border-border/50 shadow-sm">
-            <CardContent className="p-8">
-              {isProcessing ? (
+        <div className="animate-slide-up space-y-6">
+          {isProcessing ? (
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="p-8">
                 <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
                   <Loader2 size={28} className="animate-spin text-primary mb-4" />
                   <p className="text-sm font-medium">Analysing document...</p>
-                  <p className="text-xs text-muted-foreground mt-1">Detecting brand, model, and document type.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Extracting text, detecting brand, model, and document type.</p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                  <div>
-                    <h3 className="text-sm font-semibold mb-4 text-foreground/80 flex items-center gap-2">
-                      <Info size={16} className="text-primary" /> Document Details
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* AI Summary */}
+              {doc.summary && (
+                <Card className="border-border/50 shadow-sm">
+                  <CardContent className="p-6">
+                    <h3 className="text-sm font-semibold mb-3 text-foreground/80 flex items-center gap-2">
+                      <Sparkles size={15} className="text-primary" /> AI Summary
                     </h3>
-                    <dl className="space-y-3 text-sm">
-                      <div className="flex justify-between border-b border-border/40 pb-2"><dt className="text-muted-foreground">Brand</dt><dd className="font-medium">{doc.brand || '—'}</dd></div>
-                      <div className="flex justify-between border-b border-border/40 pb-2"><dt className="text-muted-foreground">Model</dt><dd className="font-medium">{doc.model || '—'}</dd></div>
-                      <div className="flex justify-between border-b border-border/40 pb-2"><dt className="text-muted-foreground">Type</dt><dd className="font-medium">{doc.document_type || '—'}</dd></div>
-                      <div className="flex justify-between border-b border-border/40 pb-2"><dt className="text-muted-foreground">File size</dt><dd className="font-medium">{formatFileSize(doc.file_size)}</dd></div>
-                      <div className="flex justify-between"><dt className="text-muted-foreground">Uploaded</dt><dd className="font-medium">{new Date(doc.created_at).toLocaleString()}</dd></div>
-                    </dl>
+                    <p className="text-sm text-foreground/80 leading-relaxed">{doc.summary}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Key Information */}
+              <Card className="border-border/50 shadow-sm">
+                <CardContent className="p-6">
+                  <h3 className="text-sm font-semibold mb-4 text-foreground/80 flex items-center gap-2">
+                    <Info size={15} className="text-primary" /> Key Information
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="rounded-lg bg-muted/30 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Brand</p>
+                      <p className="text-sm font-semibold">{doc.brand || '—'}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/30 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Model</p>
+                      <p className="text-sm font-semibold">{doc.model || '—'}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/30 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Type</p>
+                      <p className="text-sm font-semibold">{doc.document_type || '—'}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/30 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">File size</p>
+                      <p className="text-sm font-semibold">{formatFileSize(doc.file_size)}</p>
+                    </div>
                   </div>
-                  <div>
+                  <div className="mt-4">
                     <TagEditor doc={doc} onChange={setDoc} />
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+
+              {/* Extracted Text (expandable) */}
+              {doc.raw_text && (
+                <Card className="border-border/50 shadow-sm">
+                  <CardContent className="p-6">
+                    <details>
+                      <summary className="text-sm font-semibold text-foreground/80 cursor-pointer flex items-center gap-2 select-none">
+                        <FileText size={15} className="text-primary" /> Extracted Text
+                        <span className="text-xs text-muted-foreground font-normal ml-2">({doc.raw_text.split(/\s+/).length.toLocaleString()} words)</span>
+                      </summary>
+                      <div className="mt-4 max-h-[50vh] overflow-auto rounded-lg bg-muted/20 p-4">
+                        <pre className="text-sm leading-7 font-[system-ui] whitespace-pre-wrap">{doc.raw_text}</pre>
+                      </div>
+                    </details>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
-          
-          {!isProcessing && doc.raw_text && (
-            <div className="mt-6">
-              <RelatedDocuments documentId={doc.id} />
-            </div>
+
+              {/* Related Documents */}
+              {doc.raw_text && (
+                <RelatedDocuments documentId={doc.id} />
+              )}
+            </>
           )}
         </div>
       )}
@@ -450,142 +475,6 @@ function RelatedDocuments({ documentId }: { documentId: string }) {
   )
 }
 
-function EditableText({ documentId, initialText }: { documentId: string; initialText: string }) {
-  const [text, setText] = useState(initialText)
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
-  const [versions, setVersions] = useState<DocumentVersion[]>([])
-  const [loadingVersions, setLoadingVersions] = useState(false)
-
-  const lines = text.split('\n')
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length
-  const charCount = text.length
-
-  async function loadVersions() {
-    setLoadingVersions(true)
-    try {
-      setVersions(await getDocumentVersions(documentId))
-    } finally {
-      setLoadingVersions(false)
-    }
-  }
-
-  async function toggleHistory() {
-    const next = !showHistory
-    setShowHistory(next)
-    if (next) await loadVersions()
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    try {
-      await updateDocumentText(documentId, text)
-    } finally {
-      setSaving(false)
-      setEditing(false)
-    }
-  }
-
-  async function handleRestore(versionId: string) {
-    const updated = await restoreDocumentVersion(documentId, versionId)
-    setText(updated.raw_text || '')
-    await loadVersions()
-  }
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  if (!editing) {
-    return (
-      <div className="h-full flex flex-col">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span>{lines.length} lines</span>
-            <span className="w-1 h-1 rounded-full bg-border" />
-            <span>{wordCount.toLocaleString()} words</span>
-            <span className="w-1 h-1 rounded-full bg-border" />
-            <span>{charCount.toLocaleString()} chars</span>
-          </div>
-          <div className="flex gap-1.5">
-            <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={toggleHistory}>
-              <History size={13} className="mr-1.5" /> History
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={handleCopy}>
-              {copied ? <><Check size={13} className="mr-1.5 text-green-600" /> Copied</> : <><Copy size={13} className="mr-1.5" /> Copy</>}
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => setEditing(true)}>
-              Edit
-            </Button>
-          </div>
-        </div>
-
-        {/* Version history panel */}
-        {showHistory && (
-          <Card className="mb-4 animate-slide-up border-border/50">
-            <CardContent className="p-4">
-              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Edit history</p>
-              {loadingVersions ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              ) : versions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No previous versions yet. Versions are saved each time you edit the text.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {versions.map(v => (
-                    <li key={v.id} className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3 hover:bg-accent/30 transition-colors">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium">Version {v.version_number}<span className="text-muted-foreground font-normal"> · {v.char_count} chars · {v.created_at ? new Date(v.created_at).toLocaleString() : ''}</span></p>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{v.preview}</p>
-                      </div>
-                      <Button variant="outline" size="sm" className="shrink-0 h-7 text-xs" onClick={() => handleRestore(v.id)}>Restore</Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Text content with line numbers */}
-        <div className="rounded-lg border border-border/50 bg-muted/20 overflow-hidden flex-1">
-          <div className="h-full overflow-auto">
-            <table className="w-full border-collapse">
-              <tbody>
-                {lines.map((line, i) => (
-                  <tr key={i} className="hover:bg-accent/30 transition-colors">
-                    <td className="select-none text-right pr-4 pl-4 py-0.5 text-[11px] text-muted-foreground/40 font-mono w-12 border-r border-border/30 align-top sticky left-0 bg-muted/30">
-                      {i + 1}
-                    </td>
-                    <td className="pl-4 pr-6 py-0.5">
-                      <span className="text-sm leading-7 font-[system-ui] whitespace-pre-wrap break-words">{line || '\u00A0'}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <textarea className="w-full h-[60vh] text-sm border border-border/50 rounded-lg p-4 font-[system-ui] leading-7 bg-muted/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all" value={text} onChange={(e) => setText(e.target.value)} />
-      <div className="flex gap-2 mt-3">
-        <Button size="sm" className="gradient-bg border-0 text-white" onClick={handleSave} disabled={saving}>
-          <Save size={14} className="mr-1.5" />{saving ? 'Saving...' : 'Save changes'}
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => { setText(initialText); setEditing(false) }}>Cancel</Button>
-      </div>
-    </div>
-  )
-}
 
 function DocumentChat({ documentId, documentTitle }: { documentId: string; documentTitle: string }) {
   const [input, setInput] = useState('')
@@ -645,9 +534,9 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
     <div className="h-full flex flex-col">
       {/* Messages — scrollable area */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
+        <div className="max-w-3xl mx-auto px-6 py-6 space-y-6 min-h-full flex flex-col">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="flex-1 flex flex-col items-center justify-center text-center">
               <div className="relative w-20 h-20 mb-4">
                 <div className="absolute inset-0 m-auto w-16 h-16 rounded-full gradient-bg opacity-10 blur-xl animate-pulse" />
                 <div className="absolute inset-0 m-auto w-12 h-12 rounded-xl bg-background border border-border/50 shadow-lg flex items-center justify-center z-10">

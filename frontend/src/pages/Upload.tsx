@@ -91,7 +91,7 @@ export default function UploadPage() {
   const totalProgress = queue.length > 0 ? queue.reduce((sum, q) => sum + q.progress, 0) / queue.length : 0
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-8 max-w-2xl mx-auto h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="mb-8 animate-slide-up">
         <h2 className="text-3xl font-bold tracking-tight text-foreground/90">Upload Documents</h2>
@@ -179,7 +179,7 @@ export default function UploadPage() {
 
       {/* Upload queue */}
       {queue.length > 0 && (
-        <div className="mt-8 animate-slide-up" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
+        <div className="mt-6 flex-1 min-h-0 flex flex-col animate-slide-up" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-semibold text-foreground">
@@ -224,7 +224,7 @@ export default function UploadPage() {
             </Card>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 overflow-auto min-h-0">
             {queue.map((item, i) => (
               <div
                 key={item.id}

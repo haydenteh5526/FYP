@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { FileText, Search, Upload, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, Sparkles, MoreHorizontal, Pin, Pencil, Trash2 } from 'lucide-react'
+import { FileText, Search, Upload, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, Sparkles, MoreVertical, Pin, Pencil, Trash2 } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { searchDocuments, listConversations, deleteConversation, renameConversation, togglePinConversation, type Conversation } from './lib/api'
 import { ToastProvider } from './components/Toast'
@@ -211,12 +211,13 @@ function AppShell() {
                   {conv.is_pinned && <Pin size={12} className="shrink-0 text-primary/70" />}
                   <span className="truncate flex-1 font-medium">{conv.title || 'New conversation'}</span>
                   <span className="text-[10px] text-muted-foreground/50 shrink-0 group-hover:hidden">{formatRelativeTime(conv.updated_at || conv.created_at)}</span>
-                  <button
+                  <span
+                    role="button"
                     onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv.id ? null : conv.id) }}
                     className="p-1 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-colors opacity-0 group-hover:opacity-100 shrink-0"
                   >
-                    <MoreHorizontal size={14} />
-                  </button>
+                    <MoreVertical size={14} />
+                  </span>
                 </button>
               )}
 

@@ -40,10 +40,10 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
             uncached_texts.append(t)
 
     if uncached_texts:
-        if settings.GEMINI_API_KEY:
-            fresh = _gemini_embeddings(uncached_texts)
-        elif settings.OLLAMA_URL:
+        if settings.OLLAMA_URL:
             fresh = _ollama_embeddings(uncached_texts)
+        elif settings.GEMINI_API_KEY:
+            fresh = _gemini_embeddings(uncached_texts)
         else:
             fresh = [[0.0] * EMBEDDING_DIM for _ in uncached_texts]
         for idx, emb in zip(uncached_idx, fresh):
@@ -60,27 +60,39 @@ def get_embedding(text: str) -> list[float]:
 
 
 def _gemini_embeddings(texts: list[str]) -> list[list[float]]:
+    import time
+
     from google import genai
 
     from app.services.retry import with_retry
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-    def _call():
-        result = client.models.embed_content(
-            model="gemini-embedding-001",
-            contents=texts,
-        )
-        return result
-
-    response = with_retry(_call, label="gemini.embeddings")
     embeddings = []
-    for emb in response.embeddings:
-        vec = list(emb.values)
-        # Gemini gemini-embedding-001 outputs 3072 dims; truncate/pad to EMBEDDING_DIM for pgvector compatibility
-        if len(vec) < EMBEDDING_DIM:
-            vec = vec + [0.0] * (EMBEDDING_DIM - len(vec))
-        embeddings.append(vec[:EMBEDDING_DIM])
+    # Gemini free tier: 100 requests per minute. Use batches of 50 with 35s delay to stay safe.
+    batch_size = 50
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+
+        def _call(b=batch):
+            result = client.models.embed_content(
+                model="gemini-embedding-001",
+                contents=b,
+            )
+            return result
+
+        response = with_retry(_call, label="gemini.embeddings", attempts=5, base_delay=30.0)
+        for emb in response.embeddings:
+            vec = list(emb.values)
+            # Gemini gemini-embedding-001 outputs 3072 dims; truncate/pad to EMBEDDING_DIM for pgvector compatibility
+            if len(vec) < EMBEDDING_DIM:
+                vec = vec + [0.0] * (EMBEDDING_DIM - len(vec))
+            embeddings.append(vec[:EMBEDDING_DIM])
+
+        # Rate limit: wait between batches if more to process
+        if i + batch_size < len(texts):
+            time.sleep(35)
+
     return embeddings
 
 
