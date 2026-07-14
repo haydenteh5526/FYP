@@ -23,9 +23,15 @@ class ConversationCreate(BaseModel):
     title: str | None = None
 
 
+class ConversationUpdate(BaseModel):
+    title: str | None = None
+    is_pinned: bool | None = None
+
+
 class ConversationSummary(BaseModel):
     id: str
     title: str
+    is_pinned: bool
     created_at: datetime
     updated_at: datetime
     message_count: int
@@ -65,7 +71,7 @@ async def list_conversations(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    """List the user's conversations ordered by most recently updated."""
+    """List the user's conversations ordered by pinned first, then most recently updated."""
     # Subquery to count messages per conversation
     msg_count_subq = (
         select(
@@ -80,13 +86,14 @@ async def list_conversations(
         select(
             Conversation.id,
             Conversation.title,
+            Conversation.is_pinned,
             Conversation.created_at,
             Conversation.updated_at,
             func.coalesce(msg_count_subq.c.message_count, 0).label("message_count"),
         )
         .outerjoin(msg_count_subq, Conversation.id == msg_count_subq.c.conversation_id)
         .where(Conversation.user_id == user_id)
-        .order_by(Conversation.updated_at.desc())
+        .order_by(Conversation.is_pinned.desc(), Conversation.updated_at.desc())
     )
 
     result = await db.execute(stmt)
@@ -96,6 +103,7 @@ async def list_conversations(
         ConversationSummary(
             id=str(row.id),
             title=row.title,
+            is_pinned=row.is_pinned,
             created_at=row.created_at,
             updated_at=row.updated_at,
             message_count=row.message_count,
@@ -162,6 +170,48 @@ async def get_conversation(
             )
             for m in conversation.messages
         ],
+    )
+
+
+@router.patch("/{conversation_id}", response_model=ConversationSummary)
+async def update_conversation(
+    conversation_id: uuid.UUID,
+    body: ConversationUpdate,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Update a conversation's title or pin status."""
+    stmt = select(Conversation).where(
+        Conversation.id == conversation_id,
+        Conversation.user_id == user_id,
+    )
+    result = await db.execute(stmt)
+    conversation = result.scalar_one_or_none()
+
+    if not conversation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+
+    if body.title is not None:
+        conversation.title = body.title
+    if body.is_pinned is not None:
+        conversation.is_pinned = body.is_pinned
+
+    await db.commit()
+    await db.refresh(conversation)
+
+    # Get message count
+    msg_count_stmt = select(func.count(ConversationMessage.id)).where(
+        ConversationMessage.conversation_id == conversation_id
+    )
+    msg_count = (await db.execute(msg_count_stmt)).scalar() or 0
+
+    return ConversationSummary(
+        id=str(conversation.id),
+        title=conversation.title,
+        is_pinned=conversation.is_pinned,
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at,
+        message_count=msg_count,
     )
 
 

@@ -289,6 +289,7 @@ export async function restoreDocumentVersion(documentId: string, versionId: stri
 export interface Conversation {
   id: string
   title: string
+  is_pinned: boolean
   created_at: string
   updated_at: string
   message_count?: number
@@ -328,6 +329,24 @@ export async function getConversation(id: string): Promise<ConversationDetail> {
 
 export async function deleteConversation(id: string): Promise<void> {
   await fetch(`${BASE}/conversations/${id}`, { method: 'DELETE', headers: getHeaders() })
+}
+
+export async function renameConversation(id: string, title: string): Promise<Conversation> {
+  const res = await fetch(`${BASE}/conversations/${id}`, {
+    method: 'PATCH',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  })
+  return res.json()
+}
+
+export async function togglePinConversation(id: string, is_pinned: boolean): Promise<Conversation> {
+  const res = await fetch(`${BASE}/conversations/${id}`, {
+    method: 'PATCH',
+    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_pinned }),
+  })
+  return res.json()
 }
 
 export async function sendMessage(conversationId: string, question: string, documentId?: string): Promise<{ user_message: ConversationMessage; assistant_message: ConversationMessage }> {
