@@ -27,6 +27,8 @@ reference/
 dist/
 build/
 *.egg-info/
+.next/
+next-env.d.ts
 
 # Terraform
 *.tfstate
