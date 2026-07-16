@@ -49,14 +49,14 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="p-8 max-w-2xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto animate-fade-in">
         <div className="h-32 bg-muted rounded-xl animate-pulse" />
       </div>
     )
   }
 
   return (
-    <div className="p-8 max-w-2xl mx-auto animate-fade-in space-y-6">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto animate-fade-in space-y-6">
       {/* Profile header */}
       <Card>
         <CardContent className="p-8">

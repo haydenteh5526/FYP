@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { FileText, Search, Upload, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, Sparkles, MoreVertical, Pin, Pencil, Trash2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, ArrowUpCircle, MoreVertical, Pin, Pencil, Trash2, Upload } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
-import { searchDocuments, listConversations, deleteConversation, renameConversation, togglePinConversation, type Conversation } from './lib/api'
+import { listConversations, deleteConversation, renameConversation, togglePinConversation, type Conversation } from './lib/api'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
 import { OnboardingTour } from './components/OnboardingTour'
@@ -19,8 +19,6 @@ import DocumentDetail from './pages/DocumentDetail'
 import Warranties from './pages/Warranties'
 import Settings from './pages/Settings'
 import ProfilePage from './pages/Profile'
-import { Button } from './components/ui/button'
-import { Input } from './components/ui/input'
 
 function App() {
   return (
@@ -69,6 +67,7 @@ function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<'general' | 'account' | 'billing'>('general')
   const [userName, setUserName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
@@ -80,7 +79,7 @@ function AppShell() {
     if (token) {
       fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setUserName(data.display_name || data.email.split('@')[0]) })
+        .then(data => { if (data) { setUserName(data.display_name || data.email.split('@')[0]); setUserEmail(data.email) } })
         .catch(() => {})
     }
   }, [token])
@@ -115,66 +114,117 @@ function AppShell() {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
+  // Close user menu on any click outside
+  useEffect(() => {
+    if (!userMenuOpen) return
+    function onClick() { setUserMenuOpen(false) }
+    const timer = setTimeout(() => document.addEventListener('click', onClick), 0)
+    return () => { clearTimeout(timer); document.removeEventListener('click', onClick) }
+  }, [userMenuOpen])
+
+  // Close conversation menu on any click outside
+  useEffect(() => {
+    if (!menuOpenId) return
+    function onClick() { setMenuOpenId(null) }
+    const timer = setTimeout(() => document.addEventListener('click', onClick), 0)
+    return () => { clearTimeout(timer); document.removeEventListener('click', onClick) }
+  }, [menuOpenId])
+
   return (
     <div className="flex h-screen bg-muted/20">
       {/* Mobile overlay */}
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-0 lg:w-0 overflow-hidden' : 'w-[260px]'} flex flex-col bg-background/80 backdrop-blur-2xl border-r border-border/40 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 !w-[260px]' : !sidebarCollapsed ? '' : '-translate-x-full'}`}>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-0 lg:w-16 overflow-hidden' : 'w-[290px]'} flex flex-col bg-[oklch(0.12_0.005_264)] transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 !w-[290px]' : !sidebarCollapsed ? '' : '-translate-x-full'}`}>
         {/* Top: Logo + Nav */}
-        <div className="px-3 pt-4 pb-2">
-          <div className="flex items-center justify-between px-2 mb-4">
-            <button onClick={() => navigate('/app')} className="flex items-center gap-2 group hover:opacity-80 transition-opacity">
-              <Layers size={20} className="text-primary transition-transform duration-300 group-hover:rotate-12" />
-              <span className="text-base font-bold gradient-text tracking-tight">DocVault</span>
-            </button>
-            <button
-              onClick={() => setSidebarCollapsed(true)}
-              className="p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-colors hidden lg:block"
-              title="Collapse sidebar"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/></svg>
-            </button>
+        <div className={`${sidebarCollapsed ? 'px-3 pt-5 pb-2' : 'px-5 pt-5 pb-2'}`}>
+          {/* Logo row */}
+          <div className={`flex items-center ${sidebarCollapsed ? 'justify-center mb-6' : 'justify-between mb-6'}`}>
+            {sidebarCollapsed ? (
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="Open sidebar"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18"/></svg>
+              </button>
+            ) : (
+              <>
+                <button onClick={() => navigate('/app')} className="flex items-center gap-3 group hover:opacity-80 transition-opacity">
+                  <Layers size={20} className="text-primary transition-transform duration-300 group-hover:rotate-12" />
+                  <span className="text-[17px] font-semibold text-foreground">DocVault</span>
+                </button>
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="text-muted-foreground/50 hover:text-foreground transition-colors hidden lg:block"
+                  title="Close sidebar"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18"/></svg>
+                </button>
+              </>
+            )}
           </div>
 
-          <div className="space-y-1">
+          {/* Nav items */}
+          <nav className="space-y-0.5">
             <button
               onClick={() => { navigate('/app/ask'); setSidebarOpen(false) }}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border/50 text-sm font-medium text-foreground/80 hover:bg-accent/50 hover:border-border transition-all duration-200"
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 py-2'} rounded-lg text-[14px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200`}
+              title={sidebarCollapsed ? 'New chat' : undefined}
             >
-              <Plus size={16} className="text-muted-foreground" />
-              New chat
+              <Plus size={18} className="shrink-0" />
+              {!sidebarCollapsed && 'New chat'}
             </button>
 
             <button
               onClick={() => { navigate('/app/chats'); setSidebarOpen(false) }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 py-2'} rounded-lg text-[14px] font-medium transition-all duration-200 ${
                 location.pathname === '/app/chats'
-                  ? 'bg-accent/80 text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
+              title={sidebarCollapsed ? 'Search chats' : undefined}
             >
-              <Search size={16} />
-              Search chats
+              <Search size={18} className="shrink-0" />
+              {!sidebarCollapsed && 'Search chats'}
             </button>
 
             <button
               onClick={() => { navigate('/app/documents'); setSidebarOpen(false) }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 py-2'} rounded-lg text-[14px] font-medium transition-all duration-200 ${
                 location.pathname.startsWith('/app/documents')
-                  ? 'bg-accent/80 text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
+              title={sidebarCollapsed ? 'Documents' : undefined}
             >
-              <FileText size={16} />
-              Documents
+              <FileText size={18} className="shrink-0" />
+              {!sidebarCollapsed && 'Documents'}
             </button>
-          </div>
+
+            <button
+              onClick={() => { navigate('/app/upload'); setSidebarOpen(false) }}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 py-2'} rounded-lg text-[14px] font-medium transition-all duration-200 ${
+                location.pathname === '/app/upload'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title={sidebarCollapsed ? 'Upload' : undefined}
+            >
+              <Upload size={18} className="shrink-0" />
+              {!sidebarCollapsed && 'Upload'}
+            </button>
+
+            {sidebarCollapsed && (
+              <div className="flex-1" />
+            )}
+          </nav>
         </div>
 
         {/* Conversations list */}
-        <div className="flex-1 overflow-auto px-3 py-2 min-h-0 border-t border-border/30 mt-1" onClick={() => { setSidebarOpen(false); setMenuOpenId(null) }}>
+        {!sidebarCollapsed && (
+        <div className="flex-1 overflow-auto px-3 py-2 min-h-0 mt-1" onClick={() => { setSidebarOpen(false); setMenuOpenId(null) }}>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 px-3 mb-2">Recent chats</p>
           {conversations.map(conv => (
             <div key={conv.id} className="group relative">
@@ -202,19 +252,25 @@ function AppShell() {
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); navigate(`/app/ask/${conv.id}`); setSidebarOpen(false); setMenuOpenId(null) }}
-                  className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-3 text-[13px] text-left transition-all duration-200 ${
+                  onTouchStart={(e) => {
+                    const timer = setTimeout(() => { e.preventDefault(); setMenuOpenId(conv.id) }, 500)
+                    const el = e.currentTarget
+                    const cancel = () => clearTimeout(timer)
+                    el.addEventListener('touchend', cancel, { once: true })
+                    el.addEventListener('touchmove', cancel, { once: true })
+                  }}
+                  className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-left transition-all duration-200 ${
                     location.pathname === `/app/ask/${conv.id}`
-                      ? 'bg-accent/80 text-foreground font-medium'
-                      : 'text-foreground/70 hover:text-foreground hover:bg-accent/40'
+                      ? 'text-foreground font-medium'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {conv.is_pinned && <Pin size={12} className="shrink-0 text-primary/70" />}
                   <span className="truncate flex-1 font-medium">{conv.title || 'New conversation'}</span>
-                  <span className="text-[10px] text-muted-foreground/50 shrink-0 group-hover:hidden">{formatRelativeTime(conv.updated_at || conv.created_at)}</span>
                   <span
                     role="button"
                     onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv.id ? null : conv.id) }}
-                    className="p-1 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                    className={`p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-colors shrink-0 hidden sm:block sm:opacity-0 sm:group-hover:opacity-100`}
                   >
                     <MoreVertical size={14} />
                   </span>
@@ -224,7 +280,6 @@ function AppShell() {
               {/* 3-dot dropdown menu */}
               {menuOpenId === conv.id && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setMenuOpenId(null) }} />
                   <div className="absolute right-2 top-full mt-1 w-44 bg-card border border-border/50 rounded-xl shadow-xl z-50 animate-scale-in overflow-hidden">
                     <button
                       onClick={async (e) => {
@@ -274,23 +329,24 @@ function AppShell() {
             <p className="text-[11px] text-muted-foreground/40 px-3 py-4 text-center">Your conversations will appear here</p>
           )}
         </div>
+        )}
 
         {/* Bottom: User with dropdown menu */}
-        <div className="px-3 py-3 border-t border-border/40 relative">
+        {!sidebarCollapsed && (
+        <div className="px-3 py-3 relative">
           {/* Dropdown menu */}
           {userMenuOpen && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-              <div className="absolute bottom-full left-3 right-3 mb-2 bg-card border border-border/50 rounded-xl shadow-xl z-50 animate-scale-in overflow-hidden">
+              <div className="absolute bottom-full left-3 right-3 mb-2 bg-card border border-border/50 rounded-xl shadow-xl z-[70] animate-scale-in overflow-hidden">
                 <div className="px-4 py-3 border-b border-border/30">
-                  <p className="text-xs text-muted-foreground truncate">{userName || 'User'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{userEmail || 'User'}</p>
                 </div>
                 <div className="py-1">
                   <button onClick={() => { setSettingsOpen(true); setSettingsTab('general'); setUserMenuOpen(false) }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
                     <SettingsIcon size={15} className="text-muted-foreground" /> Settings
                   </button>
                   <button onClick={() => { setSettingsOpen(true); setSettingsTab('billing'); setUserMenuOpen(false) }} className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
-                    <span className="flex items-center gap-3"><Sparkles size={15} className="text-muted-foreground" /> Upgrade plan</span>
+                    <span className="flex items-center gap-3"><ArrowUpCircle size={15} className="text-muted-foreground" /> Upgrade plan</span>
                   </button>
                   <button onClick={() => { window.open('https://github.com/haydenteh5526/FYP', '_blank'); setUserMenuOpen(false) }} className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
                     <span className="flex items-center gap-3"><ExternalLink size={15} className="text-muted-foreground" /> Learn more</span>
@@ -306,31 +362,37 @@ function AppShell() {
             </>
           )}
 
-          <button
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent/50 transition-colors"
-          >
-            <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold shadow-sm">
-              {userName ? userName[0].toUpperCase() : 'U'}
-            </div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium truncate">{userName || 'User'}</p>
-              <p className="text-[10px] text-muted-foreground">Free plan</p>
-            </div>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex-1 flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent/50 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                {userName ? userName[0].toUpperCase() : 'U'}
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-medium truncate">{userName || 'User'}</p>
+                <p className="text-[10px] text-muted-foreground">Free plan</p>
+              </div>
+            </button>
+            <NotificationCenter
+              notifications={notifs.notifications}
+              unreadCount={notifs.unreadCount}
+              onMarkAllRead={notifs.markAllRead}
+              onRemove={notifs.remove}
+            />
+          </div>
         </div>
+        )}
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto bg-background/50 flex flex-col min-w-0">
-        <TopBar
-          onMenuClick={() => setSidebarOpen(true)}
-          onPaletteOpen={() => setPaletteOpen(true)}
-          notifications={notifs}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(false)}
-        />
-        <div className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-hidden bg-background/50 flex flex-col min-w-0">
+        {/* Mobile menu button */}
+        <button onClick={() => setSidebarOpen(true)} className="lg:hidden fixed top-3 left-3 z-30 p-2 rounded-lg bg-background/80 backdrop-blur-md text-muted-foreground hover:text-foreground shadow-sm" aria-label="Open menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        <div className="flex-1 overflow-hidden">
           <Routes>
             <Route index element={<AskAI />} />
             <Route path="documents" element={<Dashboard />} />
@@ -368,165 +430,6 @@ function AppShell() {
       )}
     </div>
   )
-}
-
-function TopBar({ onMenuClick, onPaletteOpen, notifications, sidebarCollapsed, onToggleSidebar }: {
-  onMenuClick: () => void
-  onPaletteOpen: () => void
-  notifications: ReturnType<typeof useNotifications>
-  sidebarCollapsed: boolean
-  onToggleSidebar: () => void
-}) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const showSearch = location.pathname === '/app/documents' || location.pathname === '/app/documents/'
-  const [q, setQ] = useState('')
-  const [results, setResults] = useState<{ document_id: string; document_title: string; chunk_text: string }[]>([])
-  const [open, setOpen] = useState(false)
-  const debounceRef = useState<{ t?: ReturnType<typeof setTimeout> }>({})[0]
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [])
-
-  useEffect(() => {
-    if (!q.trim()) { setResults([]); setOpen(false); return }
-    if (debounceRef.t) clearTimeout(debounceRef.t)
-    debounceRef.t = setTimeout(async () => {
-      const data = await searchDocuments(q)
-      setResults(data.results.slice(0, 5))
-      setOpen(true)
-    }, 300)
-  }, [q])
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (q.trim()) { navigate(`/app/search?q=${encodeURIComponent(q)}`); setOpen(false) }
-  }
-
-  return (
-    <div className="h-14 border-b border-border/30 bg-background/60 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-4 sticky top-0 z-30">
-      {/* Left: menu/expand button */}
-      <div className="flex items-center gap-2">
-        <button onClick={onMenuClick} className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground" aria-label="Open menu">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-        </button>
-        {sidebarCollapsed && (
-          <button onClick={onToggleSidebar} className="hidden lg:block p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors" aria-label="Expand sidebar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/></svg>
-          </button>
-        )}
-      </div>
-
-      {/* Search — only on Documents page */}
-      {showSearch ? (
-      <div ref={wrapRef} className="relative flex-1 max-w-lg">
-        {/* On mobile, just a search icon that opens the palette */}
-        <button
-          className="sm:hidden p-2 text-muted-foreground hover:text-foreground"
-          onClick={onPaletteOpen}
-          aria-label="Search"
-        >
-          <Search className="h-5 w-5" />
-        </button>
-
-        {/* Desktop inline search */}
-        <form onSubmit={handleSubmit} className="relative hidden sm:block">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="topbar-search"
-            ref={inputRef}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onFocus={() => q && setOpen(true)}
-            onClick={onPaletteOpen}
-            readOnly
-            placeholder="Search documents…"
-            className="pl-10 pr-16 h-9 text-sm bg-muted/40 border-0 rounded-full cursor-pointer"
-          />
-          <kbd className="absolute right-3.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 text-[10px] text-muted-foreground font-medium pointer-events-none">
-            ⌘K
-          </kbd>
-        </form>
-
-        {/* Live dropdown (kept for keyboard search fallback) */}
-        {open && results.length > 0 && (
-          <div className="absolute top-11 left-0 right-0 bg-card border border-border/50 rounded-xl shadow-xl overflow-hidden animate-scale-in z-50">
-            {results.map((r, i) => (
-              <button
-                key={i}
-                onClick={() => { navigate(`/app/documents/${r.document_id}`); setOpen(false); setQ('') }}
-                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors text-left border-b border-border/30 last:border-0"
-              >
-                <FileText size={15} className="text-primary/60 mt-0.5 flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{r.document_title}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-1" dangerouslySetInnerHTML={{ __html: r.chunk_text }} />
-                </div>
-              </button>
-            ))}
-            <button onClick={handleSubmit} className="w-full px-4 py-2.5 text-xs text-primary hover:bg-accent/50 transition-colors font-medium">
-              View all results →
-            </button>
-          </div>
-        )}
-      </div>
-      ) : (
-        <div className="flex-1" />
-      )}
-
-      {/* Right actions */}
-      <div className="flex items-center gap-1 sm:gap-2">
-        <NotificationCenter
-          notifications={notifications.notifications}
-          unreadCount={notifications.unreadCount}
-          onMarkAllRead={notifications.markAllRead}
-          onRemove={notifications.remove}
-        />
-        <Button
-          id="topbar-upload"
-          size="sm"
-          className="gradient-bg border-0 text-white transition-all duration-200 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0 hidden sm:flex"
-          onClick={() => navigate('/app/upload')}
-        >
-          <Upload size={15} className="mr-1.5" /> Upload
-        </Button>
-        {/* Mobile upload icon */}
-        <Button
-          size="icon"
-          className="gradient-bg border-0 text-white h-8 w-8 sm:hidden"
-          onClick={() => navigate('/app/upload')}
-        >
-          <Upload size={15} />
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-
-
-function formatRelativeTime(dateStr: string): string {
-  const now = Date.now()
-  // Ensure UTC interpretation if no timezone specified
-  const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z'
-  const date = new Date(normalized).getTime()
-  const diffMs = now - date
-  const diffMins = Math.floor(diffMs / 60000)
-  if (diffMins < 1) return 'now'
-  if (diffMins < 60) return `${diffMins}m`
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours}h`
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return `${diffDays}d`
-  const diffWeeks = Math.floor(diffDays / 7)
-  return `${diffWeeks}w`
 }
 
 export default App

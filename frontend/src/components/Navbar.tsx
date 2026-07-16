@@ -3,7 +3,7 @@ import { Layers, Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 
-const NAV_ITEMS = ['Features', 'Security', 'Pricing']
+const NAV_ITEMS = ['Features', 'Security', 'Tech Stack', 'FAQ']
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -16,9 +16,10 @@ export default function Navbar() {
 
       // Detect active section
       for (const id of [...NAV_ITEMS].reverse()) {
-        const el = document.getElementById(id.toLowerCase())
+        const slug = id.toLowerCase().replace(/\s+/g, '-')
+        const el = document.getElementById(slug)
         if (el && el.getBoundingClientRect().top <= 120) {
-          setActiveSection(id.toLowerCase())
+          setActiveSection(slug)
           return
         }
       }
@@ -29,28 +30,28 @@ export default function Navbar() {
   }, [])
 
   function scrollTo(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    document.getElementById(id.toLowerCase().replace(/\s+/g, '-'))?.scrollIntoView({ behavior: 'smooth' })
     setMobileOpen(false)
   }
 
   return (
     <>
       <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'glass border-b border-border/30 shadow-sm' : 'bg-transparent'}`}>
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          {/* Brand */}
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center relative">
+          {/* Brand — left */}
           <Link to="/" className="flex items-center gap-2 group">
             <Layers size={22} className="text-primary transition-transform duration-300 group-hover:rotate-12" />
-            <span className="text-lg font-bold gradient-text tracking-tight">DocVault</span>
+            <span className="text-lg font-semibold gradient-text tracking-tight">DocVault</span>
           </Link>
 
-          {/* Center nav — desktop */}
-          <nav className="hidden md:flex items-center gap-1">
+          {/* Center nav — absolutely centered */}
+          <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
             {NAV_ITEMS.map((item) => (
               <button
                 key={item}
-                onClick={() => scrollTo(item.toLowerCase())}
+                onClick={() => scrollTo(item)}
                 className={`relative px-4 py-1.5 text-sm transition-all duration-200 rounded-full ${
-                  activeSection === item.toLowerCase()
+                  activeSection === item.toLowerCase().replace(/\s+/g, '-')
                     ? 'text-foreground bg-accent/70'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
                 }`}
@@ -61,17 +62,17 @@ export default function Navbar() {
           </nav>
 
           {/* Right — desktop */}
-          <div className="hidden md:flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
+          <div className="hidden md:flex items-center gap-2 ml-auto">
+            <Button variant="ghost" className="text-muted-foreground text-sm" asChild>
               <Link to="/login">Sign in</Link>
             </Button>
-            <Button size="sm" className="gradient-bg border-0 text-white shadow-md shadow-primary/20 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5" asChild>
+            <Button className="gradient-bg border-0 text-white text-sm shadow-md shadow-primary/20 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5" asChild>
               <Link to="/register">Get started</Link>
             </Button>
           </div>
 
           {/* Mobile toggle */}
-          <button className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setMobileOpen(!mobileOpen)}>
+          <button className="md:hidden ml-auto p-2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>

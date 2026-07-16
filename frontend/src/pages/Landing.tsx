@@ -1,41 +1,32 @@
-import { ArrowRight, Camera, Search, MessageSquare, Shield, Cloud, FileText, Star, Zap, Check, ChevronDown, ArrowUp, Lock, ShieldCheck, Users, EyeOff } from 'lucide-react'
+import { ArrowRight, Camera, Search, MessageSquare, Shield, Cloud, FileText, Zap, ChevronDown, ArrowUp, Lock, ShieldCheck, Users, EyeOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 
-const testimonials = [
-  { name: 'Sarah K.', role: 'Product Designer', quote: 'I scanned 40+ appliance manuals in one weekend. Now I just ask the app when something breaks.' },
-  { name: 'Mark T.', role: 'Homeowner', quote: 'My dishwasher showed error E4. I asked DocVault and had the fix in 5 seconds flat.' },
-  { name: 'Lisa M.', role: 'Tenant', quote: 'All my lease docs, utility guides, and appliance manuals in one place. Game changer for renters.' },
-  { name: 'James R.', role: 'IT Engineer', quote: 'The semantic search is incredible. I searched "network timeout" and it found the relevant router page.' },
-  { name: 'Anna P.', role: 'Business Owner', quote: 'Warranty tracking saved me €200. Got notified before expiry and made a claim just in time.' },
-  { name: 'David C.', role: 'Student', quote: 'I scan all my course handouts. Asking AI questions before exams is like having a personal tutor.' },
-]
-
 const faqs = [
-  { q: 'What file formats are supported?', a: 'JPEG, PNG, WebP, and multi-page PDF. We handle photos taken in poor lighting, at angles, and with noise.' },
-  { q: 'Is my data secure?', a: 'Yes. All documents are encrypted at rest (AES-256) and in transit (TLS 1.3). Each user has complete data isolation.' },
-  { q: 'How does the AI Q&A work?', a: 'We split your documents into chunks, embed them semantically, and use RAG (Retrieval-Augmented Generation) with GPT-4o-mini to answer questions grounded in your actual content.' },
-  { q: 'Can I use it offline?', a: 'The web app caches recently viewed documents for offline access. Upload requires an internet connection.' },
-  { q: 'Is there a free plan?', a: 'Yes — free forever for up to 50 documents with full OCR, search, and 10 AI questions per day.' },
+  { q: 'What file formats are supported?', a: 'JPEG, PNG, WebP, and multi-page PDF.' },
+  { q: 'Is my data secure?', a: 'Yes. JWT authentication with bcrypt password hashing, per-user data isolation, and all storage is access-controlled.' },
+  { q: 'How does the AI Q&A work?', a: 'We split your documents into chunks, embed them semantically using vector search (pgvector), and use RAG (Retrieval-Augmented Generation) to answer questions grounded in your actual content.' },
+  { q: 'What AI models are used?', a: 'Document categorisation uses Mistral. Q&A uses Groq (Llama 3.3 70B) or Google Gemini 2.0 Flash. OCR is handled by Tesseract.' },
+  { q: 'Is this a commercial product?', a: 'No — this is a final year project for TUS Athlone (Software Design with AI for Cloud Computing). It demonstrates a production-ready architecture.' },
 ]
 
 const features = [
-  { icon: <Camera size={20} />, title: 'Smart OCR', desc: 'Deskew, denoise, enhance — handles real-world photos. Multi-page PDF support included.', gradient: 'icon-gradient-blue' },
-  { icon: <Search size={20} />, title: 'Semantic Search', desc: 'Find "drainage issue" even when the manual says "blocked filter". AI understands context.', gradient: 'icon-gradient-purple' },
-  { icon: <MessageSquare size={20} />, title: 'AI Q&A', desc: 'Ask natural questions, get sourced answers. Grounded in your documents — no hallucinations.', gradient: 'icon-gradient-blue', featured: true },
-  { icon: <Shield size={20} />, title: 'End-to-end Security', desc: 'JWT auth, bcrypt, per-user isolation, encrypted storage. Your data never leaves your account.', gradient: 'icon-gradient-green' },
-  { icon: <Cloud size={20} />, title: 'Cloud Native', desc: 'Sync everywhere. Web, mobile, tablet. Built on AWS with Terraform IaC for 99.9% uptime.', gradient: 'icon-gradient-amber' },
-  { icon: <Zap size={20} />, title: 'Instant Processing', desc: 'Upload → OCR → categorise → embed → searchable in under 30 seconds. Zero manual work.', gradient: 'icon-gradient-purple' },
+  { icon: <Camera size={20} />, title: 'OCR Extraction', desc: 'Automatic text extraction from images and PDFs using Tesseract OCR with multi-page support.', gradient: 'icon-gradient-blue' },
+  { icon: <Search size={20} />, title: 'Semantic Search', desc: 'Find "drainage issue" even when the manual says "blocked filter". Vector embeddings understand context.', gradient: 'icon-gradient-purple' },
+  { icon: <MessageSquare size={20} />, title: 'AI Q&A', desc: 'Ask natural questions, get sourced answers. Grounded in your documents with cited references.', gradient: 'icon-gradient-blue', featured: true },
+  { icon: <Shield size={20} />, title: 'Secure by Default', desc: 'JWT auth, bcrypt hashing, per-user data isolation. Your documents are only accessible by you.', gradient: 'icon-gradient-green' },
+  { icon: <Cloud size={20} />, title: 'Cloud-Ready', desc: 'Dockerised with Terraform modules for AWS deployment. S3 storage, PostgreSQL with pgvector.', gradient: 'icon-gradient-amber' },
+  { icon: <Zap size={20} />, title: 'Background Processing', desc: 'Upload returns instantly. OCR, categorisation, and embedding run asynchronously via ARQ workers.', gradient: 'icon-gradient-purple' },
 ]
 
 const securityFeatures = [
-  { icon: <Lock size={18} />, title: 'Encrypted at rest', desc: 'AES-256 encryption on all stored files via AWS S3.' },
-  { icon: <ShieldCheck size={18} />, title: 'Encrypted in transit', desc: 'TLS 1.3 for every API call and data transfer.' },
-  { icon: <Users size={18} />, title: 'User isolation', desc: 'Row-level security — no user can ever access another\u2019s data.' },
-  { icon: <EyeOff size={18} />, title: 'No data selling', desc: 'Your documents are never used for training or shared.' },
+  { icon: <Lock size={18} />, title: 'Hashed passwords', desc: 'bcrypt with salt rounds — passwords are never stored in plain text.' },
+  { icon: <ShieldCheck size={18} />, title: 'JWT authentication', desc: 'Stateless token-based auth with expiry and refresh.' },
+  { icon: <Users size={18} />, title: 'User isolation', desc: 'Row-level filtering — no user can ever access another\u2019s data.' },
+  { icon: <EyeOff size={18} />, title: 'No data sharing', desc: 'Your documents are never used for AI training or shared with third parties.' },
 ]
 
 export default function Landing() {
@@ -54,14 +45,14 @@ export default function Landing() {
             <div className="text-center lg:text-left">
               <div className="opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.1s forwards' }}>
                 <span className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/80 backdrop-blur px-4 py-1.5 text-xs font-medium text-muted-foreground">
-                  <span className="h-1.5 w-1.5 rounded-full gradient-bg animate-pulse" /> Now with AI OCR 2.0
+                  <span className="h-1.5 w-1.5 rounded-full gradient-bg animate-pulse" /> Final Year Project — TUS Athlone
                 </span>
               </div>
-              <h1 className="mt-7 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.05] opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>
-                Documents that<br /><span className="gradient-text">think for you.</span>
+              <h1 className="mt-7 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05] opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>
+                Documents that<br /><span className="gradient-text">think for you</span>
               </h1>
               <p className="mt-5 text-lg text-muted-foreground max-w-lg mx-auto lg:mx-0 leading-relaxed opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.35s forwards' }}>
-                Snap any physical document. AI extracts, organises, and lets you query it — like having a photographic memory for every manual you own.
+                Upload or snap any document — photos, PDFs, manuals. AI extracts the text, organises it, and lets you ask questions about it in plain English.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.5s forwards' }}>
                 <Button size="lg" className="gradient-bg border-0 text-white h-12 px-8 text-[15px] shadow-xl shadow-primary/20 transition-all duration-200 hover:shadow-2xl hover:-translate-y-0.5" asChild>
@@ -72,7 +63,7 @@ export default function Landing() {
                 </Button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground/50 text-center lg:text-left opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.65s forwards' }}>
-                No credit card • Free forever • Works on all devices
+                Works on web, mobile, and tablet
               </p>
             </div>
 
@@ -82,16 +73,6 @@ export default function Landing() {
               <AppMockup />
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Stats bar */}
-      <section className="py-10 px-6 border-y border-border/30 bg-muted/20">
-        <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          <AnimatedStat value={10000} suffix="+" label="Documents scanned" delay={0} />
-          <AnimatedStat value={99.2} suffix="%" label="OCR accuracy" delay={80} decimals={1} />
-          <AnimatedStat prefix="< " value={2} suffix="s" label="Search speed" delay={160} />
-          <AnimatedStat value={4.9} suffix="/5" label="User rating" delay={240} decimals={1} />
         </div>
       </section>
 
@@ -152,31 +133,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Logo cloud — replaced text with styled brand marks */}
-      <section className="py-12 px-6 border-y border-border/30">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest mb-6">Trusted by users from</p>
-          <div className="flex flex-wrap justify-center items-center gap-10 opacity-30">
-            {[
-              { name: 'Google', letter: 'G', colors: ['#4285F4','#EA4335','#FBBC05','#34A853'] },
-              { name: 'Microsoft', letter: 'M', color: '#00A4EF' },
-              { name: 'Apple', letter: '', color: '#555' },
-              { name: 'Amazon', letter: 'a', color: '#FF9900' },
-              { name: 'Meta', letter: 'M', color: '#0668E1' },
-            ].map(brand => (
-              <span key={brand.name} className="text-xl font-bold text-foreground/70 select-none tracking-tight" style={{ fontFamily: '-apple-system, system-ui, sans-serif' }}>
-                {brand.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Feature bento grid — enhanced with gradient icons + hover effects */}
       <section id="features" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold tracking-tight">Built for the way you think</h2>
+            <h2 className="text-3xl font-semibold tracking-tight">Built for the way you think</h2>
             <p className="mt-2 text-muted-foreground">Every feature designed to feel invisible until you need it.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
@@ -238,7 +199,7 @@ export default function Landing() {
       <section id="security" className="py-24 px-6 border-t border-border/30">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold tracking-tight">Security you can trust</h2>
+            <h2 className="text-3xl font-semibold tracking-tight">Security you can trust</h2>
             <p className="mt-2 text-muted-foreground">Your documents are private by default. Always.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -255,66 +216,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="py-24 px-6 bg-muted/20 border-t border-border/30">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold tracking-tight">Simple, transparent pricing</h2>
-            <p className="mt-2 text-muted-foreground">Start free. Upgrade when you need more.</p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            <div className="rounded-2xl border border-border/40 bg-card p-8 hover-lift transition-all duration-200">
-              <h3 className="font-semibold text-lg">Free</h3>
-              <p className="text-muted-foreground text-sm mt-1">For personal use</p>
-              <p className="mt-5"><span className="text-4xl font-bold">€0</span><span className="text-muted-foreground text-sm">/month</span></p>
-              <ul className="mt-6 space-y-3 text-sm">
-                {['Up to 50 documents', 'OCR + AI categorisation', 'Semantic search', 'AI Q&A (10/day)'].map(f => <li key={f} className="flex items-center gap-2"><Check size={14} className="text-green-600" /> {f}</li>)}
-              </ul>
-              <Button variant="outline" className="w-full mt-8 h-10 transition-all duration-200" asChild><Link to="/register">Get started free</Link></Button>
-            </div>
-            <div className="rounded-2xl border-2 border-primary/30 bg-card p-8 relative hover-lift transition-all duration-200 shadow-lg shadow-primary/[0.05]">
-              <span className="absolute -top-3 left-6 px-3 py-0.5 text-xs font-medium gradient-bg text-white rounded-full shadow-sm">Popular</span>
-              <h3 className="font-semibold text-lg">Pro</h3>
-              <p className="text-muted-foreground text-sm mt-1">For power users</p>
-              <p className="mt-5"><span className="text-4xl font-bold">€9</span><span className="text-muted-foreground text-sm">/month</span></p>
-              <ul className="mt-6 space-y-3 text-sm">
-                {['Unlimited documents', 'Everything in Free', 'Unlimited AI Q&A', 'Priority processing', 'Warranty alerts'].map(f => <li key={f} className="flex items-center gap-2"><Check size={14} className="text-green-600" /> {f}</li>)}
-              </ul>
-              <Button className="w-full mt-8 h-10 gradient-bg border-0 text-white shadow-md shadow-primary/20 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5" asChild><Link to="/register">Start 14-day trial</Link></Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials marquee — fixed overflow + star rating */}
-      <section className="py-20 px-6 overflow-hidden border-t border-border/30">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tight">Loved by early users</h2>
-          <p className="mt-2 text-muted-foreground">See what people are saying.</p>
-        </div>
-        <div className="relative max-w-[100vw]">
-          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
-          <div className="flex gap-5 animate-[marquee_40s_linear_infinite] hover:[animation-play-state:paused] w-max">
-            {[...testimonials, ...testimonials].map((t, i) => (
-              <div key={i} className="flex-shrink-0 w-[300px] rounded-2xl border border-border/40 bg-card p-5 transition-all duration-200 hover:shadow-md hover:border-primary/10">
-                <div className="flex gap-0.5 mb-3">{[...Array(5)].map((_, j) => <Star key={j} size={11} className="fill-yellow-400 text-yellow-400" />)}</div>
-                <p className="text-[13px] leading-relaxed text-foreground/90">"{t.quote}"</p>
-                <div className="mt-4 flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full gradient-bg flex items-center justify-center text-white text-[10px] font-bold">{t.name[0]}</div>
-                  <div><p className="text-[12px] font-medium">{t.name}</p><p className="text-[10px] text-muted-foreground">{t.role}</p></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* FAQ — with smooth animations */}
-      <section className="py-24 px-6 bg-muted/20 border-t border-border/30">
+      <section id="faq" className="py-24 px-6 bg-muted/20 border-t border-border/30">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold tracking-tight">Frequently asked questions</h2>
+            <h2 className="text-3xl font-semibold tracking-tight">Frequently asked questions</h2>
             <p className="mt-2 text-muted-foreground">Everything you need to know.</p>
           </div>
           <div className="space-y-3">
@@ -323,16 +229,40 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="py-24 px-6 border-t border-border/30">
-        <div className="max-w-3xl mx-auto rounded-3xl gradient-bg p-16 sm:p-20 relative overflow-hidden shadow-2xl shadow-primary/20">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.12),transparent)]" />
-          <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-white/[0.04] rounded-full blur-2xl" />
-          <div className="relative text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">Ready to make your<br />documents intelligent?</h2>
-            <p className="mt-4 text-white/60 text-lg">Start scanning in 30 seconds. Free forever.</p>
-            <Button size="lg" className="mt-9 bg-white text-primary hover:bg-white/90 h-12 px-8 text-[15px] shadow-xl transition-all duration-200 hover:-translate-y-0.5" asChild>
-              <Link to="/register">Get started free <ArrowRight size={16} className="ml-1.5" /></Link>
+      {/* Tech Stack + CTA */}
+      <section id="tech-stack" className="py-24 px-6 border-t border-border/30">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-semibold tracking-tight">Built with modern tools</h2>
+            <p className="mt-2 text-muted-foreground">Production-ready architecture from frontend to infrastructure.</p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-16">
+            {[
+              { name: 'React', desc: 'Frontend' },
+              { name: 'FastAPI', desc: 'Backend' },
+              { name: 'PostgreSQL', desc: 'Database' },
+              { name: 'pgvector', desc: 'Vector search' },
+              { name: 'Tesseract', desc: 'OCR engine' },
+              { name: 'Redis', desc: 'Cache + queue' },
+              { name: 'Docker', desc: 'Containers' },
+              { name: 'Terraform', desc: 'Infrastructure' },
+              { name: 'MinIO / S3', desc: 'Object storage' },
+              { name: 'Groq / Gemini', desc: 'LLM providers' },
+              { name: 'Mistral', desc: 'Categorisation' },
+              { name: 'TypeScript', desc: 'Type safety' },
+            ].map((tech) => (
+              <div key={tech.name} className="rounded-xl border border-border/40 bg-card/50 px-4 py-3.5 text-center transition-all duration-200 hover:border-primary/20 hover:bg-card">
+                <p className="text-sm font-medium text-foreground">{tech.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{tech.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <p className="text-lg text-muted-foreground mb-6">See it in action — create an account and upload your first document.</p>
+            <Button size="lg" className="gradient-bg border-0 text-white h-12 px-8 text-[15px] shadow-xl shadow-primary/20 transition-all duration-200 hover:shadow-2xl hover:-translate-y-0.5" asChild>
+              <Link to="/register">Get started <ArrowRight size={16} className="ml-1.5" /></Link>
             </Button>
           </div>
         </div>
@@ -344,7 +274,6 @@ export default function Landing() {
       <style>{`
         @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes scanLine { 0%, 100% { transform: translateY(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 50% { transform: translateY(320px); } }
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
       `}</style>
     </div>
   )
@@ -354,7 +283,7 @@ function FeatureRow({ title, desc, visual, reverse }: { title: string; desc: str
   return (
     <div className={`grid md:grid-cols-2 gap-10 items-center ${reverse ? 'md:[direction:rtl]' : ''}`}>
       <div className={reverse ? 'md:[direction:ltr]' : ''}>
-        <h3 className="text-2xl font-bold mb-3">{title}</h3>
+        <h3 className="text-2xl font-semibold mb-3">{title}</h3>
         <p className="text-muted-foreground leading-relaxed">{desc}</p>
       </div>
       <div className={reverse ? 'md:[direction:ltr]' : ''}>{visual}</div>
@@ -380,41 +309,9 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
         }}
       >
         <div ref={contentRef}>
-          <p className="px-5 pb-4 text-[13px] text-muted-foreground leading-relaxed">{answer}</p>
+          <p className="px-5 pb-5 pt-3 text-sm text-muted-foreground leading-relaxed">{answer}</p>
         </div>
       </div>
-    </div>
-  )
-}
-
-function AnimatedStat({ value, suffix = '', prefix = '', label, delay = 0, decimals = 0 }: { value: number; suffix?: string; prefix?: string; label: string; delay?: number; decimals?: number }) {
-  const [display, setDisplay] = useState(0)
-  const ref = useRef<HTMLDivElement>(null)
-  const animated = useRef(false)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !animated.current) {
-        animated.current = true
-        const duration = 1500
-        const start = performance.now()
-        function tick(now: number) {
-          const progress = Math.min((now - start) / duration, 1)
-          const eased = 1 - Math.pow(1 - progress, 3)
-          setDisplay(parseFloat((eased * value).toFixed(decimals)))
-          if (progress < 1) requestAnimationFrame(tick)
-        }
-        setTimeout(() => requestAnimationFrame(tick), delay)
-      }
-    }, { threshold: 0.5 })
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [value, delay, decimals])
-
-  return (
-    <div ref={ref} className="animate-slide-up" style={{ animationDelay: `${delay}ms`, animationFillMode: 'both' }}>
-      <p className="text-2xl font-bold gradient-text">{prefix}{decimals ? display.toFixed(decimals) : display.toLocaleString()}{suffix}</p>
-      <p className="text-xs text-muted-foreground mt-1">{label}</p>
     </div>
   )
 }

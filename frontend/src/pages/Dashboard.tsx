@@ -225,7 +225,7 @@ export default function Dashboard() {
   const totalDocs = allDocs.length
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto h-full overflow-y-auto">
       {/* Breadcrumb */}
       {/* Breadcrumb — "All Documents" is a drop target when inside a folder */}
       <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6 animate-slide-up bg-card/40 backdrop-blur-md border border-border/50 px-3 py-1.5 rounded-full inline-flex shadow-sm">
@@ -269,7 +269,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8 animate-slide-up" style={{ animationDelay: '50ms', animationFillMode: 'both' }}>
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground/90">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground/90">
             {currentCategoryName || 'Documents'}
           </h2>
           <p className="text-muted-foreground text-sm mt-1.5 font-medium">

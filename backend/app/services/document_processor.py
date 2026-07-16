@@ -110,13 +110,32 @@ async def process_document(document_id: str | uuid.UUID) -> None:
 
 
 def _generate_summary(raw_text: str) -> str | None:
-    """Generate a 2-3 sentence summary of the document using Mistral or fallback."""
+    """Generate a rich structured summary of the document using Mistral or fallback."""
+    import json
+
     from app.config import settings
 
     if settings.MISTRAL_API_KEY:
         import httpx
 
         from app.services.retry import with_retry
+
+        system_prompt = """Analyse this document and return a JSON object with the following structure:
+{
+  "overview": "A 2-3 sentence overview of what this document is about",
+  "key_topics": ["topic1", "topic2", "topic3"],
+  "specifications": [{"label": "spec name", "value": "spec value"}],
+  "safety_warnings": ["warning1", "warning2"],
+  "quick_facts": [{"label": "fact name", "value": "fact value"}]
+}
+
+Rules:
+- overview: 2-3 informative sentences describing the document's purpose and scope
+- key_topics: 3-6 main topics or sections covered (short phrases)
+- specifications: up to 6 key technical specs if it's a product manual/datasheet; empty array otherwise
+- safety_warnings: any safety warnings, precautions, or important notices; empty array if none found
+- quick_facts: 3-5 quick reference facts (e.g., dimensions, power, capacity, warranty period)
+- Return ONLY valid JSON, no markdown formatting or explanation"""
 
         def _call():
             resp = httpx.post(
@@ -125,22 +144,39 @@ def _generate_summary(raw_text: str) -> str | None:
                 json={
                     "model": "mistral-small-latest",
                     "messages": [
-                        {"role": "system", "content": "Summarise this document in 1-2 short sentences. Be specific about what the document covers. Max 150 characters."},
-                        {"role": "user", "content": raw_text[:3000]},
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": raw_text[:4000]},
                     ],
-                    "temperature": 0.2,
-                    "max_tokens": 100,
+                    "temperature": 0.1,
+                    "max_tokens": 800,
                 },
-                timeout=20,
+                timeout=30,
             )
             resp.raise_for_status()
             return resp.json()
 
         try:
             result = with_retry(_call, label="mistral.summary", attempts=2)
-            return result["choices"][0]["message"]["content"].strip()[:500]
+            content = result["choices"][0]["message"]["content"].strip()
+            # Strip markdown code fences if present
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+            # Validate it's valid JSON
+            json.loads(content)
+            return content
         except Exception:
             pass
 
-    # Fallback: first 150 chars of text
-    return (raw_text[:147] + "...") if len(raw_text) > 150 else raw_text
+    # Fallback: return a simple JSON structure with just an overview
+    overview = (raw_text[:200] + "...") if len(raw_text) > 200 else raw_text
+    fallback = json.dumps({
+        "overview": overview,
+        "key_topics": [],
+        "specifications": [],
+        "safety_warnings": [],
+        "quick_facts": [],
+    })
+    return fallback

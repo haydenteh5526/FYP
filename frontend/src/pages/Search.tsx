@@ -52,10 +52,10 @@ export default function SearchPage() {
   }, [query])
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-3xl mx-auto h-full overflow-y-auto">
       {/* Header */}
       <div className="mb-8 animate-slide-up">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground/90">Search</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground/90">Search</h2>
         <p className="text-muted-foreground text-sm mt-1.5 font-medium">Find information across all your documents with AI-powered semantic search</p>
       </div>
 
