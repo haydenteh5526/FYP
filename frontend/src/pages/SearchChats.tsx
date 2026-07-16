@@ -44,7 +44,7 @@ export default function SearchChats() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-y-auto">
       {/* Search bar */}
       <div className="max-w-2xl mx-auto w-full px-6 pt-12 pb-6">
         <div className="relative">

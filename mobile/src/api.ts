@@ -48,12 +48,57 @@ export async function getDocuments(): Promise<any> {
   return res.json();
 }
 
-export async function askQuestion(question: string): Promise<any> {
+export async function getDocument(id: string): Promise<any> {
+  const headers = await getHeaders();
+  const res = await fetch(`${API_URL}/api/v1/documents/${id}`, { headers });
+  return res.json();
+}
+
+export async function searchDocuments(query: string): Promise<any> {
+  const headers = await getHeaders();
+  const res = await fetch(`${API_URL}/api/v1/search?q=${encodeURIComponent(query)}`, { headers });
+  return res.json();
+}
+
+export async function askQuestion(question: string, documentId?: string): Promise<any> {
   const headers = await getHeaders();
   const res = await fetch(`${API_URL}/api/v1/ai/ask`, {
     method: 'POST',
     headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, document_id: documentId || null }),
+  });
+  return res.json();
+}
+
+// Conversations
+export async function listConversations(): Promise<any[]> {
+  const headers = await getHeaders();
+  const res = await fetch(`${API_URL}/api/v1/conversations`, { headers });
+  return res.json();
+}
+
+export async function createConversation(title?: string): Promise<any> {
+  const headers = await getHeaders();
+  const res = await fetch(`${API_URL}/api/v1/conversations`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  return res.json();
+}
+
+export async function getConversation(id: string): Promise<any> {
+  const headers = await getHeaders();
+  const res = await fetch(`${API_URL}/api/v1/conversations/${id}`, { headers });
+  return res.json();
+}
+
+export async function sendMessage(conversationId: string, question: string, documentId?: string): Promise<any> {
+  const headers = await getHeaders();
+  const res = await fetch(`${API_URL}/api/v1/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, document_id: documentId || null }),
   });
   return res.json();
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, FileText, Info, Eye, MessageSquare, Send, Bot, Check, Share2, X, Plus, Tag as TagIcon, Loader2, FolderOpen, Download, Star, Trash2, User, Sparkles } from 'lucide-react'
+import { ArrowLeft, FileText, Info, Eye, MessageSquare, Send, Bot, Check, Share2, X, Plus, Tag as TagIcon, Loader2, FolderOpen, Download, Star, Trash2, User, Sparkles, AlertTriangle, BookOpen, Zap, Hash, ChevronLeft, ChevronRight } from 'lucide-react'
+import Markdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,12 +12,26 @@ export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [doc, setDoc] = useState<Document | null>(null)
-  const [tab, setTab] = useState<'preview' | 'info' | 'ask'>('info')
+  const [notFound, setNotFound] = useState(false)
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search))
+  const initialTab = (['preview', 'info', 'ask'].includes(searchParams.get('tab') || '') ? searchParams.get('tab') : 'info') as 'preview' | 'info' | 'ask'
+  const [tab, setTabState] = useState<'preview' | 'info' | 'ask'>(initialTab)
+  const [pendingQuestion, setPendingQuestion] = useState<string | undefined>()
   const stableImageUrl = useRef<string | null>(null)
   const { toast } = useToast()
 
+  function setTab(newTab: 'preview' | 'info' | 'ask') {
+    setTabState(newTab)
+    const params = new URLSearchParams(window.location.search)
+    params.set('tab', newTab)
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`)
+  }
+
   useEffect(() => {
-    if (id) getDocument(id).then(setDoc)
+    if (id) getDocument(id).then(data => {
+      if (data && data.id) setDoc(data)
+      else setNotFound(true)
+    }).catch(() => setNotFound(true))
   }, [id])
 
   // Poll while processing — only update state when status changes to avoid re-rendering preview
@@ -39,6 +54,19 @@ export default function DocumentDetail() {
   // Keep the first image_url we get stable so preview doesn't re-load on polls
   if (doc?.image_url && !stableImageUrl.current) {
     stableImageUrl.current = doc.image_url
+  }
+
+  if (notFound) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <FileText size={48} className="text-muted-foreground/20 mb-4" />
+        <h3 className="text-lg font-semibold text-foreground/80">Document not found</h3>
+        <p className="text-sm text-muted-foreground mt-1">This document may have been deleted or you don't have access.</p>
+        <button onClick={() => navigate(-1)} className="mt-6 px-5 py-2.5 rounded-lg gradient-bg text-white text-sm font-medium shadow-md transition-all hover:-translate-y-0.5">
+          Go back
+        </button>
+      </div>
+    )
   }
 
   if (!doc) {
@@ -78,12 +106,12 @@ export default function DocumentDetail() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-muted/10">
+    <div className="flex flex-col h-full overflow-hidden bg-muted/10">
       {/* Hero Section */}
       <div className="relative border-b border-border/40 bg-background/80 backdrop-blur-xl overflow-hidden shrink-0 z-10">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.05] via-purple-500/[0.05] to-transparent pointer-events-none" />
         
-        <div className="relative px-8 pt-6 pb-4">
+        <div className="relative px-4 sm:px-8 pt-6 pb-4">
           <div className="flex items-start gap-5">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-background/80 hover:shadow-sm">
               <ArrowLeft size={18} className="text-muted-foreground" />
@@ -98,7 +126,7 @@ export default function DocumentDetail() {
                 <span className="text-foreground/70 truncate">{doc.title}</span>
               </div>
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold tracking-tight truncate text-foreground/90">{doc.title}</h2>
+                <h2 className="text-2xl font-semibold tracking-tight truncate text-foreground/90">{doc.title}</h2>
                 {doc.is_favourite && <Star className="h-5 w-5 text-amber-500 fill-amber-500 shrink-0 drop-shadow-sm" />}
               </div>
               
@@ -177,18 +205,19 @@ export default function DocumentDetail() {
       {/* Main Content Area */}
       {tab === 'ask' ? (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <DocumentChat documentId={doc.id} documentTitle={doc.title} />
+          <DocumentChat documentId={doc.id} documentTitle={doc.title} initialQuestion={pendingQuestion} />
         </div>
       ) : (
-      <div className="flex-1 overflow-auto p-8 relative">
+      <div className="flex-1 overflow-auto p-4 sm:p-8 relative">
         <div className="max-w-5xl mx-auto space-y-6 pb-20">
 
       {tab === 'preview' && (
+        <div className="animate-fade-in">
         <Card className="border-border/50 shadow-sm animate-slide-up overflow-hidden">
           <CardContent className="p-0 bg-background/50">
             {stableImageUrl.current ? (
               isPdf ? (
-                <iframe src={stableImageUrl.current} className="w-full h-[75vh] border-0" title={doc.title} />
+                <PdfViewer url={stableImageUrl.current} title={doc.title} />
               ) : (
                 <div className="flex items-center justify-center p-8 bg-black/5">
                   <img src={stableImageUrl.current} alt={doc.title} className="max-w-full max-h-[75vh] rounded-lg shadow-xl" />
@@ -202,11 +231,13 @@ export default function DocumentDetail() {
             )}
           </CardContent>
         </Card>
+        </div>
       )}
 
       
 
       {tab === 'info' && (
+        <div className="animate-fade-in">
         <div className="animate-slide-up space-y-6">
           {isProcessing ? (
             <Card className="border-border/50 shadow-sm">
@@ -222,14 +253,7 @@ export default function DocumentDetail() {
             <>
               {/* AI Summary */}
               {doc.summary && (
-                <Card className="border-border/50 shadow-sm">
-                  <CardContent className="p-6">
-                    <h3 className="text-sm font-semibold mb-3 text-foreground/80 flex items-center gap-2">
-                      <Sparkles size={15} className="text-primary" /> AI Summary
-                    </h3>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{doc.summary}</p>
-                  </CardContent>
-                </Card>
+                <RichSummary summary={doc.summary} onTopicClick={(topic) => { setPendingQuestion(`Tell me about ${topic} in this document`); setTab('ask') }} />
               )}
 
               {/* Key Information */}
@@ -285,6 +309,7 @@ export default function DocumentDetail() {
               )}
             </>
           )}
+        </div>
         </div>
       )}
 
@@ -476,12 +501,194 @@ function RelatedDocuments({ documentId }: { documentId: string }) {
 }
 
 
-function DocumentChat({ documentId, documentTitle }: { documentId: string; documentTitle: string }) {
+function PdfViewer({ url, title }: { url: string; title: string }) {
+  const [page, setPage] = useState(1)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  function goToPage(p: number) {
+    if (p < 1) return
+    setPage(p)
+  }
+
+  const pdfUrl = `${url}#page=${page}&toolbar=1&navpanes=0`
+
+  return (
+    <div className="flex flex-col">
+      {/* Navigation bar */}
+      <div className="flex items-center justify-center gap-3 py-3 px-4 bg-muted/30 border-b border-border/30">
+        <button
+          onClick={() => goToPage(page - 1)}
+          disabled={page <= 1}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Page</span>
+          <input
+            type="number"
+            min={1}
+            value={page}
+            onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setPage(v) }}
+            className="w-12 h-7 text-center text-xs rounded-md border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        </div>
+        <button
+          onClick={() => goToPage(page + 1)}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+      {/* PDF iframe */}
+      <iframe
+        ref={iframeRef}
+        src={pdfUrl}
+        className="w-full h-[70vh] border-0"
+        title={title}
+      />
+    </div>
+  )
+}
+
+function RichSummary({ summary, onTopicClick }: { summary: string; onTopicClick?: (topic: string) => void }) {
+  // Try to parse as structured JSON; fall back to plain text display
+  let parsed: {
+    overview?: string
+    key_topics?: string[]
+    specifications?: { label: string; value: string }[]
+    safety_warnings?: string[]
+    quick_facts?: { label: string; value: string }[]
+  } | null = null
+
+  try {
+    parsed = JSON.parse(summary)
+  } catch {
+    // Not JSON — show as plain text (backward compat with old summaries)
+  }
+
+  if (!parsed) {
+    return (
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="p-6">
+          <h3 className="text-sm font-semibold mb-3 text-foreground/80 flex items-center gap-2">
+            <Sparkles size={15} className="text-primary" /> AI Summary
+          </h3>
+          <p className="text-sm text-foreground/80 leading-relaxed">{summary}</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-4 animate-slide-up">
+      {/* Overview */}
+      {parsed.overview && (
+        <Card className="border-border/50 shadow-sm">
+          <CardContent className="p-6">
+            <h3 className="text-sm font-semibold mb-3 text-foreground/80 flex items-center gap-2">
+              <Sparkles size={15} className="text-primary" /> AI Summary
+            </h3>
+            <p className="text-sm text-foreground/80 leading-relaxed">{parsed.overview}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Key Topics + Quick Facts side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Key Topics */}
+        {parsed.key_topics && parsed.key_topics.length > 0 && (
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="p-5">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                <BookOpen size={13} className="text-primary/70" /> Key Topics
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {parsed.key_topics.map((topic, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onTopicClick?.(topic)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/[0.06] border border-primary/10 px-3 py-1.5 text-xs font-medium text-primary/90 hover:bg-primary/[0.12] hover:border-primary/25 transition-colors cursor-pointer"
+                  >
+                    <Hash size={10} className="opacity-50" />
+                    {topic}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Facts */}
+        {parsed.quick_facts && parsed.quick_facts.length > 0 && (
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="p-5">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                <Zap size={13} className="text-amber-500" /> Quick Facts
+              </h4>
+              <div className="space-y-2">
+                {parsed.quick_facts.map((fact, i) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+                    <span className="text-xs text-muted-foreground">{fact.label}</span>
+                    <span className="text-xs font-semibold text-foreground/90">{fact.value}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Specifications */}
+      {parsed.specifications && parsed.specifications.length > 0 && (
+        <Card className="border-border/50 shadow-sm">
+          <CardContent className="p-5">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+              <Info size={13} className="text-blue-500" /> Specifications
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {parsed.specifications.map((spec, i) => (
+                <div key={i} className="rounded-lg bg-blue-500/[0.04] border border-blue-500/10 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-wider text-blue-600/60 dark:text-blue-400/60 mb-0.5">{spec.label}</p>
+                  <p className="text-sm font-semibold text-foreground/90">{spec.value}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Safety Warnings */}
+      {parsed.safety_warnings && parsed.safety_warnings.length > 0 && (
+        <Card className="border-amber-500/20 bg-amber-500/[0.02] shadow-sm">
+          <CardContent className="p-5">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-3 flex items-center gap-2">
+              <AlertTriangle size={13} className="text-amber-500" /> Safety Warnings
+            </h4>
+            <div className="space-y-2">
+              {parsed.safety_warnings.map((warning, i) => (
+                <div key={i} className="flex items-start gap-2.5 rounded-lg bg-amber-500/[0.06] border border-amber-500/10 px-3 py-2.5">
+                  <AlertTriangle size={12} className="text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">{warning}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+
+function DocumentChat({ documentId, documentTitle, initialQuestion }: { documentId: string; documentTitle: string; initialQuestion?: string }) {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [loading, setLoading] = useState(false)
-  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [, setConversationId] = useState<string | null>(null)
+  const convIdRef = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const hasAutoSubmitted = useRef(false)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -494,31 +701,41 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
       const docConv = convs.find(c => c.title.startsWith(`[${documentTitle}]`))
       if (docConv) {
         setConversationId(docConv.id)
+        convIdRef.current = docConv.id
         getConversation(docConv.id).then(data => {
           setMessages(data.messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
+          // Auto-submit after loading existing messages
+          if (initialQuestion && !hasAutoSubmitted.current) {
+            hasAutoSubmitted.current = true
+            setTimeout(() => doSubmit(initialQuestion), 100)
+          }
         })
+      } else {
+        // No existing conversation — auto-submit will create one
+        if (initialQuestion && !hasAutoSubmitted.current) {
+          hasAutoSubmitted.current = true
+          setTimeout(() => doSubmit(initialQuestion), 100)
+        }
       }
     })
   }, [documentId, documentTitle])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!input.trim() || loading) return
-    const question = input
+  async function doSubmit(question: string) {
+    if (!question.trim()) return
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: question }])
     setLoading(true)
     try {
-      let convId = conversationId
+      let convId = convIdRef.current
       if (!convId) {
         const conv = await createConversation(`[${documentTitle}] Chat`)
         convId = conv.id
         setConversationId(convId)
+        convIdRef.current = convId
       }
       const data = await sendConversationMessage(convId, question, documentId)
       setMessages(prev => [...prev, { role: 'assistant', content: data.assistant_message.content }])
     } catch {
-      // Fallback to non-persisted ask
       try {
         const data = await askQuestion(question, documentId)
         setMessages(prev => [...prev, { role: 'assistant', content: data.answer }])
@@ -530,11 +747,16 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
     }
   }
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await doSubmit(input)
+  }
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Messages — scrollable area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-6 py-6 space-y-6 min-h-full flex flex-col">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6 min-h-full flex flex-col">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
               <div className="relative w-20 h-20 mb-4">
@@ -559,7 +781,11 @@ function DocumentChat({ documentId, documentTitle }: { documentId: string; docum
                     ? 'gradient-bg text-white rounded-br-md shadow-sm shadow-primary/15' 
                     : 'bg-card/60 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-sm'
                 }`}>
-                  {msg.content}
+                  {msg.role === 'assistant' ? (
+                    <Markdown className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-headings:my-2 prose-strong:text-foreground">{msg.content}</Markdown>
+                  ) : (
+                    msg.content
+                  )}
                 </div>
                 {msg.role === 'user' && (
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center shadow-sm">

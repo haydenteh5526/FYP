@@ -22,14 +22,14 @@ export default function Warranties() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto h-full overflow-y-auto">
       {/* Header */}
       <div className="mb-8 animate-slide-up">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
             <ShieldCheck className="h-5 w-5 text-white" />
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground/90">Warranties</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground/90">Warranties</h2>
         </div>
         <p className="text-muted-foreground text-sm mt-1.5 font-medium ml-13">Track warranty expiry across your documents automatically.</p>
       </div>

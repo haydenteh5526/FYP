@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Send, Bot, User, FileText, Sparkles, ShieldCheck, Wrench, Package, Zap, BookOpen } from 'lucide-react'
+import { Send, Bot, User, FileText, Sparkles, MoreVertical, Pin, Pencil, Trash2 } from 'lucide-react'
+import Markdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
-import { askQuestion, type AskResponse, getConversation, createConversation, sendMessage as sendConversationMessage } from '@/lib/api'
+import { askQuestion, type AskResponse, getConversation, createConversation, sendMessage as sendConversationMessage, deleteConversation, renameConversation, togglePinConversation } from '@/lib/api'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -16,6 +17,9 @@ export default function AskAI() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationId || null)
+  const [chatMenuOpen, setChatMenuOpen] = useState(false)
+  const [conversationTitle, setConversationTitle] = useState('')
+  const [isPinned, setIsPinned] = useState(false)
   const skipReloadRef = useRef(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -32,6 +36,7 @@ export default function AskAI() {
       }
       getConversation(conversationId)
         .then(data => {
+          setConversationTitle(data.title || '')
           setMessages(
             data.messages.map(m => ({
               role: m.role as 'user' | 'assistant',
@@ -126,61 +131,89 @@ export default function AskAI() {
     })
   }
 
-  const suggestedPrompts = [
-    { icon: ShieldCheck, text: 'What are the safety warnings?', color: 'text-amber-500' },
-    { icon: Wrench, text: 'How do I set up this device?', color: 'text-blue-500' },
-    { icon: Zap, text: 'What are the specifications?', color: 'text-purple-500' },
-    { icon: BookOpen, text: 'Summarise this document', color: 'text-green-500' },
-    { icon: Package, text: "What's in the box?", color: 'text-orange-500' },
-  ]
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-8 py-5 border-b border-border/30 bg-background/80 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center shadow-md shadow-primary/20">
-            <Sparkles className="h-4.5 w-4.5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold tracking-tight">Ask AI</h2>
-            <p className="text-muted-foreground text-xs mt-0.5">Answers grounded in your documents</p>
-          </div>
+    <div className="flex flex-col h-full overflow-hidden relative">
+      {/* Top-right 3-dot menu for active conversation */}
+      {activeConversationId && messages.length > 0 && (
+        <div className="absolute top-3 right-4 z-20">
+          <button
+            onClick={() => setChatMenuOpen(!chatMenuOpen)}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          >
+            <MoreVertical size={18} />
+          </button>
+          {chatMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setChatMenuOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border/50 rounded-xl shadow-xl z-50 animate-scale-in overflow-hidden">
+                <button
+                  onClick={async () => {
+                    if (!activeConversationId) return
+                    const newPinned = !isPinned
+                    await togglePinConversation(activeConversationId, newPinned)
+                    setIsPinned(newPinned)
+                    setChatMenuOpen(false)
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors"
+                >
+                  <Pin size={14} className="text-muted-foreground" />
+                  {isPinned ? 'Unpin' : 'Pin conversation'}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!activeConversationId) return
+                    const newTitle = prompt('Rename conversation:', conversationTitle)
+                    if (newTitle && newTitle.trim()) {
+                      await renameConversation(activeConversationId, newTitle.trim())
+                      setConversationTitle(newTitle.trim())
+                    }
+                    setChatMenuOpen(false)
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors"
+                >
+                  <Pencil size={14} className="text-muted-foreground" />
+                  Rename
+                </button>
+                <div className="border-t border-border/30" />
+                <button
+                  onClick={async () => {
+                    if (!activeConversationId) return
+                    await deleteConversation(activeConversationId)
+                    navigate('/app/ask')
+                    setChatMenuOpen(false)
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </button>
+              </div>
+            </>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-auto px-8 py-6 space-y-6">
+      <div className={`flex-1 min-h-0 py-6 relative ${messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+        {/* Top fade vignette */}
+        {messages.length > 0 && (
+          <div className="sticky top-0 left-0 right-0 h-8 bg-gradient-to-b from-background/50 to-transparent pointer-events-none z-10" />
+        )}
+        <div className={`max-w-3xl mx-auto px-4 sm:px-8 space-y-6 ${messages.length === 0 ? 'h-full' : ''}`}>
         {/* Empty state */}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center animate-slide-up">
-            <div className="relative w-28 h-28 mb-6">
-              <div className="absolute inset-0 m-auto w-24 h-24 rounded-full gradient-bg opacity-10 blur-2xl animate-pulse" />
-              <div className="absolute inset-0 m-auto w-18 h-18 rounded-2xl bg-background border border-border/50 shadow-xl flex items-center justify-center z-10">
-                <Sparkles className="h-8 w-8 text-primary/60" />
-              </div>
-              <div className="absolute top-1 right-0 w-7 h-7 rounded-md bg-background border border-border/50 shadow-md rotate-[12deg] animate-float z-0 flex items-center justify-center">
-                <Bot size={11} className="text-primary/30" />
+            <div className="relative w-20 h-20 mb-6">
+              <div className="absolute inset-0 m-auto w-20 h-20 rounded-full gradient-bg opacity-10 blur-2xl animate-pulse" />
+              <div className="absolute inset-0 m-auto w-14 h-14 rounded-2xl bg-background border border-border/50 shadow-xl flex items-center justify-center z-10">
+                <Sparkles className="h-6 w-6 text-primary/60" />
               </div>
             </div>
 
-            <h3 className="font-bold text-xl tracking-tight text-foreground">Ask anything about your documents</h3>
+            <h3 className="font-semibold text-xl tracking-tight text-foreground">Ask anything about your documents</h3>
             <p className="text-sm text-muted-foreground mt-2 max-w-sm leading-relaxed">
               Get instant answers backed by your uploaded files. AI will cite the exact source documents.
             </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-8 max-w-lg">
-              {suggestedPrompts.map(({ icon: Icon, text, color }) => (
-                <button
-                  key={text}
-                  onClick={() => setInput(text)}
-                  className="flex items-center gap-2 text-xs px-3 py-2.5 rounded-xl border border-border/50 bg-card/40 backdrop-blur-sm hover:bg-accent/50 hover:border-primary/20 hover:shadow-sm transition-all duration-200 text-muted-foreground hover:text-foreground text-left group"
-                >
-                  <Icon size={14} className={`${color} shrink-0 group-hover:scale-110 transition-transform`} />
-                  <span className="line-clamp-1">{text}</span>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
@@ -192,13 +225,17 @@ export default function AskAI() {
                 <Bot size={14} className="text-white" />
               </div>
             )}
-            <div className="max-w-[72%]">
+            <div className="max-w-[85%]">
               <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user'
                   ? 'gradient-bg text-white rounded-br-md shadow-md shadow-primary/15'
                   : 'bg-card/60 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-sm'
               }`}>
-                {msg.content}
+                {msg.role === 'assistant' ? (
+                  <Markdown className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-headings:my-2 prose-strong:text-foreground">{msg.content}</Markdown>
+                ) : (
+                  msg.content
+                )}
               </div>
               {/* Citation pills */}
               {uniqueSources(msg.sources).length > 0 && (
@@ -240,11 +277,12 @@ export default function AskAI() {
           </div>
         )}
         <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* Floating input bar */}
-      <div className="px-8 py-4 border-t border-border/30 bg-background/80 backdrop-blur-md">
-        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
+      <div className="shrink-0 px-4 sm:px-8 py-4">
+        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
           <div className="relative group">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-purple-500/10 to-primary/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
             <div className="relative flex items-end gap-2 bg-card/60 backdrop-blur-md border border-border/50 rounded-xl p-2 shadow-sm group-focus-within:shadow-lg group-focus-within:border-primary/30 transition-all duration-300">
@@ -273,7 +311,6 @@ export default function AskAI() {
               </div>
             </div>
           </div>
-          <p className="text-center text-[10px] text-muted-foreground/40 mt-2">AI answers are grounded in your uploaded documents</p>
         </form>
       </div>
     </div>

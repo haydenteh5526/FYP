@@ -91,6 +91,26 @@ async def generate_rag_answer(
         f"[From: {row.document_title}]\n{row.chunk_text}" for row in rows
     )
 
+    # 3b. Append warranty info if relevant documents have warranties
+    doc_ids = list(set(str(row.document_id) for row in rows))
+    if doc_ids:
+        warranty_result = await db.execute(
+            text("""
+                SELECT w.purchase_date, w.expiry_date, d.title as document_title
+                FROM warranties w
+                JOIN documents d ON d.id = w.document_id
+                WHERE w.document_id = ANY(cast(:doc_ids as uuid[]))
+            """),
+            {"doc_ids": doc_ids},
+        )
+        warranty_rows = warranty_result.fetchall()
+        if warranty_rows:
+            warranty_context = "\n\n---\n\n[Warranty Information]\n" + "\n".join(
+                f"• {wr.document_title}: purchased {wr.purchase_date or 'unknown'}, expires {wr.expiry_date or 'unknown'}"
+                for wr in warranty_rows
+            )
+            context += warranty_context
+
     # 4. Generate answer via LLM (with conversation history)
     answer = _generate_answer(question, context, history)
 
@@ -133,7 +153,9 @@ def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] |
                 "You are a helpful assistant that answers questions based on the user's stored documents. "
                 "Only answer using information from the provided context. "
                 "If the answer is not in the context, say 'I don't have information about that in your documents.' "
-                "Cite which document the answer comes from."
+                "Cite which document the answer comes from. "
+                "Format your responses using markdown: use **bold** for emphasis, bullet points for lists, "
+                "and numbered lists for steps. Keep responses concise and well-structured."
             ),
         }
     ]
@@ -168,7 +190,9 @@ def _generate_answer_gemini(question: str, context: str, history: list[ChatTurn]
         "You are a helpful assistant that answers questions based on the user's stored documents. "
         "Only answer using information from the provided context. "
         "If the answer is not in the context, say 'I don't have information about that in your documents.' "
-        "Cite which document the answer comes from."
+        "Cite which document the answer comes from. "
+        "Format your responses using markdown: use **bold** for emphasis, bullet points for lists, "
+        "and numbered lists for steps. Keep responses concise and well-structured."
     )
 
     contents: list[dict] = []

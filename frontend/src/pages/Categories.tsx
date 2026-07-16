@@ -40,9 +40,9 @@ export default function Categories() {
   }
 
   return (
-    <div className="p-8 max-w-2xl mx-auto animate-fade-in">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto h-full overflow-y-auto animate-fade-in">
       <div className="mb-8">
-        <h2 className="text-2xl font-bold tracking-tight">Categories</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Categories</h2>
         <p className="text-muted-foreground text-sm mt-0.5">Organise and browse your documents by category</p>
       </div>
 

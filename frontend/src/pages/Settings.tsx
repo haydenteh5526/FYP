@@ -88,7 +88,7 @@ function GeneralSettings() {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="text-xl font-bold tracking-tight">General</h2>
+        <h2 className="text-xl font-semibold tracking-tight">General</h2>
         <p className="text-sm text-muted-foreground mt-1">Manage your profile and preferences</p>
       </div>
 
@@ -189,7 +189,7 @@ function AccountSettings() {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="text-xl font-bold tracking-tight">Account</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Account</h2>
         <p className="text-sm text-muted-foreground mt-1">Security and account management</p>
       </div>
 
@@ -249,7 +249,7 @@ function BillingSettings() {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="text-xl font-bold tracking-tight">Billing</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Billing</h2>
         <p className="text-sm text-muted-foreground mt-1">Manage your subscription and plan</p>
       </div>
 
