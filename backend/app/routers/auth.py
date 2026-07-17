@@ -5,8 +5,8 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user_id, get_db
 from app.config import settings
+from app.dependencies import get_current_user_id, get_db
 from app.models.base import User
 from app.services.auth_service import (
     create_access_token,
