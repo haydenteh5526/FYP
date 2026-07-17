@@ -15,11 +15,16 @@ class Settings(BaseSettings):
     OCR_BACKEND: str = "tesseract"
     AWS_REGION: str = "eu-west-1"
     JWT_SECRET: str = "change-me-in-production"
-    JWT_EXPIRY_MINUTES: int = 1440
+    JWT_EXPIRY_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRY_DAYS: int = 30
+    REFRESH_TOKEN_EXPIRY_DAYS_SHORT: int = 1
     OLLAMA_URL: str = ""
     COGNITO_DOMAIN: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_REDIRECT_URI: str = "http://localhost:3000/auth/callback"
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:3000/api/v1/auth/oauth/google/callback"
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""

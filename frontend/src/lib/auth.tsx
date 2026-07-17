@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 
 interface AuthContextType {
   token: string | null
-  login: (token: string) => void
+  login: (token: string, refreshToken?: string | null) => void
   logout: () => void
   isAuthenticated: boolean
 }
@@ -17,11 +17,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem('token')
   }, [token])
 
+  function login(accessToken: string, refreshToken?: string | null) {
+    if (refreshToken) localStorage.setItem('refresh_token', refreshToken)
+    setToken(accessToken)
+  }
+
+  function logout() {
+    localStorage.removeItem('refresh_token')
+    setToken(null)
+  }
+
   return (
     <AuthContext.Provider value={{
       token,
-      login: setToken,
-      logout: () => setToken(null),
+      login,
+      logout,
       isAuthenticated: !!token,
     }}>
       {children}

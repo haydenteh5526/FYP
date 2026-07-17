@@ -9,6 +9,7 @@ import { OnboardingTour } from './components/OnboardingTour'
 import { NotificationCenter, useNotifications } from './components/NotificationCenter'
 import Landing from './pages/Landing'
 import AuthPage from './pages/Auth'
+import OAuthCallback from './pages/OAuthCallback'
 import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
 import UploadPage from './pages/Upload'
@@ -41,6 +42,7 @@ function AppRoutes() {
       <Route path="/login" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="login" />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="register" />} />
       <Route path="/verify" element={<VerifyEmail />} />
+      <Route path="/auth/callback" element={<OAuthCallback />} />
       <Route path="/app/*" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
         <Route index element={<AskAI />} />
         <Route path="documents" element={<Dashboard />} />
@@ -379,6 +381,7 @@ function AppShell() {
               notifications={notifs.notifications}
               unreadCount={notifs.unreadCount}
               onMarkAllRead={notifs.markAllRead}
+              onMarkRead={notifs.markRead}
               onRemove={notifs.remove}
             />
           </div>
