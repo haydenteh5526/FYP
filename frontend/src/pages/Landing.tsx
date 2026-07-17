@@ -54,17 +54,7 @@ export default function Landing() {
               <p className="mt-5 text-lg text-muted-foreground max-w-lg mx-auto lg:mx-0 leading-relaxed opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.35s forwards' }}>
                 Upload or snap any document — photos, PDFs, manuals. AI extracts the text, organises it, and lets you ask questions about it in plain English.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.5s forwards' }}>
-                <Button size="lg" className="gradient-bg border-0 text-white h-12 px-8 text-[15px] shadow-xl shadow-primary/20 transition-all duration-200 hover:shadow-2xl hover:-translate-y-0.5" asChild>
-                  <Link to="/register">Start free <ArrowRight size={16} className="ml-1.5" /></Link>
-                </Button>
-                <Button size="lg" variant="outline" className="h-12 px-8 text-[15px] border-border/50 transition-all duration-200 hover:bg-accent/50" asChild>
-                  <Link to="/login">Sign in</Link>
-                </Button>
-              </div>
-              <p className="mt-4 text-xs text-muted-foreground/50 text-center lg:text-left opacity-0" style={{ animation: 'fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.65s forwards' }}>
-                Works on web, mobile, and tablet
-              </p>
+
             </div>
 
             {/* Right — animated app mockup */}

@@ -7,11 +7,60 @@ function getHeaders(): HeadersInit {
   return headers
 }
 
-/** Call after any fetch — if 401, clear stale token and redirect to login */
-function handleUnauthorized(res: Response): Response {
+function clearSessionAndRedirect() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refresh_token')
+  window.location.href = '/login'
+}
+
+// De-duplicate concurrent refreshes: if many requests 401 at once, they all
+// await the same single refresh call instead of hammering /auth/refresh.
+let refreshPromise: Promise<boolean> | null = null
+
+async function tryRefresh(): Promise<boolean> {
+  const refreshToken = localStorage.getItem('refresh_token')
+  if (!refreshToken) return false
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const res = await fetch(`${BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        })
+        if (!res.ok) return false
+        const data = await res.json()
+        if (data.access_token) localStorage.setItem('token', data.access_token)
+        if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token)
+        return !!data.access_token
+      } catch {
+        return false
+      }
+    })()
+    refreshPromise.finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
+}
+
+/**
+ * Authenticated fetch with transparent token refresh. On a 401 it attempts a
+ * single silent refresh using the stored refresh token, then retries the
+ * original request once. If refresh fails, the session is cleared and the user
+ * is redirected to /login.
+ */
+async function authorizedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const run = () => fetch(input, { ...init, headers: { ...getHeaders(), ...(init.headers || {}) } })
+
+  let res = await run()
   if (res.status === 401) {
-    localStorage.removeItem('token')
-    window.location.href = '/login'
+    const refreshed = await tryRefresh()
+    if (refreshed) {
+      res = await run()
+    }
+    if (res.status === 401) {
+      clearSessionAndRedirect()
+    }
   }
   return res
 }
@@ -64,11 +113,11 @@ export async function registerUser(email: string, password: string, displayName?
   return res.json()
 }
 
-export async function loginUser(email: string, password: string): Promise<{ access_token?: string; requires_2fa?: boolean }> {
+export async function loginUser(email: string, password: string, rememberMe = false): Promise<{ access_token?: string; refresh_token?: string; requires_2fa?: boolean }> {
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, remember_me: rememberMe }),
   })
   if (!res.ok) {
     const text = await res.text()
@@ -77,11 +126,11 @@ export async function loginUser(email: string, password: string): Promise<{ acce
   return res.json()
 }
 
-export async function verify2FA(email: string, password: string, code: string): Promise<{ access_token: string }> {
+export async function verify2FA(email: string, password: string, code: string, rememberMe = false): Promise<{ access_token: string; refresh_token?: string }> {
   const res = await fetch(`${BASE}/auth/login/2fa`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, code }),
+    body: JSON.stringify({ email, password, code, remember_me: rememberMe }),
   })
   if (!res.ok) {
     const text = await res.text()
@@ -94,41 +143,37 @@ export async function uploadDocument(file: File, title?: string): Promise<Docume
   const form = new FormData()
   form.append('file', file)
   if (title) form.append('title', title)
-  const res = await fetch(`${BASE}/documents`, { method: 'POST', headers: getHeaders(), body: form })
+  const res = await authorizedFetch(`${BASE}/documents`, { method: 'POST', body: form })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export async function getDocuments(categoryId?: string): Promise<{ documents: Document[]; total: number }> {
   const url = categoryId ? `${BASE}/documents?category_id=${categoryId}` : `${BASE}/documents`
-  const res = handleUnauthorized(await fetch(url, { headers: getHeaders() }))
+  const res = await authorizedFetch(url)
   return res.json()
 }
 
 export async function getDocument(id: string): Promise<Document> {
-  const res = handleUnauthorized(await fetch(`${BASE}/documents/${id}`, { headers: getHeaders() }))
+  const res = await authorizedFetch(`${BASE}/documents/${id}`)
   return res.json()
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  await fetch(`${BASE}/documents/${id}`, { method: 'DELETE', headers: getHeaders() })
+  await authorizedFetch(`${BASE}/documents/${id}`, { method: 'DELETE' })
 }
 
 export async function bulkDeleteDocuments(documentIds: string[]): Promise<void> {
-  await fetch(`${BASE}/documents/bulk/delete`, {
-    method: 'POST',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ document_ids: documentIds }),
-  })
+  await authorizedFetch(`${BASE}/documents/bulk/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document_ids: documentIds }) })
 }
 
 export async function toggleFavourite(id: string): Promise<{ is_favourite: boolean }> {
-  const res = await fetch(`${BASE}/documents/${id}/favourite`, { method: 'POST', headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/documents/${id}/favourite`, { method: 'POST' })
   return res.json()
 }
 
 export async function shareDocument(id: string, expiresHours = 24): Promise<{ share_url: string; expires_in_hours: number }> {
-  const res = await fetch(`${BASE}/documents/${id}/share?expires_hours=${expiresHours}`, { headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/documents/${id}/share?expires_hours=${expiresHours}`)
   return res.json()
 }
 
@@ -141,68 +186,52 @@ export interface SimilarDocument {
 }
 
 export async function findSimilarDocuments(id: string): Promise<{ similar: SimilarDocument[] }> {
-  const res = await fetch(`${BASE}/documents/${id}/similar`, { headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/documents/${id}/similar`)
   return res.json()
 }
 
 export async function searchDocuments(q: string): Promise<{ results: SearchResult[] }> {
-  const res = await fetch(`${BASE}/search?q=${encodeURIComponent(q)}`, { headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/search?q=${encodeURIComponent(q)}`)
   return res.json()
 }
 
 export async function askQuestion(question: string, documentId?: string, history?: { role: string; content: string }[]): Promise<AskResponse> {
-  const res = await fetch(`${BASE}/ai/ask`, {
-    method: 'POST',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, document_id: documentId, history: history || [] }),
-  })
+  const res = await authorizedFetch(`${BASE}/ai/ask`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, document_id: documentId, history: history || [] }) })
   return res.json()
 }
 
 export async function getCategories(): Promise<{ id: string; name: string }[]> {
-  const res = handleUnauthorized(await fetch(`${BASE}/categories`, { headers: getHeaders() }))
+  const res = await authorizedFetch(`${BASE}/categories`)
   return res.json()
 }
 
 export async function createCategory(name: string): Promise<{ id: string; name: string }> {
-  const res = await fetch(`${BASE}/categories`, {
-    method: 'POST',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
-  })
+  const res = await authorizedFetch(`${BASE}/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
   return res.json()
 }
 
 export async function renameCategory(id: string, name: string): Promise<{ id: string; name: string }> {
-  const res = await fetch(`${BASE}/categories/${id}`, {
-    method: 'PATCH',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
-  })
+  const res = await authorizedFetch(`${BASE}/categories/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
   return res.json()
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  await fetch(`${BASE}/categories/${id}`, { method: 'DELETE', headers: getHeaders() })
+  await authorizedFetch(`${BASE}/categories/${id}`, { method: 'DELETE' })
 }
 
 export async function moveToCategory(documentId: string, categoryId: string | null): Promise<void> {
-  await fetch(`${BASE}/documents/${documentId}`, {
-    method: 'PATCH',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ category_id: categoryId }),
-  })
+  await authorizedFetch(`${BASE}/documents/${documentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category_id: categoryId }) })
 }
 
 // === 2FA ===
 export async function setup2FA(): Promise<{ secret: string; qr_code: string; uri: string }> {
-  const res = await fetch(`${BASE}/auth/2fa/setup`, { method: 'POST', headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/auth/2fa/setup`, { method: 'POST' })
   if (!res.ok) throw new Error('Failed to set up 2FA')
   return res.json()
 }
 
 export async function disable2FA(): Promise<void> {
-  await fetch(`${BASE}/auth/2fa/disable`, { method: 'POST', headers: getHeaders() })
+  await authorizedFetch(`${BASE}/auth/2fa/disable`, { method: 'POST' })
 }
 
 // === Warranties ===
@@ -216,45 +245,41 @@ export interface Warranty {
 }
 
 export async function getWarranties(): Promise<Warranty[]> {
-  const res = await fetch(`${BASE}/warranties`, { headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/warranties`)
   return res.json()
 }
 
 export async function getExpiringWarranties(days = 30): Promise<{ warranty_id: string; document_title: string; expiry_date: string; days_remaining: number }[]> {
-  const res = await fetch(`${BASE}/warranties/expiring?days=${days}`, { headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/warranties/expiring?days=${days}`)
   return res.json()
 }
 
 // === Account ===
 export async function deleteAccount(): Promise<void> {
-  await fetch(`${BASE}/auth/account`, { method: 'DELETE', headers: getHeaders() })
+  await authorizedFetch(`${BASE}/auth/account`, { method: 'DELETE' })
 }
 
 // === Tags ===
 export async function getTags(): Promise<Tag[]> {
-  const res = await fetch(`${BASE}/tags`, { headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/tags`)
   return res.json()
 }
 
 export async function createTag(name: string, color?: string): Promise<Tag> {
-  const res = await fetch(`${BASE}/tags`, {
-    method: 'POST',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, color }),
-  })
+  const res = await authorizedFetch(`${BASE}/tags`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color }) })
   return res.json()
 }
 
 export async function deleteTag(tagId: string): Promise<void> {
-  await fetch(`${BASE}/tags/${tagId}`, { method: 'DELETE', headers: getHeaders() })
+  await authorizedFetch(`${BASE}/tags/${tagId}`, { method: 'DELETE' })
 }
 
 export async function addTagToDocument(documentId: string, tagId: string): Promise<void> {
-  await fetch(`${BASE}/tags/documents/${documentId}/tags/${tagId}`, { method: 'PUT', headers: getHeaders() })
+  await authorizedFetch(`${BASE}/tags/documents/${documentId}/tags/${tagId}`, { method: 'PUT' })
 }
 
 export async function removeTagFromDocument(documentId: string, tagId: string): Promise<void> {
-  await fetch(`${BASE}/tags/documents/${documentId}/tags/${tagId}`, { method: 'DELETE', headers: getHeaders() })
+  await authorizedFetch(`${BASE}/tags/documents/${documentId}/tags/${tagId}`, { method: 'DELETE' })
 }
 
 // === Version history ===
@@ -267,21 +292,17 @@ export interface DocumentVersion {
 }
 
 export async function updateDocumentText(documentId: string, rawText: string): Promise<Document> {
-  const res = await fetch(`${BASE}/documents/${documentId}`, {
-    method: 'PATCH',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw_text: rawText }),
-  })
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw_text: rawText }) })
   return res.json()
 }
 
 export async function getDocumentVersions(documentId: string): Promise<DocumentVersion[]> {
-  const res = await fetch(`${BASE}/documents/${documentId}/versions`, { headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}/versions`)
   return res.json()
 }
 
 export async function restoreDocumentVersion(documentId: string, versionId: string): Promise<Document> {
-  const res = await fetch(`${BASE}/documents/${documentId}/versions/${versionId}/restore`, { method: 'POST', headers: getHeaders() })
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}/versions/${versionId}/restore`, { method: 'POST' })
   return res.json()
 }
 
@@ -309,51 +330,35 @@ export interface ConversationDetail extends Conversation {
 }
 
 export async function listConversations(): Promise<Conversation[]> {
-  const res = handleUnauthorized(await fetch(`${BASE}/conversations`, { headers: getHeaders() }))
+  const res = await authorizedFetch(`${BASE}/conversations`)
   return res.json()
 }
 
 export async function createConversation(title?: string): Promise<Conversation> {
-  const res = await fetch(`${BASE}/conversations`, {
-    method: 'POST',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title }),
-  })
+  const res = await authorizedFetch(`${BASE}/conversations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) })
   return res.json()
 }
 
 export async function getConversation(id: string): Promise<ConversationDetail> {
-  const res = handleUnauthorized(await fetch(`${BASE}/conversations/${id}`, { headers: getHeaders() }))
+  const res = await authorizedFetch(`${BASE}/conversations/${id}`)
   return res.json()
 }
 
 export async function deleteConversation(id: string): Promise<void> {
-  await fetch(`${BASE}/conversations/${id}`, { method: 'DELETE', headers: getHeaders() })
+  await authorizedFetch(`${BASE}/conversations/${id}`, { method: 'DELETE' })
 }
 
 export async function renameConversation(id: string, title: string): Promise<Conversation> {
-  const res = await fetch(`${BASE}/conversations/${id}`, {
-    method: 'PATCH',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title }),
-  })
+  const res = await authorizedFetch(`${BASE}/conversations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) })
   return res.json()
 }
 
 export async function togglePinConversation(id: string, is_pinned: boolean): Promise<Conversation> {
-  const res = await fetch(`${BASE}/conversations/${id}`, {
-    method: 'PATCH',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ is_pinned }),
-  })
+  const res = await authorizedFetch(`${BASE}/conversations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_pinned }) })
   return res.json()
 }
 
 export async function sendMessage(conversationId: string, question: string, documentId?: string): Promise<{ user_message: ConversationMessage; assistant_message: ConversationMessage }> {
-  const res = await fetch(`${BASE}/conversations/${conversationId}/messages`, {
-    method: 'POST',
-    headers: { ...getHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, document_id: documentId || null }),
-  })
+  const res = await authorizedFetch(`${BASE}/conversations/${conversationId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, document_id: documentId || null }) })
   return res.json()
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Bell, CheckCircle, X, FileText, Upload, ShieldAlert } from 'lucide-react'
 import { getDocuments, getExpiringWarranties } from '@/lib/api'
 
@@ -45,6 +46,14 @@ export function useNotifications() {
   const markAllRead = useCallback(() => {
     setNotifications(prev => {
       const next = prev.map(n => ({ ...n, read: true }))
+      saveToSession(next)
+      return next
+    })
+  }, [])
+
+  const markRead = useCallback((id: string) => {
+    setNotifications(prev => {
+      const next = prev.map(n => (n.id === id ? { ...n, read: true } : n))
       saveToSession(next)
       return next
     })
@@ -111,18 +120,38 @@ export function useNotifications() {
 
   const unreadCount = notifications.filter(n => !n.read).length
 
-  return { notifications, unreadCount, add, markAllRead, remove }
+  return { notifications, unreadCount, add, markAllRead, markRead, remove }
 }
 
 interface Props {
   notifications: AppNotification[]
   unreadCount: number
   onMarkAllRead: () => void
+  onMarkRead: (id: string) => void
   onRemove: (id: string) => void
 }
 
-export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, onRemove }: Props) {
+export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, onMarkRead, onRemove }: Props) {
   const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+
+  function handleItemClick(n: AppNotification) {
+    if (!n.read) onMarkRead(n.id)
+    if (n.actionUrl) {
+      navigate(n.actionUrl)
+      setOpen(false)
+    }
+  }
+
+  // Close on any click anywhere (OS-style). Deferred by a tick so the opening
+  // click itself doesn't immediately re-close it. Clicks inside the panel call
+  // stopPropagation, so they never reach this listener.
+  useEffect(() => {
+    if (!open) return
+    function onClick() { setOpen(false) }
+    const timer = setTimeout(() => document.addEventListener('click', onClick), 0)
+    return () => { clearTimeout(timer); document.removeEventListener('click', onClick) }
+  }, [open])
 
   function getIcon(type: AppNotification['type']) {
     if (type === 'upload') return <Upload size={14} className="text-primary" />
@@ -144,7 +173,7 @@ export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, 
   return (
     <div className="relative">
       <button
-        onClick={() => { setOpen(o => !o); if (!open && unreadCount > 0) onMarkAllRead() }}
+        onClick={() => setOpen(o => !o)}
         className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
       >
@@ -158,11 +187,14 @@ export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, 
 
       {open && (
         <>
-          {/* Backdrop */}
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-
-          {/* Dropdown */}
-          <div className="absolute right-0 top-11 z-50 w-80 bg-card border border-border/50 rounded-xl shadow-2xl shadow-black/10 animate-scale-in overflow-hidden">
+          {/* Dropdown — fixed to the bottom-left so the sidebar can't clip it.
+              The bell lives in the bottom-left corner, so the panel floats just
+              above the profile row and stays fully on-screen (incl. mobile).
+              Clicks inside are stopped so the global close listener ignores them. */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="fixed bottom-16 left-3 z-50 w-80 max-w-[calc(100vw-1.5rem)] bg-card border border-border/50 rounded-xl shadow-2xl shadow-black/20 animate-scale-in overflow-hidden"
+          >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
               <p className="text-sm font-semibold">Notifications</p>
               {notifications.length > 0 && (
@@ -186,18 +218,22 @@ export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, 
                 notifications.map(n => (
                   <div
                     key={n.id}
-                    className={`flex items-start gap-3 px-4 py-3 border-b border-border/30 last:border-0 transition-colors hover:bg-accent/30 ${!n.read ? 'bg-primary/[0.02]' : ''}`}
+                    onClick={() => handleItemClick(n)}
+                    className={`flex items-start gap-3 px-4 py-3 border-b border-border/30 last:border-0 transition-colors hover:bg-accent/30 ${!n.read ? 'bg-primary/[0.02]' : ''} ${n.actionUrl ? 'cursor-pointer' : ''}`}
                   >
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${n.type === 'warranty' ? 'bg-amber-500/10' : n.type === 'processing' ? 'bg-green-50 dark:bg-green-950/30' : 'bg-primary/[0.07]'}`}>
                       {getIcon(n.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-medium">{n.title}</p>
+                      <div className="flex items-center gap-1.5">
+                        {!n.read && <span className="w-1.5 h-1.5 rounded-full gradient-bg shrink-0" aria-label="unread" />}
+                        <p className="text-[12px] font-medium truncate">{n.title}</p>
+                      </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{n.body}</p>
                       <p className="text-[10px] text-muted-foreground/50 mt-1">{formatTime(n.timestamp)}</p>
                     </div>
                     <button
-                      onClick={() => onRemove(n.id)}
+                      onClick={(e) => { e.stopPropagation(); onRemove(n.id) }}
                       className="p-0.5 rounded text-muted-foreground/40 hover:text-muted-foreground transition-colors shrink-0"
                       aria-label="Dismiss"
                     >
