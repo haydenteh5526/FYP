@@ -61,3 +61,20 @@ def verify_oauth_state(state: str) -> bool:
         return payload.get("type") == "oauth_state"
     except JWTError:
         return False
+
+
+def create_password_reset_token(user_id: uuid.UUID) -> str:
+    """Signed, short-lived (30 min) token emailed to the user to reset a password."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+    payload = {"sub": str(user_id), "exp": expire, "type": "password_reset"}
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+
+def verify_password_reset_token(token: str) -> uuid.UUID | None:
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        if payload.get("type") != "password_reset":
+            return None
+        return uuid.UUID(payload["sub"])
+    except (JWTError, ValueError, KeyError):
+        return None

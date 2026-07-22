@@ -73,12 +73,33 @@ async def test_warranties_requires_auth():
 
 
 @pytest.mark.asyncio
-async def test_password_reset_validates_input():
+async def test_reset_password_requires_token():
+    # New secure flow requires a token; posting without one is a validation error
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.post("/api/v1/auth/reset-password", json={
-            "email": "not-valid", "new_password": "newpass123"
+            "new_password": "newpass123"
         })
     assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_reset_password_rejects_invalid_token():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.post("/api/v1/auth/reset-password", json={
+            "token": "not-a-valid-token", "new_password": "newpass123"
+        })
+    assert res.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_is_generic():
+    # Must not reveal whether an email is registered (no enumeration)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.post("/api/v1/auth/forgot-password", json={
+            "email": "definitely-not-registered@example.com"
+        })
+    assert res.status_code == 200
+    assert "reset link" in res.json()["message"].lower()
 
 
 @pytest.mark.asyncio

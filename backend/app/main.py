@@ -3,13 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from sqlalchemy import text
 
 from app.config import settings
 from app.logging_config import configure_logging, get_logger, new_request_id, request_id_var
+from app.rate_limit import limiter
 from app.routers import ai, auth, categories, conversations, documents, notifications, search, tags, warranties
 
 configure_logging()
@@ -19,6 +18,14 @@ logger = get_logger("app")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.services.storage_service import ensure_bucket_exists
+
+    if settings.JWT_SECRET == "change-me-in-production":
+        logger.warning(
+            "JWT_SECRET is set to the insecure default. Set a strong random "
+            "JWT_SECRET in the environment before deploying to production."
+        )
+    from app.services.embedding_service import _select_provider
+    logger.info("Embedding provider: %s (EMBEDDING_PROVIDER=%s)", _select_provider(), settings.EMBEDDING_PROVIDER)
     try:
         ensure_bucket_exists()
         logger.info("Storage bucket ready")
@@ -33,7 +40,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 

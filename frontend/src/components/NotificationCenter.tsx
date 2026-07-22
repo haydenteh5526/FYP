@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, CheckCircle, X, FileText, Upload, ShieldAlert } from 'lucide-react'
 import { getDocuments, getExpiringWarranties } from '@/lib/api'
+import { relativeTime } from '@/lib/format'
 
 export interface AppNotification {
   id: string
@@ -13,23 +14,23 @@ export interface AppNotification {
   actionUrl?: string
 }
 
-const SESSION_KEY = 'docvault-notifications'
+const STORAGE_KEY = 'docvault-notifications'
 
-function loadFromSession(): AppNotification[] {
+function loadFromStorage(): AppNotification[] {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     return JSON.parse(raw).map((n: AppNotification) => ({ ...n, timestamp: new Date(n.timestamp) }))
   } catch { return [] }
 }
 
-function saveToSession(notifications: AppNotification[]) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(notifications))
+function saveToStorage(notifications: AppNotification[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications))
 }
 
 /** Hook for consuming notifications across the app */
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<AppNotification[]>(loadFromSession)
+  const [notifications, setNotifications] = useState<AppNotification[]>(loadFromStorage)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const knownCompleteRef = useRef<Set<string>>(new Set())
 
@@ -38,7 +39,7 @@ export function useNotifications() {
       // Deduplicate by title + body
       if (prev.some(p => p.title === n.title && p.body === n.body)) return prev
       const next = [{ ...n, id: Math.random().toString(36).slice(2), timestamp: new Date(), read: false }, ...prev].slice(0, 20)
-      saveToSession(next)
+      saveToStorage(next)
       return next
     })
   }, [])
@@ -46,7 +47,7 @@ export function useNotifications() {
   const markAllRead = useCallback(() => {
     setNotifications(prev => {
       const next = prev.map(n => ({ ...n, read: true }))
-      saveToSession(next)
+      saveToStorage(next)
       return next
     })
   }, [])
@@ -54,7 +55,7 @@ export function useNotifications() {
   const markRead = useCallback((id: string) => {
     setNotifications(prev => {
       const next = prev.map(n => (n.id === id ? { ...n, read: true } : n))
-      saveToSession(next)
+      saveToStorage(next)
       return next
     })
   }, [])
@@ -62,7 +63,7 @@ export function useNotifications() {
   const remove = useCallback((id: string) => {
     setNotifications(prev => {
       const next = prev.filter(n => n.id !== id)
-      saveToSession(next)
+      saveToStorage(next)
       return next
     })
   }, [])
@@ -161,13 +162,7 @@ export function NotificationCenter({ notifications, unreadCount, onMarkAllRead, 
   }
 
   function formatTime(date: Date) {
-    const diff = Date.now() - date.getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 1) return 'just now'
-    if (mins < 60) return `${mins}m ago`
-    const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs}h ago`
-    return date.toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })
+    return relativeTime(date)
   }
 
   return (

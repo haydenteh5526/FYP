@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, ArrowUpCircle, MoreVertical, Pin, Pencil, Trash2, Upload } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { listConversations, deleteConversation, renameConversation, togglePinConversation, type Conversation } from './lib/api'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
@@ -10,6 +11,8 @@ import { NotificationCenter, useNotifications } from './components/NotificationC
 import Landing from './pages/Landing'
 import AuthPage from './pages/Auth'
 import OAuthCallback from './pages/OAuthCallback'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
 import UploadPage from './pages/Upload'
@@ -43,6 +46,8 @@ function AppRoutes() {
       <Route path="/register" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="register" />} />
       <Route path="/verify" element={<VerifyEmail />} />
       <Route path="/auth/callback" element={<OAuthCallback />} />
+      <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/app" /> : <ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/app/*" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
         <Route index element={<AskAI />} />
         <Route path="documents" element={<Dashboard />} />
@@ -71,7 +76,11 @@ function AppShell() {
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  const queryClient = useQueryClient()
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: async () => (await listConversations()).filter(c => !c.title.startsWith('[')).slice(0, 10),
+  })
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -86,22 +95,13 @@ function AppShell() {
     }
   }, [token])
 
-  // Fetch conversations on mount and when navigating to Ask AI
-  const fetchConversations = useCallback(() => {
-    listConversations()
-      .then(data => setConversations(data.filter(c => !c.title.startsWith('[')).slice(0, 10)))
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    fetchConversations()
-  }, [fetchConversations])
-
+  // Refresh the sidebar conversation list when navigating into Ask AI
+  // (a new conversation may have been created there).
   useEffect(() => {
     if (location.pathname.startsWith('/app/ask')) {
-      fetchConversations()
+      queryClient.invalidateQueries({ queryKey: ['conversations'] })
     }
-  }, [location.pathname, fetchConversations])
+  }, [location.pathname, queryClient])
 
   // Global ⌘K → command palette
   useEffect(() => {
@@ -237,7 +237,7 @@ function AppShell() {
                     e.preventDefault()
                     if (renameValue.trim()) {
                       await renameConversation(conv.id, renameValue.trim())
-                      setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, title: renameValue.trim() } : c))
+                      queryClient.setQueryData<Conversation[]>(['conversations'], prev => (prev ?? []).map(c => c.id === conv.id ? { ...c, title: renameValue.trim() } : c))
                     }
                     setRenamingId(null)
                   }}
@@ -288,7 +288,7 @@ function AppShell() {
                         e.stopPropagation()
                         const newPinned = !conv.is_pinned
                         await togglePinConversation(conv.id, newPinned)
-                        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, is_pinned: newPinned } : c))
+                        queryClient.setQueryData<Conversation[]>(['conversations'], prev => (prev ?? []).map(c => c.id === conv.id ? { ...c, is_pinned: newPinned } : c))
                         setMenuOpenId(null)
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors"
@@ -313,7 +313,7 @@ function AppShell() {
                       onClick={async (e) => {
                         e.stopPropagation()
                         await deleteConversation(conv.id)
-                        setConversations(prev => prev.filter(c => c.id !== conv.id))
+                        queryClient.setQueryData<Conversation[]>(['conversations'], prev => (prev ?? []).filter(c => c.id !== conv.id))
                         if (location.pathname === `/app/ask/${conv.id}`) navigate('/app/ask')
                         setMenuOpenId(null)
                       }}

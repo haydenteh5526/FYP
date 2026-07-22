@@ -1,42 +1,34 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Folder, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { getCategories } from '@/lib/api'
-
-interface Category {
-  id: string
-  name: string
-}
+import { getCategories, createCategory } from '@/lib/api'
 
 export default function Categories() {
-  const [categories, setCategories] = useState<Category[]>([])
   const [newName, setNewName] = useState('')
-  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  useEffect(() => { loadCategories() }, [])
+  const { data: categories = [], isLoading: loading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: getCategories,
+  })
 
-  async function loadCategories() {
-    setLoading(true)
-    const data = await getCategories()
-    setCategories(data)
-    setLoading(false)
-  }
+  const createMutation = useMutation({
+    mutationFn: (name: string) => createCategory(name),
+    onSuccess: () => {
+      setNewName('')
+      queryClient.invalidateQueries({ queryKey: ['categories'] })
+    },
+  })
 
-  async function handleCreate(e: React.FormEvent) {
+  function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!newName.trim()) return
-    const token = localStorage.getItem('token')
-    await fetch('/api/v1/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: newName }),
-    })
-    setNewName('')
-    loadCategories()
+    createMutation.mutate(newName.trim())
   }
 
   return (

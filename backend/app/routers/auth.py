@@ -1,6 +1,6 @@
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,14 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.dependencies import get_current_user_id, get_db
 from app.models.base import User
+from app.rate_limit import limiter
 from app.services.auth_service import (
     create_access_token,
     create_oauth_state,
+    create_password_reset_token,
     create_refresh_token,
     decode_token,
     hash_password,
     verify_oauth_state,
     verify_password,
+    verify_password_reset_token,
 )
 
 router = APIRouter()
@@ -33,8 +36,12 @@ class LoginRequest(BaseModel):
     remember_me: bool = False
 
 
-class ResetPasswordRequest(BaseModel):
+class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
     new_password: str
 
 
@@ -54,7 +61,8 @@ class RegisterResponse(BaseModel):
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=201)
-async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(User).where(User.email == req.email))
     if existing.scalar_one_or_none():
         raise HTTPException(409, "Email already registered")
@@ -99,7 +107,8 @@ class LoginResponse(BaseModel):
 
 
 @router.post("/login")
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, req: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
 
@@ -163,7 +172,8 @@ class Verify2FARequest(BaseModel):
 
 
 @router.post("/login/2fa", response_model=TokenResponse)
-async def login_2fa(req: Verify2FARequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login_2fa(request: Request, req: Verify2FARequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
 
@@ -217,16 +227,45 @@ async def disable_2fa(db: AsyncSession = Depends(get_db), user_id=Depends(get_cu
     return {"message": "2FA disabled"}
 
 
-@router.post("/reset-password")
-async def reset_password(req: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+@router.post("/forgot-password")
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, req: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Send a password reset link if the email belongs to an account.
+
+    Always returns the same generic response so the endpoint cannot be used to
+    enumerate which emails are registered.
+    """
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
+    generic = {"message": "If an account exists for that email, a reset link has been sent."}
     if not user:
-        # Don't reveal whether email exists
-        return {"message": "If the email exists, the password has been reset"}
+        return generic
+
+    from app.services.email_service import send_password_reset_email
+    token = create_password_reset_token(user.id)
+    send_password_reset_email(user.email, token)
+    return generic
+
+
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+async def reset_password(request: Request, req: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Reset a password using a valid, signed reset token from the email link."""
+    if len(req.new_password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+
+    user_id = verify_password_reset_token(req.token)
+    if not user_id:
+        raise HTTPException(400, "Invalid or expired reset link")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(400, "Invalid or expired reset link")
+
     user.hashed_password = hash_password(req.new_password)
     await db.commit()
-    return {"message": "If the email exists, the password has been reset"}
+    return {"message": "Your password has been reset. You can now sign in."}
 
 
 @router.get("/me")

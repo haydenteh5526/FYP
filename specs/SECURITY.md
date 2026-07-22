@@ -2,7 +2,11 @@
 
 ## Authentication & Authorisation
 - [x] Passwords hashed with bcrypt
-- [x] JWT tokens with expiry (24h)
+- [x] Short-lived access tokens (30 min) + rotating refresh tokens (30 days / 1 day)
+- [x] Token-type validation (a refresh token cannot be used as an access token)
+- [x] Token-based password reset (signed, 30-min expiry; no email enumeration)
+- [x] Google OAuth with signed CSRF `state`; tokens returned via URL fragment
+- [x] Rate limiting on login, 2FA, register, forgot-password, reset-password
 - [x] All data endpoints require authentication
 - [x] Row-level isolation (users only access own documents)
 - [x] Token validation on every request
@@ -17,7 +21,7 @@
 ## Data Protection
 - [x] S3 bucket public access blocked (Terraform)
 - [x] Database in private subnet (Terraform)
-- [x] Pre-signed URLs expire after 15 minutes
+- [x] Pre-signed URLs are time-limited (15-min default for internal previews; user-chosen 1h–7d for share links)
 - [x] Secrets via environment variables (not in code)
 - [x] .env excluded from git
 

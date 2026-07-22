@@ -1,23 +1,23 @@
-import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, AlertTriangle, Calendar, CheckCircle2, ChevronRight, FileText } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { getWarranties, type Warranty } from '@/lib/api'
+import { getWarranties } from '@/lib/api'
+import { warrantyState, daysUntil } from '@/lib/format'
 
 export default function Warranties() {
-  const [warranties, setWarranties] = useState<Warranty[]>([])
-  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    getWarranties().then(data => { setWarranties(data); setLoading(false) })
-  }, [])
+  const { data: warranties = [], isLoading: loading } = useQuery({
+    queryKey: ['warranties'],
+    queryFn: getWarranties,
+  })
 
   function statusFor(expiry: string | null): { label: string; color: string; icon: React.ReactNode; bg: string } {
-    if (!expiry) return { label: 'No expiry set', color: 'text-muted-foreground', bg: 'bg-muted/50 border-border/50', icon: <Calendar size={13} /> }
-    const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    if (days < 0) return { label: 'Expired', color: 'text-destructive', bg: 'bg-destructive/10 border-destructive/20', icon: <AlertTriangle size={13} /> }
-    if (days <= 30) return { label: `Expires in ${days}d`, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200/60 dark:bg-amber-950/30 dark:border-amber-900/40', icon: <AlertTriangle size={13} /> }
+    const state = warrantyState(expiry)
+    if (state === 'none') return { label: 'No expiry set', color: 'text-muted-foreground', bg: 'bg-muted/50 border-border/50', icon: <Calendar size={13} /> }
+    const days = daysUntil(expiry) ?? 0
+    if (state === 'expired') return { label: 'Expired', color: 'text-destructive', bg: 'bg-destructive/10 border-destructive/20', icon: <AlertTriangle size={13} /> }
+    if (state === 'expiring') return { label: `Expires in ${days}d`, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200/60 dark:bg-amber-950/30 dark:border-amber-900/40', icon: <AlertTriangle size={13} /> }
     return { label: `Active (${days}d)`, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200/60 dark:bg-emerald-950/30 dark:border-emerald-900/40', icon: <CheckCircle2 size={13} /> }
   }
 

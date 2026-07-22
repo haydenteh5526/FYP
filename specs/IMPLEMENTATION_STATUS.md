@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Updated:** 2026-07-02  
+**Updated:** 2026-07-22
 **Status:** Feature-complete, pre-submission
 
 This document maps the original design spec to what was actually implemented, noting additions, changes, and deferred items.
@@ -23,6 +23,13 @@ This document maps the original design spec to what was actually implemented, no
 | Document sharing | ✅ Done | Time-limited presigned URLs (1h–7d) |
 | Biometric auth (mobile) | ✅ Done | FaceID/TouchID gate via expo-local-authentication |
 | Camera capture flow | ✅ Done | Preview → Retake/Upload → processing indicator |
+| Persistent sessions | ✅ Done | Short access token + rotating refresh token; "Keep me signed in"; silent refresh on 401 |
+| Google OAuth | ✅ Done | Direct Google sign-in with CSRF state; links to existing accounts by email |
+| Token-based password reset | ✅ Done | Signed 30-min reset link via email; no email enumeration |
+| Hybrid RAG retrieval | ✅ Done | Vector + full-text keyword fused via Reciprocal Rank Fusion, with a similarity floor |
+| LLM observability | ✅ Done | Optional Langfuse tracing of RAG generations (no-op without keys) |
+| Pinned embedding provider | ✅ Done | `EMBEDDING_PROVIDER` config keeps all vectors in one comparable space |
+| TanStack Query | ✅ Partial | Server-state caching for conversations, warranties, categories (pattern established for remaining pages) |
 
 ## Architecture Changes from Original Design
 
@@ -33,11 +40,11 @@ This document maps the original design spec to what was actually implemented, no
 | AI provider | AWS Bedrock | OpenAI GPT-4o-mini + text-embedding-3-small |
 | OCR | AWS Textract | Tesseract (local) with Textract as prod option |
 | Object storage | AWS S3 | MinIO locally, S3 in prod (identical API) |
-| Auth | AWS Cognito | Custom JWT + bcrypt + TOTP 2FA |
+| Auth | AWS Cognito | Custom JWT (HS256, 30-min access + 30-day refresh) + bcrypt + TOTP 2FA + Google OAuth |
 | Search | AWS OpenSearch | pgvector semantic + PostgreSQL full-text |
 | Caching | ElastiCache | Redis 7 (docker-compose service) |
 
-## Database Schema (8 migrations, all reversible)
+## Database Schema (13 migrations, all reversible)
 
 | Migration | Table(s) | Purpose |
 |-----------|----------|---------|
@@ -49,17 +56,26 @@ This document maps the original design spec to what was actually implemented, no
 | 006 | document_versions | OCR edit version history |
 | 007 | documents.processing_status | Background queue status |
 | 008 | push_tokens | Push notification device tokens |
+| 009 | documents.summary | AI-generated structured summary |
+| 010 | documents.is_favourite | Favourite/star documents |
+| 011 | conversations, conversation_messages | Persistent AI chat threads |
+| 012 | conversations.is_pinned | Pin conversations |
+| 013 | documents.summary → Text | Widen summary column for rich JSON summaries |
 
 ## API Endpoints (complete list)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/auth/register` | Create account |
-| POST | `/api/v1/auth/login` | Login, get JWT |
-| POST | `/api/v1/auth/reset-password` | Reset password |
+| POST | `/api/v1/auth/login` | Login, get JWT (access + refresh); `remember_me` extends refresh to 30d |
+| POST | `/api/v1/auth/login/2fa` | Verify TOTP code on login |
+| POST | `/api/v1/auth/refresh` | Exchange refresh token for a new access + refresh pair (rotated) |
+| POST | `/api/v1/auth/forgot-password` | Request a password reset link (generic response, no enumeration) |
+| POST | `/api/v1/auth/reset-password` | Reset password using a signed, expiring token from the email link |
+| GET | `/api/v1/auth/oauth/google` | Begin Google OAuth (redirects to consent) |
+| GET | `/api/v1/auth/oauth/google/callback` | Google OAuth callback (CSRF state, links by email) |
 | DELETE | `/api/v1/auth/account` | Delete account |
 | POST | `/api/v1/auth/2fa/setup` | Set up TOTP 2FA |
-| POST | `/api/v1/auth/2fa/verify` | Verify 2FA code on login |
 | POST | `/api/v1/documents` | Upload (returns pending; worker processes) |
 | GET | `/api/v1/documents` | List documents (filterable by brand/type/date) |
 | GET | `/api/v1/documents/{id}` | Get document detail (includes tags) |
@@ -120,11 +136,14 @@ This document maps the original design spec to what was actually implemented, no
 
 ## Security Measures
 
-- JWT RS256 tokens (configurable secret)
+- JWT HS256 tokens: short-lived access (30 min) + rotating refresh (30 days, or 1 day without "remember me"); token-type validation prevents using a refresh token as an access token
+- Token-based password reset (signed, 30-min expiry) — no email enumeration; replaced an earlier insecure email+new-password endpoint
 - bcrypt password hashing (passlib + bcrypt 4.0.1)
 - TOTP 2FA (pyotp + QR setup)
 - Email verification (Resend)
-- Rate limiting (slowapi)
+- Google OAuth with signed CSRF `state` and tokens returned via URL fragment
+- Rate limiting (slowapi) on login (10/min), 2FA, register, forgot-password, and reset-password (5/min)
+- Startup warning if `JWT_SECRET` is left at the insecure default
 - CORS with configurable origins
 - Per-user data isolation (all queries filter by user_id)
 - No secrets in client responses

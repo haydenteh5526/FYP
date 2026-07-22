@@ -13,6 +13,18 @@ def send_2fa_setup_email(to_email: str) -> None:
     _send(to_email, "2FA enabled on your DocVault account", html)
 
 
+def send_password_reset_email(to_email: str, token: str) -> None:
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    html = _build_html(
+        "Reset your password",
+        "We received a request to reset your DocVault password. This link expires in 30 minutes. "
+        "If you didn't request this, you can safely ignore this email.",
+        "Reset Password",
+        reset_url,
+    )
+    _send(to_email, "Reset your DocVault password", html, reset_url)
+
+
 def _send(to_email: str, subject: str, html: str, fallback_url: str | None = None) -> None:
     from app.logging_config import get_logger
     logger = get_logger("email")

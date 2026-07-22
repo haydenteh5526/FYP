@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRY_DAYS: int = 30
     REFRESH_TOKEN_EXPIRY_DAYS_SHORT: int = 1
     OLLAMA_URL: str = ""
+    EMBEDDING_PROVIDER: str = "auto"  # auto | ollama | gemini — pin to keep vectors comparable
+    LANGFUSE_PUBLIC_KEY: str = ""
+    LANGFUSE_SECRET_KEY: str = ""
+    LANGFUSE_HOST: str = "https://cloud.langfuse.com"
     COGNITO_DOMAIN: str = ""
     COGNITO_CLIENT_ID: str = ""
     COGNITO_REDIRECT_URI: str = "http://localhost:3000/auth/callback"
