@@ -16,8 +16,32 @@ def _cache_key(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _select_provider() -> str:
+    """Resolve which embedding provider to use.
+
+    Mixing providers is dangerous: nomic-embed-text (768d, padded) and
+    gemini-embedding-001 (3072d, truncated) live in different vector spaces,
+    so cosine similarity between them is meaningless. Pin EMBEDDING_PROVIDER
+    in production to guarantee every document + query uses the same model.
+    """
+    pinned = (settings.EMBEDDING_PROVIDER or "auto").lower()
+    if pinned == "ollama":
+        return "ollama"
+    if pinned == "gemini":
+        return "gemini"
+    if pinned not in ("auto", ""):
+        # Unknown value — fail safe to auto rather than silently misbehave
+        pass
+    # auto: prefer local Ollama, then Gemini, else zero-vector dev fallback
+    if settings.OLLAMA_URL:
+        return "ollama"
+    if settings.GEMINI_API_KEY:
+        return "gemini"
+    return "none"
+
+
 def get_embeddings(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings via Gemini, OpenAI, Ollama, or zero-vector fallback. Caches by content hash."""
+    """Generate embeddings via the configured provider. Caches by content hash."""
     if not texts:
         return []
 
@@ -40,9 +64,10 @@ def get_embeddings(texts: list[str]) -> list[list[float]]:
             uncached_texts.append(t)
 
     if uncached_texts:
-        if settings.OLLAMA_URL:
+        provider = _select_provider()
+        if provider == "ollama":
             fresh = _ollama_embeddings(uncached_texts)
-        elif settings.GEMINI_API_KEY:
+        elif provider == "gemini":
             fresh = _gemini_embeddings(uncached_texts)
         else:
             fresh = [[0.0] * EMBEDDING_DIM for _ in uncached_texts]

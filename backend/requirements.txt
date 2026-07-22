@@ -26,3 +26,4 @@ qrcode==7.4.2
 prometheus-client==0.21.0
 redis==5.2.0
 arq==0.26.3
+langfuse==2.60.10

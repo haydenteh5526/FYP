@@ -61,38 +61,105 @@ async def generate_rag_answer(
     query_embedding = embedding_service.get_embedding(question)
     embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
-    # 2. Retrieve top-5 relevant chunks (optionally scoped to one document)
-    params: dict = {"embedding": embedding_str, "user_id": str(user_id)}
+    # 2. Hybrid retrieval: run vector similarity AND full-text keyword search,
+    #    then fuse the two ranked lists with Reciprocal Rank Fusion (RRF).
+    #    This catches both semantic matches ("drainage issue" ~ "blocked filter")
+    #    and exact keyword/model-number matches that pure vectors can miss.
     doc_filter = ""
+    params: dict = {"embedding": embedding_str, "user_id": str(user_id)}
     if document_id:
         doc_filter = "AND dc.document_id = cast(:document_id as uuid)"
         params["document_id"] = document_id
 
-    result = await db.execute(
+    # 2a. Vector candidates (cosine similarity)
+    vec_result = await db.execute(
         text(f"""
-            SELECT dc.chunk_text, dc.document_id, d.title as document_title,
+            SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
                    1 - (dc.embedding <=> cast(:embedding as vector)) as similarity
             FROM doc_chunks dc
             JOIN documents d ON d.id = dc.document_id
             WHERE d.user_id = cast(:user_id as uuid)
             {doc_filter}
             ORDER BY dc.embedding <=> cast(:embedding as vector)
-            LIMIT 5
+            LIMIT 10
         """),
         params,
     )
-    rows = result.fetchall()
+    vec_rows = vec_result.fetchall()
 
-    if not rows:
+    # 2b. Keyword candidates (PostgreSQL full-text over chunk text)
+    kw_params: dict = {"q": question, "user_id": str(user_id)}
+    if document_id:
+        kw_params["document_id"] = document_id
+    kw_result = await db.execute(
+        text(f"""
+            SELECT dc.id as chunk_id, dc.chunk_text, dc.document_id, d.title as document_title,
+                   ts_rank(to_tsvector('english', dc.chunk_text), plainto_tsquery('english', :q)) as rank
+            FROM doc_chunks dc
+            JOIN documents d ON d.id = dc.document_id
+            WHERE d.user_id = cast(:user_id as uuid)
+            {doc_filter}
+              AND to_tsvector('english', dc.chunk_text) @@ plainto_tsquery('english', :q)
+            ORDER BY rank DESC
+            LIMIT 10
+        """),
+        kw_params,
+    )
+    kw_rows = kw_result.fetchall()
+
+    if not vec_rows and not kw_rows:
         return RAGResult(answer="I don't have any documents to answer from.", sources=[])
+
+    # 2c. Reciprocal Rank Fusion: score = sum(1 / (k + rank)) across both lists.
+    #     k=60 is the conventional constant. We keep the best vector similarity
+    #     per chunk so we can still apply a relevance floor and surface it.
+    RRF_K = 60
+    fused: dict = {}
+
+    def _add(rows, sim_getter):
+        for rank, row in enumerate(rows):
+            entry = fused.setdefault(row.chunk_id, {
+                "chunk_text": row.chunk_text,
+                "document_id": row.document_id,
+                "document_title": row.document_title,
+                "rrf": 0.0,
+                "similarity": 0.0,
+            })
+            entry["rrf"] += 1.0 / (RRF_K + rank + 1)
+            sim = sim_getter(row)
+            if sim is not None and sim > entry["similarity"]:
+                entry["similarity"] = sim
+
+    _add(vec_rows, lambda r: (r.similarity if r.similarity == r.similarity else 0.0))
+    _add(kw_rows, lambda r: None)  # keyword rows carry no cosine similarity
+
+    # 2d. Relevance floor: keep chunks that clear a semantic similarity
+    #     threshold. This filters out near-irrelevant chunks that would
+    #     otherwise pad the context and invite hallucination.
+    SIMILARITY_FLOOR = 0.25
+    ranked = sorted(fused.values(), key=lambda e: e["rrf"], reverse=True)
+    relevant = [e for e in ranked if e["similarity"] >= SIMILARITY_FLOOR]
+    if not relevant:
+        # No chunk cleared the semantic floor. If keyword search still produced
+        # matches (exact terms/model numbers), trust the top fused hits;
+        # otherwise report that we have nothing relevant.
+        if kw_rows:
+            relevant = ranked[:5]
+        else:
+            return RAGResult(
+                answer="I don't have information about that in your documents.",
+                sources=[],
+            )
+
+    top = relevant[:5]
 
     # 3. Build context from retrieved chunks
     context = "\n\n---\n\n".join(
-        f"[From: {row.document_title}]\n{row.chunk_text}" for row in rows
+        f"[From: {e['document_title']}]\n{e['chunk_text']}" for e in top
     )
 
     # 3b. Append warranty info if relevant documents have warranties
-    doc_ids = list(set(str(row.document_id) for row in rows))
+    doc_ids = list(set(str(e["document_id"]) for e in top))
     if doc_ids:
         warranty_result = await db.execute(
             text("""
@@ -114,15 +181,15 @@ async def generate_rag_answer(
     # 4. Generate answer via LLM (with conversation history)
     answer = _generate_answer(question, context, history)
 
-    # 5. Build sources
+    # 5. Build sources from the fused top chunks
     sources = [
         Source(
-            document_id=str(row.document_id),
-            document_title=row.document_title,
-            chunk_text=row.chunk_text[:200],
-            similarity=round(row.similarity, 4) if row.similarity == row.similarity else 0.0,
+            document_id=str(e["document_id"]),
+            document_title=e["document_title"],
+            chunk_text=e["chunk_text"][:200],
+            similarity=round(e["similarity"], 4),
         )
-        for row in rows
+        for e in top
     ]
 
     return RAGResult(answer=answer, sources=sources)
@@ -130,12 +197,27 @@ async def generate_rag_answer(
 
 def _generate_answer(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
     from app.config import settings
+    from app.services.observability import trace_generation
 
     if settings.GROQ_API_KEY:
-        return _generate_answer_groq(question, context, history)
-    if settings.GEMINI_API_KEY:
-        return _generate_answer_gemini(question, context, history)
-    return f"[Dev mode - no AI key] Based on your documents, here are relevant excerpts:\n\n{context[:500]}"
+        model = "llama-3.3-70b-versatile"
+    elif settings.GEMINI_API_KEY:
+        model = "gemini-2.0-flash"
+    else:
+        return f"[Dev mode - no AI key] Based on your documents, here are relevant excerpts:\n\n{context[:500]}"
+
+    with trace_generation(
+        name="rag_answer",
+        model=model,
+        input_text=question,
+        metadata={"context_chars": len(context)},
+    ) as record_output:
+        if settings.GROQ_API_KEY:
+            answer = _generate_answer_groq(question, context, history)
+        else:
+            answer = _generate_answer_gemini(question, context, history)
+        record_output(answer)
+        return answer
 
 
 def _generate_answer_groq(question: str, context: str, history: list[ChatTurn] | None = None) -> str:
