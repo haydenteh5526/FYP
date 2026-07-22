@@ -127,7 +127,8 @@ async def health_ready():
         healthy = False
 
     # AI provider (config presence only — no network call)
-    checks["ai"] = "openai" if settings.OPENAI_API_KEY else ("ollama" if settings.OLLAMA_URL else "dev-fallback")
+    from app.services.embedding_service import _select_provider
+    checks["ai"] = f"embeddings:{_select_provider()}"
 
     # Redis cache (optional — does not affect overall health)
     if settings.REDIS_URL:

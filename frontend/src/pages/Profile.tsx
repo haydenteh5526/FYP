@@ -4,12 +4,10 @@ import { Mail, Calendar, FileText, Star, FolderOpen, Sparkles } from 'lucide-rea
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useAuth } from '@/lib/auth'
-import { getDocuments, getCategories } from '@/lib/api'
+import { getDocuments, getCategories, getProfile, updateProfile } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 
 export default function ProfilePage() {
-  const { token } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
   const [profile, setProfile] = useState<{ email: string; display_name: string | null; created_at: string } | null>(null)
@@ -18,10 +16,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState({ docs: 0, folders: 0, favourites: 0 })
 
   useEffect(() => {
-    fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(setProfile)
-      .catch(() => {})
+    getProfile().then(setProfile).catch(() => {})
 
     // Fetch stats
     Promise.all([getDocuments(), getCategories()]).then(([docsData, cats]) => {
@@ -32,16 +27,12 @@ export default function ProfilePage() {
         favourites: docs.filter(d => d.is_favourite).length,
       })
     }).catch(() => {})
-  }, [token])
+  }, [])
 
   async function handleUpdateName() {
     const name = nameValue.trim()
     if (!name) { setEditingName(false); return }
-    await fetch('/api/v1/auth/me', {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ display_name: name }),
-    })
+    await updateProfile(name)
     setProfile(prev => prev ? { ...prev, display_name: name } : null)
     setEditingName(false)
     toast('Profile updated')

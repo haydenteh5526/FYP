@@ -4,7 +4,7 @@ import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Sun, Moon, S
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
-import { setup2FA, disable2FA, deleteAccount } from '@/lib/api'
+import { setup2FA, disable2FA, deleteAccount, getProfile, updateProfile } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import { useTheme } from '@/lib/theme'
 
@@ -58,7 +58,6 @@ function SettingsNavItem({ active, onClick, icon, label }: { active: boolean; on
 }
 
 function GeneralSettings() {
-  const { token } = useAuth()
   const { toast } = useToast()
   const { theme, toggle } = useTheme()
   const [profile, setProfile] = useState<{ email: string; display_name: string | null; created_at: string } | null>(null)
@@ -66,20 +65,15 @@ function GeneralSettings() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
+    getProfile()
       .then(data => { setProfile(data); if (data?.display_name) setNameValue(data.display_name) })
       .catch(() => {})
-  }, [token])
+  }, [])
 
   async function handleSaveName() {
     if (!nameValue.trim()) return
     setSaving(true)
-    await fetch('/api/v1/auth/me', {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ display_name: nameValue.trim() }),
-    })
+    await updateProfile(nameValue.trim())
     setProfile(prev => prev ? { ...prev, display_name: nameValue.trim() } : null)
     setSaving(false)
     toast('Profile updated')
