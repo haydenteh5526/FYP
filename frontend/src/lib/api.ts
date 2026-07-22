@@ -139,6 +139,28 @@ export async function verify2FA(email: string, password: string, code: string, r
   return res.json()
 }
 
+export interface UserProfile {
+  email: string
+  display_name: string | null
+  created_at: string
+}
+
+export async function getProfile(): Promise<UserProfile> {
+  const res = await authorizedFetch(`${BASE}/auth/me`)
+  if (!res.ok) throw new Error('Failed to load profile')
+  return res.json()
+}
+
+export async function updateProfile(displayName: string): Promise<{ email: string; display_name: string | null }> {
+  const res = await authorizedFetch(`${BASE}/auth/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ display_name: displayName }),
+  })
+  if (!res.ok) throw new Error('Failed to update profile')
+  return res.json()
+}
+
 export async function forgotPassword(email: string): Promise<{ message: string }> {
   const res = await fetch(`${BASE}/auth/forgot-password`, {
     method: 'POST',
@@ -319,6 +341,11 @@ export interface DocumentVersion {
 
 export async function updateDocumentText(documentId: string, rawText: string): Promise<Document> {
   const res = await authorizedFetch(`${BASE}/documents/${documentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw_text: rawText }) })
+  return res.json()
+}
+
+export async function renameDocument(documentId: string, title: string): Promise<Document> {
+  const res = await authorizedFetch(`${BASE}/documents/${documentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) })
   return res.json()
 }
 

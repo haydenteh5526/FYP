@@ -1,11 +1,9 @@
 import hashlib
 
 import httpx
-from openai import OpenAI
 
 from app.config import settings
 
-EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536
 
 # Simple in-process cache: sha256(text) -> embedding
@@ -119,16 +117,6 @@ def _gemini_embeddings(texts: list[str]) -> list[list[float]]:
             time.sleep(35)
 
     return embeddings
-
-
-def _openai_embeddings(texts: list[str]) -> list[list[float]]:
-    from app.services.retry import with_retry
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    response = with_retry(
-        lambda: client.embeddings.create(input=texts, model=EMBEDDING_MODEL),
-        label="openai.embeddings",
-    )
-    return [item.embedding for item in response.data]
 
 
 def _ollama_embeddings(texts: list[str]) -> list[list[float]]:

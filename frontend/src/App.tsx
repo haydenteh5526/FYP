@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, ArrowUpCircle, MoreVertical, Pin, Pencil, Trash2, Upload } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { listConversations, deleteConversation, renameConversation, togglePinConversation, type Conversation } from './lib/api'
+import { listConversations, deleteConversation, renameConversation, togglePinConversation, getProfile, type Conversation } from './lib/api'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
 import { OnboardingTour } from './components/OnboardingTour'
@@ -87,12 +87,10 @@ function AppShell() {
   const notifs = useNotifications()
 
   useEffect(() => {
-    if (token) {
-      fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) { setUserName(data.display_name || data.email.split('@')[0]); setUserEmail(data.email) } })
-        .catch(() => {})
-    }
+    if (!token) return
+    getProfile()
+      .then(data => { setUserName(data.display_name || data.email.split('@')[0]); setUserEmail(data.email) })
+      .catch(() => {})
   }, [token])
 
   // Refresh the sidebar conversation list when navigating into Ask AI

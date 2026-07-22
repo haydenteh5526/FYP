@@ -4,7 +4,7 @@ import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSqua
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, type Document } from '@/lib/api'
+import { getDocuments, deleteDocument, bulkDeleteDocuments, getCategories, createCategory, renameCategory, deleteCategory, moveToCategory, toggleFavourite, renameDocument, type Document } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import { AnalyticsWidgets } from '@/components/AnalyticsWidgets'
 import { DocumentPreviewModal } from '@/components/DocumentPreviewModal'
@@ -162,11 +162,7 @@ export default function Dashboard() {
   async function handleRenameDoc(docId: string) {
     const name = renameValue.trim()
     if (!name) { setRenamingDoc(null); return }
-    await fetch(`/api/v1/documents/${docId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ title: name }),
-    })
+    await renameDocument(docId, name)
     setAllDocs(allDocs.map(d => d.id === docId ? { ...d, title: name } : d))
     setRenamingDoc(null)
     toast('Document renamed')
