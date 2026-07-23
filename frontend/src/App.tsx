@@ -108,7 +108,7 @@ function AppShell() {
         e.preventDefault()
         setPaletteOpen(o => !o)
       }
-      if (e.key === 'Escape') setPaletteOpen(false)
+      if (e.key === 'Escape') { setPaletteOpen(false); setSettingsOpen(false); setUserMenuOpen(false) }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -146,6 +146,7 @@ function AppShell() {
                 onClick={() => setSidebarCollapsed(false)}
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 title="Open sidebar"
+                aria-label="Open sidebar"
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18"/></svg>
               </button>
@@ -159,6 +160,7 @@ function AppShell() {
                   onClick={() => setSidebarCollapsed(true)}
                   className="text-muted-foreground/50 hover:text-foreground transition-colors hidden lg:block"
                   title="Close sidebar"
+                  aria-label="Close sidebar"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18"/></svg>
                 </button>
@@ -269,6 +271,7 @@ function AppShell() {
                   <span className="truncate flex-1 font-medium">{conv.title || 'New conversation'}</span>
                   <span
                     role="button"
+                    aria-label="Conversation options"
                     onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv.id ? null : conv.id) }}
                     className={`p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-colors shrink-0 hidden sm:block sm:opacity-0 sm:group-hover:opacity-100`}
                   >
@@ -418,10 +421,11 @@ function AppShell() {
       {settingsOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSettingsOpen(false)} />
-          <div className="relative w-full max-w-4xl h-[85vh] bg-card border border-border/50 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
+          <div role="dialog" aria-modal="true" aria-label="Settings" className="relative w-full max-w-4xl h-[85vh] bg-card border border-border/50 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
             <button
               onClick={() => setSettingsOpen(false)}
               className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors z-10"
+              aria-label="Close settings"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
             </button>

@@ -634,7 +634,7 @@ export default function Dashboard() {
                       >
                         <Eye size={14} />
                       </button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={(e) => handleDelete(e, doc.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={(e) => handleDelete(e, doc.id)} aria-label="Delete document">
                         <Trash2 size={13} />
                       </Button>
                     </div>
