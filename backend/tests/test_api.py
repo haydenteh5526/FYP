@@ -107,3 +107,36 @@ async def test_delete_account_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.delete("/api/v1/auth/account")
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_refresh_rejects_invalid_token():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.post("/api/v1/auth/refresh", json={"refresh_token": "not-valid"})
+    assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_oauth_google_unconfigured_returns_501():
+    # No GOOGLE_CLIENT_ID in the test environment
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.get("/api/v1/auth/oauth/google")
+    assert res.status_code == 501
+
+
+@pytest.mark.asyncio
+async def test_oauth_callback_bad_state_redirects_with_error():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.get("/api/v1/auth/oauth/google/callback?code=x&state=bad")
+    assert res.status_code == 307
+    assert "error=invalid_state" in res.headers["location"]
+
+
+@pytest.mark.asyncio
+async def test_ai_status_reports_providers():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.get("/api/v1/ai/status")
+    assert res.status_code == 200
+    body = res.json()
+    for key in ("groq", "gemini", "ollama", "ocr_backend", "mode"):
+        assert key in body
