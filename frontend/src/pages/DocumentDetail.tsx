@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, FileText, Info, Eye, MessageSquare, Send, Bot, Check, Share2, X, Plus, Tag as TagIcon, Loader2, FolderOpen, Download, Star, Trash2, User, Sparkles, AlertTriangle, BookOpen, Zap, Hash, ChevronLeft, ChevronRight } from 'lucide-react'
 import Markdown from 'react-markdown'
@@ -11,8 +12,26 @@ import { useToast } from '@/components/Toast'
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [doc, setDoc] = useState<Document | null>(null)
-  const [notFound, setNotFound] = useState(false)
+  const queryClient = useQueryClient()
+  const docQuery = useQuery({
+    queryKey: ['document', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const data = await getDocument(id!)
+      if (!data || !data.id) throw new Error('Document not found')
+      return data
+    },
+    // Poll while the document is still being processed, then stop.
+    refetchInterval: (query) => {
+      const s = query.state.data?.processing_status
+      return s && s !== 'complete' && s !== 'failed' ? 3000 : false
+    },
+  })
+  const doc = docQuery.data ?? null
+  const notFound = docQuery.isError
+  // Cache-backed setter so existing optimistic `setDoc({...doc, ...})` calls
+  // keep working unchanged.
+  const setDoc = (updated: Document) => queryClient.setQueryData(['document', id], updated)
   const [searchParams] = useState(() => new URLSearchParams(window.location.search))
   const initialTab = (['preview', 'info', 'ask'].includes(searchParams.get('tab') || '') ? searchParams.get('tab') : 'info') as 'preview' | 'info' | 'ask'
   const [tab, setTabState] = useState<'preview' | 'info' | 'ask'>(initialTab)
@@ -26,30 +45,6 @@ export default function DocumentDetail() {
     params.set('tab', newTab)
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`)
   }
-
-  useEffect(() => {
-    if (id) getDocument(id).then(data => {
-      if (data && data.id) setDoc(data)
-      else setNotFound(true)
-    }).catch(() => setNotFound(true))
-  }, [id])
-
-  // Poll while processing — only update state when status changes to avoid re-rendering preview
-  useEffect(() => {
-    if (!doc || !id) return
-    if (doc.processing_status === 'complete' || doc.processing_status === 'failed') return
-    const timer = setInterval(async () => {
-      const updated = await getDocument(id)
-      if (updated.processing_status !== doc.processing_status) {
-        setDoc(updated)
-      }
-      if (updated.processing_status === 'complete' || updated.processing_status === 'failed') {
-        clearInterval(timer)
-        setDoc(updated) // final update with all data
-      }
-    }, 3000)
-    return () => clearInterval(timer)
-  }, [doc?.processing_status, id])
 
   // Keep the first image_url we get stable so preview doesn't re-load on polls
   if (doc?.image_url && !stableImageUrl.current) {
