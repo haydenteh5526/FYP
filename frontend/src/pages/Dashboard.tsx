@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Trash2, FolderOpen, FolderPlus, ChevronRight, Home, CheckSquare, Square, Upload, Loader2, Pencil, LayoutGrid, List, ArrowUpDown, Filter, Star, BarChart2, ChevronDown, Eye, CloudOff } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,10 +16,6 @@ type ViewMode = 'grid' | 'list'
 type FileFilter = 'all' | 'pdf' | 'image'
 
 export default function Dashboard() {
-  const [allDocs, setAllDocs] = useState<Document[]>([])
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
@@ -41,52 +38,57 @@ export default function Dashboard() {
   const currentFolder = searchParams.get('folder')
   const navigate = useNavigate()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
-  useEffect(() => { load() }, [])
+  const docsQuery = useQuery({
+    queryKey: ['documents'],
+    queryFn: async () => (await getDocuments()).documents,
+    // Poll every 3s while any document is still processing, otherwise stop.
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        d => d.processing_status && d.processing_status !== 'complete' && d.processing_status !== 'failed',
+      )
+        ? 3000
+        : false,
+  })
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: getCategories,
+  })
 
-  // Poll while processing
+  const allDocs = docsQuery.data ?? []
+  const loading = docsQuery.isLoading
+  const error = docsQuery.isError
+
+  // Optimistic cache updaters (replace the old setAllDocs/setCategories).
+  const setDocs = (updater: (docs: Document[]) => Document[]) =>
+    queryClient.setQueryData<Document[]>(['documents'], (old = []) => updater(old))
+  const setCats = (updater: (cats: { id: string; name: string }[]) => { id: string; name: string }[]) =>
+    queryClient.setQueryData<{ id: string; name: string }[]>(['categories'], (old = []) => updater(old))
+
+  // Toast when a document transitions to complete/failed (replaces the old
+  // manual polling loop; refetchInterval above drives the refresh).
+  const prevStatusRef = useRef<Record<string, string>>({})
   useEffect(() => {
-    const anyProcessing = allDocs.some(d => d.processing_status && d.processing_status !== 'complete' && d.processing_status !== 'failed')
-    if (!anyProcessing) return
-    const timer = setInterval(async () => {
-      try {
-        const docsData = await getDocuments()
-        const updated = Array.isArray(docsData?.documents) ? docsData.documents : []
-        // Check if any doc just finished processing
-        updated.forEach(d => {
-          const prev = allDocs.find(p => p.id === d.id)
-          if (prev && prev.processing_status !== 'complete' && d.processing_status === 'complete') {
-            toast(`"${d.title}" processed successfully`, 'success')
-          }
-          if (prev && prev.processing_status !== 'failed' && d.processing_status === 'failed') {
-            toast(`"${d.title}" processing failed`, 'error')
-          }
-        })
-        setAllDocs(updated)
-      } catch { /* ignore */ }
-    }, 3000)
-    return () => clearInterval(timer)
-  }, [allDocs])
-
-  async function load() {
-    setLoading(true)
-    setError(false)
-    try {
-      const [docsData, catsData] = await Promise.all([getDocuments(), getCategories()])
-      setAllDocs(Array.isArray(docsData?.documents) ? docsData.documents : [])
-      setCategories(Array.isArray(catsData) ? catsData : [])
-    } catch {
-      setError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+    const docs = docsQuery.data
+    if (!docs) return
+    docs.forEach(d => {
+      const prev = prevStatusRef.current[d.id]
+      if (prev && prev !== 'complete' && d.processing_status === 'complete') {
+        toast(`"${d.title}" processed successfully`, 'success')
+      }
+      if (prev && prev !== 'failed' && d.processing_status === 'failed') {
+        toast(`"${d.title}" processing failed`, 'error')
+      }
+    })
+    prevStatusRef.current = Object.fromEntries(docs.map(d => [d.id, d.processing_status || '']))
+  }, [docsQuery.data, toast])
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation()
     const doc = allDocs.find(d => d.id === id)
     // Optimistically remove from UI
-    setAllDocs(allDocs.filter(d => d.id !== id))
+    setDocs(docs => docs.filter(d => d.id !== id))
     setSelected(prev => { const n = new Set(prev); n.delete(id); return n })
     // Delay actual deletion — allow undo
     let cancelled = false
@@ -95,7 +97,7 @@ export default function Dashboard() {
     }, 5000)
     toast(`"${doc?.title || 'Document'}" deleted`, 'info', {
       label: 'Undo',
-      onClick: () => { cancelled = true; clearTimeout(timer); if (doc) setAllDocs(prev => [...prev, doc]) },
+      onClick: () => { cancelled = true; clearTimeout(timer); if (doc) setDocs(docs => [...docs, doc]) },
     })
   }
 
@@ -112,7 +114,7 @@ export default function Dashboard() {
   async function handleBulkDelete() {
     const ids = [...selected]
     await bulkDeleteDocuments(ids)
-    setAllDocs(allDocs.filter(d => !selected.has(d.id)))
+    setDocs(docs => docs.filter(d => !selected.has(d.id)))
     setSelected(new Set())
     toast(`${ids.length} document${ids.length > 1 ? 's' : ''} deleted`)
   }
@@ -121,7 +123,7 @@ export default function Dashboard() {
     const name = newFolderName.trim()
     if (!name) return
     const cat = await createCategory(name)
-    setCategories([...categories, cat])
+    setCats(cats => [...cats, cat])
     setCreatingFolder(false)
     setNewFolderName('')
     toast(`Folder "${name}" created`)
@@ -131,7 +133,7 @@ export default function Dashboard() {
     const name = editFolderName.trim()
     if (!name) return
     const updated = await renameCategory(id, name)
-    setCategories(categories.map(c => c.id === id ? updated : c))
+    setCats(cats => cats.map(c => c.id === id ? updated : c))
     setEditingFolder(null)
     setEditFolderName('')
   }
@@ -139,9 +141,9 @@ export default function Dashboard() {
   async function handleDeleteFolder(e: React.MouseEvent, id: string) {
     e.stopPropagation()
     await deleteCategory(id)
-    setCategories(categories.filter(c => c.id !== id))
+    setCats(cats => cats.filter(c => c.id !== id))
     // Docs in this folder become uncategorised
-    setAllDocs(allDocs.map(d => d.category_id === id ? { ...d, category_id: null } : d))
+    setDocs(docs => docs.map(d => d.category_id === id ? { ...d, category_id: null } : d))
     if (currentFolder === id) setSearchParams({})
   }
 
@@ -163,7 +165,7 @@ export default function Dashboard() {
     const name = renameValue.trim()
     if (!name) { setRenamingDoc(null); return }
     await renameDocument(docId, name)
-    setAllDocs(allDocs.map(d => d.id === docId ? { ...d, title: name } : d))
+    setDocs(docs => docs.map(d => d.id === docId ? { ...d, title: name } : d))
     setRenamingDoc(null)
     toast('Document renamed')
   }
@@ -171,7 +173,7 @@ export default function Dashboard() {
   async function handleToggleFavourite(e: React.MouseEvent, docId: string) {
     e.stopPropagation()
     const result = await toggleFavourite(docId)
-    setAllDocs(allDocs.map(d => d.id === docId ? { ...d, is_favourite: result.is_favourite } : d))
+    setDocs(docs => docs.map(d => d.id === docId ? { ...d, is_favourite: result.is_favourite } : d))
   }
 
   function handleDragOverFolder(e: React.DragEvent, folderId: string) {
@@ -183,7 +185,7 @@ export default function Dashboard() {
     if (dragDocId) {
       const categoryId = folderId === '__root__' ? null : folderId
       await moveToCategory(dragDocId, categoryId)
-      setAllDocs(allDocs.map(d => d.id === dragDocId ? { ...d, category_id: categoryId } : d))
+      setDocs(docs => docs.map(d => d.id === dragDocId ? { ...d, category_id: categoryId } : d))
       const folderName = folderId === '__root__' ? 'All Documents' : categories.find(c => c.id === folderId)?.name || 'folder'
       toast(`Moved to ${folderName}`)
     }
@@ -384,7 +386,7 @@ export default function Dashboard() {
             </div>
             <h3 className="text-xl font-bold text-foreground">Connection Lost</h3>
             <p className="text-sm text-muted-foreground mt-2 max-w-sm">We couldn't connect to the secure vault to retrieve your documents. Please check your connection and try again.</p>
-            <Button className="mt-8 rounded-full shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 px-8" onClick={load}>
+            <Button className="mt-8 rounded-full shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 px-8" onClick={() => docsQuery.refetch()}>
               Try Again
             </Button>
           </CardContent>
