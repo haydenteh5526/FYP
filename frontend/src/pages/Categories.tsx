@@ -5,6 +5,7 @@ import { Plus, Folder, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
+import { QueryError } from '@/components/QueryError'
 import { getCategories, createCategory } from '@/lib/api'
 
 export default function Categories() {
@@ -12,7 +13,7 @@ export default function Categories() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const { data: categories = [], isLoading: loading } = useQuery({
+  const { data: categories = [], isLoading: loading, isError, refetch } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
   })
@@ -44,7 +45,9 @@ export default function Categories() {
       </form>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {loading ? (
+        {isError ? (
+          <div className="col-span-2"><QueryError message="Couldn't load categories." onRetry={() => refetch()} /></div>
+        ) : loading ? (
           [...Array(4)].map((_, i) => <Card key={i} className="animate-pulse"><CardContent className="h-16" /></Card>)
         ) : categories.length === 0 ? (
           <p className="text-sm text-muted-foreground col-span-2 text-center py-8">No categories yet. Documents you upload get auto-categorised.</p>
