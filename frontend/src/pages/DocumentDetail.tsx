@@ -108,7 +108,7 @@ export default function DocumentDetail() {
         
         <div className="relative px-4 sm:px-8 pt-6 pb-4">
           <div className="flex items-start gap-5">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-background/80 hover:shadow-sm">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-background/80 hover:shadow-sm" aria-label="Go back">
               <ArrowLeft size={18} className="text-muted-foreground" />
             </Button>
             
@@ -137,7 +137,7 @@ export default function DocumentDetail() {
 
             {/* Top right actions */}
             <div className="flex items-center gap-2 shrink-0">
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-amber-500/10" onClick={handleToggleFavourite}>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-amber-500/10" onClick={handleToggleFavourite} aria-label={doc.is_favourite ? 'Remove from favourites' : 'Add to favourites'}>
                 <Star size={16} className={doc.is_favourite ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'} />
               </Button>
               {stableImageUrl.current && (
