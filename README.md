@@ -9,7 +9,7 @@ A cloud-based document management app that lets you digitise physical documents 
 ### Prerequisites
 - Docker & Docker Compose
 - Node.js 20+
-- (Optional) OpenAI API key for AI features
+- (Optional) A Groq or Google Gemini API key for AI Q&A (embeddings run locally via Ollama by default)
 
 ### Run the app
 
@@ -36,11 +36,11 @@ Scan the QR code with Expo Go on your phone.
 | Feature | Description |
 |---------|-------------|
 | 📷 Document Capture | Upload photos of physical documents (JPEG, PNG, WebP, PDF) |
-| 🔍 OCR | Automatic text extraction via Tesseract (local) or AWS Textract (prod) |
-| 🏷️ Auto-Categorisation | AI detects brand, model, and document type |
-| 🔎 Semantic Search | Find documents by meaning, not just keywords |
-| 💬 AI Q&A | Ask questions and get answers grounded in your documents |
-| 🔒 Authentication | JWT-based auth with per-user data isolation |
+| 🔍 OCR | Text extraction via Tesseract (default), Mistral OCR, or AWS Textract — set by `OCR_BACKEND` |
+| 🏷️ Auto-Categorisation | AI detects brand, model, and document type (Mistral) |
+| 🔎 Hybrid Search | Vector + full-text search fused with Reciprocal Rank Fusion — find by meaning or exact terms |
+| 💬 AI Q&A | Ask questions and get answers grounded in your documents (RAG with a relevance floor) |
+| 🔒 Authentication | JWT access + refresh tokens, TOTP 2FA, Google OAuth, per-user data isolation |
 | 📱 Cross-Platform | Web app + React Native mobile app |
 | ☁️ Cloud-Ready | Terraform modules for AWS deployment |
 
@@ -62,7 +62,8 @@ graph TB
     end
 
     subgraph External
-        OpenAI["OpenAI API<br/>GPT-4o-mini + Embeddings"]
+        LLM["Groq (Llama 3.3 70B)<br/>or Gemini 2.0 Flash<br/>(Q&A)"]
+        Embed["Ollama (nomic-embed-text)<br/>or Gemini (embeddings)"]
         Expo["Expo Push API<br/>(Notifications)"]
         Resend["Resend<br/>(Email)"]
     end
@@ -75,10 +76,11 @@ graph TB
     Worker -->|writes results| DB
     API -->|upload/presign| S3
     Worker -->|download for OCR| S3
-    API -->|embeddings + chat| OpenAI
-    Worker -->|embeddings + categorise| OpenAI
+    API -->|embed query + chat| LLM
+    API -->|embed query| Embed
+    Worker -->|embeddings + categorise| Embed
     Worker -->|warranty reminders| Expo
-    API -->|email verification| Resend
+    API -->|email verification/reset| Resend
     API -->|cache get/set| Redis
 ```
 
@@ -91,7 +93,7 @@ sequenceDiagram
     participant R as Redis
     participant W as Worker
     participant S as S3
-    participant AI as OpenAI
+    participant AI as AI providers
 
     U->>A: POST /documents (image)
     A->>S: Upload original file
@@ -112,16 +114,22 @@ sequenceDiagram
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/auth/register` | Create account |
-| POST | `/api/v1/auth/login` | Login, get token |
+| POST | `/api/v1/auth/register` | Create account (email verification) |
+| POST | `/api/v1/auth/login` | Login → access + refresh tokens (2FA-aware) |
+| POST | `/api/v1/auth/refresh` | Rotate refresh token for a new access token |
+| POST | `/api/v1/auth/forgot-password` | Request a password reset link |
+| POST | `/api/v1/auth/reset-password` | Reset password with an emailed token |
+| GET | `/api/v1/auth/oauth/google` | Begin Google OAuth sign-in |
 | POST | `/api/v1/documents` | Upload document (OCR + AI) |
 | GET | `/api/v1/documents` | List documents (filterable) |
 | GET | `/api/v1/documents/{id}` | Get document detail |
 | PATCH | `/api/v1/documents/{id}` | Update metadata |
 | DELETE | `/api/v1/documents/{id}` | Delete document |
 | POST | `/api/v1/documents/{id}/reprocess` | Re-run OCR + AI |
-| GET | `/api/v1/search?q=` | Semantic search |
+| GET | `/api/v1/search?q=` | Hybrid search (vector + keyword) |
 | POST | `/api/v1/ai/ask` | Ask a question (RAG) |
+| GET | `/api/v1/ai/status` | AI provider availability |
+| GET | `/api/v1/conversations` | List saved AI chat threads |
 | GET | `/api/v1/categories` | List categories |
 | POST | `/api/v1/categories` | Create category |
 | GET | `/api/v1/warranties` | List warranties |
@@ -158,9 +166,9 @@ Full Swagger docs at http://localhost:8000/docs
 | Mobile | React Native, Expo |
 | Database | PostgreSQL 16 + pgvector |
 | Storage | AWS S3 (MinIO locally) |
-| AI/ML | OpenAI GPT-4o-mini, text-embedding-3-small, Tesseract OCR |
+| AI/ML | Q&A via Groq (Llama 3.3 70B) / Gemini 2.0 Flash · embeddings via Ollama (nomic-embed-text) / Gemini · categorisation via Mistral · OCR via Tesseract/Mistral |
 | Infrastructure | Terraform, Docker, GitHub Actions CI/CD |
-| Security | JWT auth, bcrypt, rate limiting, CORS |
+| Security | JWT access+refresh, bcrypt, TOTP 2FA, Google OAuth, rate limiting, CORS |
 
 ## Configuration
 
@@ -172,13 +180,23 @@ Copy `.env.example` to `.env` and set:
 | `S3_ENDPOINT` | S3/MinIO endpoint | Yes |
 | `S3_ACCESS_KEY` | S3 access key | Yes |
 | `S3_SECRET_KEY` | S3 secret key | Yes |
-| `OPENAI_API_KEY` | OpenAI API key | For AI features |
 | `JWT_SECRET` | Secret for token signing | Yes (production) |
-| `OCR_BACKEND` | `tesseract` or `textract` | No (default: tesseract) |
+| `GROQ_API_KEY` | Groq API key (Q&A) | For AI Q&A |
+| `GEMINI_API_KEY` | Google Gemini key (Q&A + embedding fallback) | Optional |
+| `MISTRAL_API_KEY` | Mistral key (categorisation + Mistral OCR) | Optional |
+| `OLLAMA_URL` | Ollama endpoint for local embeddings | Optional (default in Docker) |
+| `EMBEDDING_PROVIDER` | `auto` / `ollama` / `gemini` — pins the embedding model | No (default: auto) |
+| `OCR_BACKEND` | `tesseract`, `mistral`, or `textract` | No (default: tesseract) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Enable Google OAuth sign-in | Optional |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Enable LLM tracing | Optional |
+| `RESEND_API_KEY` | Transactional email (verification, reset) | Optional |
 
 ## Testing
 
 ```bash
+# Install dev/test tooling (pytest, ruff, coverage)
+cd backend && pip install -r requirements.txt -r dev-requirements.txt
+
 # Backend tests (run in CI or fresh container)
 cd backend && pytest tests/ -v
 
@@ -229,7 +247,7 @@ pip install pre-commit && pre-commit install
 | `GET /health` | Liveness probe (fast, no dependencies) |
 | `GET /health/ready` | Readiness — checks DB, S3, AI, and cache; returns 503 if degraded |
 | `GET /metrics` | Prometheus metrics (request count + latency histograms) |
-| `GET /api/v1/ai/status` | AI provider availability (OpenAI / Ollama / OCR backend) |
+| `GET /api/v1/ai/status` | AI provider availability (Groq / Gemini / Ollama / OCR backend) |
 
 Requests are correlated via an `X-Request-ID` header (generated if absent) and surfaced in structured logs. Redis provides response/embedding caching with a graceful in-memory fallback when unavailable.
 

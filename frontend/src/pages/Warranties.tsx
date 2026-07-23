@@ -2,12 +2,13 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, AlertTriangle, Calendar, CheckCircle2, ChevronRight, FileText } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { QueryError } from '@/components/QueryError'
 import { getWarranties } from '@/lib/api'
 import { warrantyState, daysUntil } from '@/lib/format'
 
 export default function Warranties() {
   const navigate = useNavigate()
-  const { data: warranties = [], isLoading: loading } = useQuery({
+  const { data: warranties = [], isLoading: loading, isError, refetch } = useQuery({
     queryKey: ['warranties'],
     queryFn: getWarranties,
   })
@@ -34,7 +35,9 @@ export default function Warranties() {
         <p className="text-muted-foreground text-sm mt-1.5 font-medium ml-13">Track warranty expiry across your documents automatically.</p>
       </div>
 
-      {loading ? (
+      {isError ? (
+        <QueryError message="Couldn't load your warranties." onRetry={() => refetch()} />
+      ) : loading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
             <Card key={i} className="animate-pulse border-border/40">
