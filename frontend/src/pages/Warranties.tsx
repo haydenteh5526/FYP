@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ShieldCheck, AlertTriangle, Calendar, CheckCircle2, ChevronRight, FileText } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, Calendar, CheckCircle2, ChevronRight, FileText, CalendarPlus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { QueryError } from '@/components/QueryError'
 import { getWarranties } from '@/lib/api'
 import { warrantyState, daysUntil } from '@/lib/format'
+import { downloadICS } from '@/lib/ics'
 
 export default function Warranties() {
   const navigate = useNavigate()
@@ -31,6 +33,21 @@ export default function Warranties() {
             <ShieldCheck className="h-5 w-5 text-white" />
           </div>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground/90">Warranties</h2>
+          {warranties.some(w => w.expiry_date) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto h-8 text-xs gap-1.5 rounded-full"
+              onClick={() => downloadICS(
+                'docvault-warranties.ics',
+                warranties
+                  .filter(w => w.expiry_date)
+                  .map(w => ({ id: w.id, title: w.document_title, expiry: w.expiry_date!, notes: w.notes })),
+              )}
+            >
+              <CalendarPlus size={14} /> Add all to calendar
+            </Button>
+          )}
         </div>
         <p className="text-muted-foreground text-sm mt-1.5 font-medium ml-13">Track warranty expiry across your documents automatically.</p>
       </div>
@@ -100,6 +117,16 @@ export default function Warranties() {
                   </div>
                   
                   <div className="flex items-center gap-4 shrink-0">
+                    {w.expiry_date && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); downloadICS(`warranty-${w.document_title}.ics`, [{ id: w.id, title: w.document_title, expiry: w.expiry_date!, notes: w.notes }]) }}
+                        className="p-2 rounded-lg text-muted-foreground/60 hover:text-amber-600 hover:bg-amber-500/10 transition-colors"
+                        aria-label="Add warranty expiry to calendar"
+                        title="Add to calendar"
+                      >
+                        <CalendarPlus size={16} />
+                      </button>
+                    )}
                     <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${status.bg} ${status.color}`}>
                       {status.icon} {status.label}
                     </div>
