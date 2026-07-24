@@ -141,6 +141,11 @@ async def main():
         check("ai_answer_grounded", "40" in ans or len(srcs) > 0,
               f"sources={len(srcs)}")
 
+        # 8. Export (JSON) — the uploaded doc should appear in the export
+        r = await c.get(f"{BASE}/documents/export", headers=auth, params={"format": "json"})
+        check("export_json", r.status_code == 200 and str(doc_id) in r.text,
+              f"{r.status_code} bytes={len(r.text)}")
+
         # Cleanup: delete the test document
         await c.delete(f"{BASE}/documents/{doc_id}", headers=auth)
 

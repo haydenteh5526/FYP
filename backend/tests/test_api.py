@@ -45,6 +45,13 @@ async def test_documents_requires_auth():
 
 
 @pytest.mark.asyncio
+async def test_export_requires_auth():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.get("/api/v1/documents/export")
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_search_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/search?q=test")

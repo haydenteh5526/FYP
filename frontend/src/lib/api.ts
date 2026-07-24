@@ -206,6 +206,19 @@ export async function getDocuments(categoryId?: string): Promise<{ documents: Do
   return res.json()
 }
 
+export async function exportDocuments(format: 'json' | 'csv'): Promise<void> {
+  const res = await authorizedFetch(`${BASE}/documents/export?format=${format}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `docvault-export.${format}`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 export async function getDocument(id: string): Promise<Document> {
   const res = await authorizedFetch(`${BASE}/documents/${id}`)
   return res.json()

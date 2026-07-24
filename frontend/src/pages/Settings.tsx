@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Sun, Moon, Sparkles, Check, CreditCard } from 'lucide-react'
+import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Sun, Moon, Sparkles, Check, CreditCard, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
-import { setup2FA, disable2FA, deleteAccount, getProfile, updateProfile } from '@/lib/api'
+import { setup2FA, disable2FA, deleteAccount, getProfile, updateProfile, exportDocuments } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import { useTheme } from '@/lib/theme'
 
@@ -63,6 +63,19 @@ function GeneralSettings() {
   const [profile, setProfile] = useState<{ email: string; display_name: string | null; created_at: string } | null>(null)
   const [nameValue, setNameValue] = useState('')
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState<'json' | 'csv' | null>(null)
+
+  async function handleExport(format: 'json' | 'csv') {
+    setExporting(format)
+    try {
+      await exportDocuments(format)
+      toast(`Exported your documents as ${format.toUpperCase()}`, 'success')
+    } catch {
+      toast('Export failed. Please try again.', 'error')
+    } finally {
+      setExporting(null)
+    }
+  }
 
   useEffect(() => {
     getProfile()
@@ -144,6 +157,22 @@ function GeneralSettings() {
               </button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <hr className="border-border/30" />
+
+      {/* Data export section */}
+      <section>
+        <h3 className="text-sm font-semibold mb-1">Your data</h3>
+        <p className="text-sm text-muted-foreground mb-4">Download a copy of all your documents — metadata and extracted text. Your data is never locked in.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleExport('json')} disabled={exporting !== null} aria-label="Export all documents as JSON">
+            <Download size={14} className="mr-1.5" /> {exporting === 'json' ? 'Exporting…' : 'Export JSON'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleExport('csv')} disabled={exporting !== null} aria-label="Export document list as CSV">
+            <Download size={14} className="mr-1.5" /> {exporting === 'csv' ? 'Exporting…' : 'Export CSV'}
+          </Button>
         </div>
       </section>
     </div>

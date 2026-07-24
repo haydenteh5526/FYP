@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
@@ -141,6 +141,77 @@ async def list_documents(
     return DocumentList(
         documents=[_to_response(d) for d in docs],
         total=total,
+    )
+
+
+@router.get("/export")
+async def export_documents(
+    fmt: str = Query("json", alias="format", pattern="^(json|csv)$"),
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Export all of the user's documents so their data isn't locked in.
+
+    - ``format=json`` (default): full export including metadata + extracted text.
+    - ``format=csv``: spreadsheet-friendly list of metadata (no extracted text).
+
+    Both download as a file attachment.
+    """
+    import csv
+    import io
+    import json
+    from datetime import datetime, timezone
+
+    result = await db.execute(
+        select(Document).where(Document.user_id == user_id).order_by(Document.created_at.desc())
+    )
+    docs = result.scalars().all()
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+
+    if fmt == "csv":
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow([
+            "title", "brand", "model", "document_type", "file_size",
+            "page_count", "processing_status", "is_favourite", "created_at",
+        ])
+        for d in docs:
+            writer.writerow([
+                d.title, d.brand or "", d.model or "", d.document_type or "",
+                d.file_size or "", d.page_count or "", d.processing_status or "",
+                d.is_favourite, d.created_at.isoformat() if d.created_at else "",
+            ])
+        return Response(
+            content=buf.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="docvault-export-{stamp}.csv"'},
+        )
+
+    payload = {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "count": len(docs),
+        "documents": [
+            {
+                "id": str(d.id),
+                "title": d.title,
+                "brand": d.brand,
+                "model": d.model,
+                "document_type": d.document_type,
+                "summary": d.summary,
+                "raw_text": d.raw_text,
+                "file_size": d.file_size,
+                "page_count": d.page_count,
+                "processing_status": d.processing_status,
+                "is_favourite": d.is_favourite,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            }
+            for d in docs
+        ],
+    }
+    return Response(
+        content=json.dumps(payload, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="docvault-export-{stamp}.json"'},
     )
 
 
