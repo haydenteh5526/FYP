@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { useState, useEffect, Suspense, lazy } from 'react'
 import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, ArrowUpCircle, MoreVertical, Pin, Pencil, Trash2, Upload } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
+import { useFocusTrap } from './lib/useFocusTrap'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { listConversations, deleteConversation, renameConversation, togglePinConversation, getProfile, type Conversation } from './lib/api'
 import { ToastProvider } from './components/Toast'
@@ -86,6 +87,7 @@ function AppShell() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<'general' | 'account' | 'billing'>('general')
+  const settingsTrapRef = useFocusTrap<HTMLDivElement>(settingsOpen)
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -436,7 +438,7 @@ function AppShell() {
       {settingsOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSettingsOpen(false)} />
-          <div role="dialog" aria-modal="true" aria-label="Settings" className="relative w-full max-w-4xl h-[85vh] bg-card border border-border/50 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
+          <div ref={settingsTrapRef} role="dialog" aria-modal="true" aria-label="Settings" className="relative w-full max-w-4xl h-[85vh] bg-card border border-border/50 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
             <button
               onClick={() => setSettingsOpen(false)}
               className="absolute top-4 right-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors z-10"
