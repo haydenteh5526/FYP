@@ -9,6 +9,23 @@ import { Card, CardContent } from '@/components/ui/card'
 import { getDocument, askQuestion, shareDocument, findSimilarDocuments, getTags, createTag, addTagToDocument, removeTagFromDocument, deleteDocument, toggleFavourite, listConversations, createConversation, getConversation, sendMessage as sendConversationMessage, type Document, type Tag, type SimilarDocument } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 
+/**
+ * Wraps occurrences of meaningful query words (≥4 chars) in <mark> so a document
+ * opened from Search shows where the query matched. Case-insensitive.
+ */
+function highlightMatches(text: string, term: string | null) {
+  const tokens = (term || '').split(/\s+/).map(t => t.trim()).filter(t => t.length >= 4)
+  if (tokens.length === 0) return text
+  const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const re = new RegExp(`(${escaped.join('|')})`, 'gi')
+  const lower = tokens.map(t => t.toLowerCase())
+  return text.split(re).map((part, i) =>
+    lower.includes(part.toLowerCase())
+      ? <mark key={i} className="bg-amber-200 dark:bg-amber-500/40 text-foreground rounded px-0.5">{part}</mark>
+      : part,
+  )
+}
+
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -33,6 +50,7 @@ export default function DocumentDetail() {
   // keep working unchanged.
   const setDoc = (updated: Document) => queryClient.setQueryData(['document', id], updated)
   const [searchParams] = useState(() => new URLSearchParams(window.location.search))
+  const highlightTerm = searchParams.get('q')
   const initialTab = (['preview', 'info', 'ask'].includes(searchParams.get('tab') || '') ? searchParams.get('tab') : 'info') as 'preview' | 'info' | 'ask'
   const [tab, setTabState] = useState<'preview' | 'info' | 'ask'>(initialTab)
   const [pendingQuestion, setPendingQuestion] = useState<string | undefined>()
@@ -285,13 +303,13 @@ export default function DocumentDetail() {
               {doc.raw_text && (
                 <Card className="border-border/50 shadow-sm">
                   <CardContent className="p-6">
-                    <details>
+                    <details open={!!highlightTerm}>
                       <summary className="text-sm font-semibold text-foreground/80 cursor-pointer flex items-center gap-2 select-none">
                         <FileText size={15} className="text-primary" /> Extracted Text
                         <span className="text-xs text-muted-foreground font-normal ml-2">({doc.raw_text.split(/\s+/).length.toLocaleString()} words)</span>
                       </summary>
                       <div className="mt-4 max-h-[50vh] overflow-auto rounded-lg bg-muted/20 p-4">
-                        <pre className="text-sm leading-7 font-[system-ui] whitespace-pre-wrap">{doc.raw_text}</pre>
+                        <pre className="text-sm leading-7 font-[system-ui] whitespace-pre-wrap">{highlightMatches(doc.raw_text, highlightTerm)}</pre>
                       </div>
                     </details>
                   </CardContent>
