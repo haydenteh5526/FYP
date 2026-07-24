@@ -1,0 +1,72 @@
+version: 2
+updates:
+  # Backend Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      python-dev:
+        patterns:
+          - "pytest*"
+          - "ruff"
+          - "coverage*"
+    labels:
+      - "dependencies"
+      - "backend"
+
+  # Frontend npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-router-dom"
+      dev-tooling:
+        patterns:
+          - "vite"
+          - "vitest"
+          - "@vitejs/*"
+          - "eslint*"
+          - "typescript*"
+          - "@testing-library/*"
+          - "@playwright/test"
+    labels:
+      - "dependencies"
+      - "frontend"
+
+  # Mobile (Expo / React Native) dependencies
+  - package-ecosystem: "npm"
+    directory: "/mobile"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "mobile"
+
+  # GitHub Actions workflow versions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+
+  # Backend Docker base image
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
