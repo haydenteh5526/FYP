@@ -161,7 +161,7 @@ export default function SearchPage() {
                     key={i}
                     className="group cursor-pointer transition-all duration-300 relative overflow-hidden border-border/50 hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 animate-slide-up"
                     style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'both' }}
-                    onClick={() => navigate(`/app/documents/${r.document_id}`)}
+                    onClick={() => navigate(`/app/documents/${r.document_id}?q=${encodeURIComponent(query)}`)}
                   >
                     {/* Subtle glow on hover */}
                     <div className="absolute -inset-0.5 bg-gradient-to-br from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity blur-xl rounded-xl z-0" />
