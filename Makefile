@@ -28,10 +28,10 @@ cov: ## Run tests with coverage report
 	docker compose exec api sh -c "pip install -q -r dev-requirements.txt && python -m pytest tests/ --cov=app --cov-report=term-missing"
 
 lint: ## Lint backend with ruff
-	cd backend && ruff check app/
+	cd backend && ruff check app/ tests/
 
 fmt: ## Auto-fix backend lint issues
-	cd backend && ruff check app/ --fix
+	cd backend && ruff check app/ tests/ --fix
 
 frontend-build: ## Type-check and build the frontend
 	cd frontend && npm run build

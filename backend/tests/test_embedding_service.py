@@ -1,6 +1,6 @@
 """Unit tests for embedding provider selection (pure, no network)."""
-from app.services import embedding_service
 from app.config import settings
+from app.services import embedding_service
 
 
 def _reset(monkeypatch, provider="auto", ollama="", gemini=""):

@@ -28,7 +28,35 @@ class BulkCategoriseRequest(BaseModel):
     category_id: uuid.UUID | None = None
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
-MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+MAX_FILE_SIZE_MB = 20
+MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
+
+
+def _validate_file_content(file_bytes: bytes, content_type: str) -> None:
+    """Verify the bytes actually match the declared type.
+
+    The client-supplied `content_type` is trivially spoofable, so we inspect the
+    real content: PDFs must start with the %PDF magic number, and images must be
+    decodable by Pillow. Rejects mismatched or corrupt uploads with 400.
+    """
+    if not file_bytes:
+        raise HTTPException(400, "Empty file")
+
+    if content_type == "application/pdf":
+        if not file_bytes.startswith(b"%PDF"):
+            raise HTTPException(400, "File content is not a valid PDF")
+        return
+
+    # Remaining allowed types are images — confirm Pillow can decode them.
+    import io as _io
+
+    from PIL import Image
+
+    try:
+        with Image.open(_io.BytesIO(file_bytes)) as img:
+            img.verify()
+    except Exception:  # noqa: BLE001
+        raise HTTPException(400, "File content is not a valid image") from None
 
 
 @router.post("", response_model=DocumentOut, status_code=201)
@@ -43,7 +71,10 @@ async def upload_document(
 
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(413, "File too large (max 20MB)")
+        raise HTTPException(413, f"File too large (max {MAX_FILE_SIZE_MB}MB)")
+
+    # Defence in depth: validate the actual bytes, not just the declared type.
+    _validate_file_content(file_bytes, file.content_type)
 
     s3_key = storage_service.upload_file(
         file_bytes, str(user_id), file.filename or "upload", file.content_type
