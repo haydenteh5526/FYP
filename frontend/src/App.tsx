@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, ArrowUpCircle, MoreVertical, Pin, Pencil, Trash2, Upload } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,21 +8,32 @@ import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
 import { OnboardingTour } from './components/OnboardingTour'
 import { NotificationCenter, useNotifications } from './components/NotificationCenter'
-import Landing from './pages/Landing'
-import AuthPage from './pages/Auth'
-import OAuthCallback from './pages/OAuthCallback'
-import ForgotPassword from './pages/ForgotPassword'
-import ResetPassword from './pages/ResetPassword'
-import VerifyEmail from './pages/VerifyEmail'
-import Dashboard from './pages/Dashboard'
-import UploadPage from './pages/Upload'
-import SearchPage from './pages/Search'
-import SearchChats from './pages/SearchChats'
-import AskAI from './pages/AskAI'
-import DocumentDetail from './pages/DocumentDetail'
-import Warranties from './pages/Warranties'
-import Settings from './pages/Settings'
-import ProfilePage from './pages/Profile'
+// Route pages are code-split so the initial bundle (landing + auth) stays small;
+// each page loads on demand behind the <Suspense> boundary below.
+const Landing = lazy(() => import('./pages/Landing'))
+const AuthPage = lazy(() => import('./pages/Auth'))
+const OAuthCallback = lazy(() => import('./pages/OAuthCallback'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const UploadPage = lazy(() => import('./pages/Upload'))
+const SearchPage = lazy(() => import('./pages/Search'))
+const SearchChats = lazy(() => import('./pages/SearchChats'))
+const AskAI = lazy(() => import('./pages/AskAI'))
+const DocumentDetail = lazy(() => import('./pages/DocumentDetail'))
+const Warranties = lazy(() => import('./pages/Warranties'))
+const Settings = lazy(() => import('./pages/Settings'))
+const ProfilePage = lazy(() => import('./pages/Profile'))
+
+/** Fallback shown while a lazily-loaded route chunk is being fetched. */
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-full min-h-[40vh] w-full" role="status" aria-label="Loading">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
+    </div>
+  )
+}
 
 function App() {
   return (
@@ -40,27 +51,29 @@ function AppRoutes() {
   const { isAuthenticated } = useAuth()
 
   return (
-    <Routes>
-      <Route path="/" element={isAuthenticated ? <Navigate to="/app" /> : <Landing />} />
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="login" />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="register" />} />
-      <Route path="/verify" element={<VerifyEmail />} />
-      <Route path="/auth/callback" element={<OAuthCallback />} />
-      <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/app" /> : <ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/app/*" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
-        <Route index element={<AskAI />} />
-        <Route path="documents" element={<Dashboard />} />
-        <Route path="upload" element={<UploadPage />} />
-        <Route path="documents/:id" element={<DocumentDetail />} />
-        <Route path="warranties" element={<Warranties />} />
-        <Route path="search" element={<SearchPage />} />
-        <Route path="ask" element={<AskAI />} />
-        <Route path="ask/:conversationId" element={<AskAI />} />
-        <Route path="settings" element={<Settings />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/" element={isAuthenticated ? <Navigate to="/app" /> : <Landing />} />
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="login" />} />
+        <Route path="/register" element={isAuthenticated ? <Navigate to="/app" /> : <AuthPage mode="register" />} />
+        <Route path="/verify" element={<VerifyEmail />} />
+        <Route path="/auth/callback" element={<OAuthCallback />} />
+        <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/app" /> : <ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/app/*" element={isAuthenticated ? <AppShell /> : <Navigate to="/login" />}>
+          <Route index element={<AskAI />} />
+          <Route path="documents" element={<Dashboard />} />
+          <Route path="upload" element={<UploadPage />} />
+          <Route path="documents/:id" element={<DocumentDetail />} />
+          <Route path="warranties" element={<Warranties />} />
+          <Route path="search" element={<SearchPage />} />
+          <Route path="ask" element={<AskAI />} />
+          <Route path="ask/:conversationId" element={<AskAI />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Suspense>
   )
 }
 
@@ -397,19 +410,21 @@ function AppShell() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
         </button>
         <div className="flex-1 overflow-hidden">
-          <Routes>
-            <Route index element={<AskAI />} />
-            <Route path="documents" element={<Dashboard />} />
-            <Route path="upload" element={<UploadPage />} />
-            <Route path="documents/:id" element={<DocumentDetail />} />
-            <Route path="warranties" element={<Warranties />} />
-            <Route path="search" element={<SearchPage />} />
-            <Route path="ask" element={<AskAI />} />
-            <Route path="ask/:conversationId" element={<AskAI />} />
-            <Route path="chats" element={<SearchChats />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="settings" element={<Settings />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route index element={<AskAI />} />
+              <Route path="documents" element={<Dashboard />} />
+              <Route path="upload" element={<UploadPage />} />
+              <Route path="documents/:id" element={<DocumentDetail />} />
+              <Route path="warranties" element={<Warranties />} />
+              <Route path="search" element={<SearchPage />} />
+              <Route path="ask" element={<AskAI />} />
+              <Route path="ask/:conversationId" element={<AskAI />} />
+              <Route path="chats" element={<SearchChats />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="settings" element={<Settings />} />
+            </Routes>
+          </Suspense>
         </div>
       </main>
 
@@ -429,7 +444,9 @@ function AppShell() {
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
             </button>
-            <Settings initialTab={settingsTab} />
+            <Suspense fallback={<PageLoader />}>
+              <Settings initialTab={settingsTab} />
+            </Suspense>
           </div>
         </div>
       )}
