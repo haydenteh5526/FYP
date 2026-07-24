@@ -62,6 +62,25 @@ async def request_id_middleware(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Attach hardening headers to every response.
+
+    CSP is intentionally omitted so the Swagger UI at /docs keeps working; the
+    headers below are safe for a JSON API and a same-origin SPA. HSTS only takes
+    effect over HTTPS (ignored on plain HTTP), so it's harmless locally.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    response.headers.setdefault(
+        "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+    )
+    return response
+
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(status_code=429, content={"detail": {"code": "RATE_LIMITED", "message": "Too many requests."}})
