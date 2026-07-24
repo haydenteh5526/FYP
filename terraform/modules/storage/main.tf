@@ -2,7 +2,10 @@ variable "project_name" {}
 
 resource "aws_s3_bucket" "documents" {
   bucket = "${var.project_name}-documents-${random_id.suffix.hex}"
-  tags   = { Name = "${var.project_name}-documents" }
+  # Allow `terraform destroy` to remove the bucket even if documents were
+  # uploaded during a demo. Remove this for any long-lived / production bucket.
+  force_destroy = true
+  tags          = { Name = "${var.project_name}-documents" }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "documents" {

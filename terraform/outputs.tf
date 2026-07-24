@@ -10,3 +10,7 @@ output "db_endpoint" {
   value     = module.database.endpoint
   sensitive = true
 }
+
+output "redis_endpoint" {
+  value = module.compute.redis_endpoint
+}
