@@ -232,6 +232,7 @@ A `Makefile` wraps the common commands — run `make help` to list them:
 | `make cov` | Run tests with coverage |
 | `make lint` / `make fmt` | Lint / auto-fix with ruff |
 | `make health` | Check API readiness (DB/S3/AI/cache) |
+| `make smoke` | Run the end-to-end pipeline smoke test (register→upload→OCR→search→AI) |
 | `make metrics` | Show Prometheus metrics |
 
 Install pre-commit hooks (ruff, trailing whitespace, private-key detection):
