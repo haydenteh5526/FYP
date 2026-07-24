@@ -7,13 +7,27 @@ from app.config import settings
 
 
 def get_s3_client(endpoint: str | None = None):
+    # Resolve endpoint: explicit arg > configured endpoint > None (real AWS S3).
+    resolved_endpoint = endpoint or settings.S3_ENDPOINT or None
+    # When talking to real AWS S3 (no custom endpoint), sign with the deployment
+    # region and let boto3 resolve credentials from the environment / IAM task
+    # role (empty keys -> None). Against MinIO locally, keep the explicit keys and
+    # the us-east-1 signing region MinIO expects, so local behaviour is unchanged.
+    if resolved_endpoint is None:
+        region = settings.AWS_REGION
+        access_key = settings.S3_ACCESS_KEY or None
+        secret_key = settings.S3_SECRET_KEY or None
+    else:
+        region = "us-east-1"
+        access_key = settings.S3_ACCESS_KEY
+        secret_key = settings.S3_SECRET_KEY
     return boto3.client(
         "s3",
-        endpoint_url=endpoint or settings.S3_ENDPOINT,
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET_KEY,
+        endpoint_url=resolved_endpoint,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
         config=Config(signature_version="s3v4"),
-        region_name="us-east-1",
+        region_name=region,
     )
 
 

@@ -13,16 +13,16 @@ provider "aws" {
 }
 
 module "networking" {
-  source = "./modules/networking"
+  source       = "./modules/networking"
   project_name = var.project_name
 }
 
 module "database" {
-  source           = "./modules/database"
-  project_name     = var.project_name
-  vpc_id           = module.networking.vpc_id
-  private_subnets  = module.networking.private_subnets
-  db_password      = var.db_password
+  source          = "./modules/database"
+  project_name    = var.project_name
+  vpc_id          = module.networking.vpc_id
+  private_subnets = module.networking.private_subnets
+  db_password     = var.db_password
 }
 
 module "storage" {
@@ -45,4 +45,14 @@ module "compute" {
   db_password     = var.db_password
   s3_bucket       = module.storage.bucket_name
   container_image = var.container_image
+
+  # Sensitive app config → Secrets Manager (all optional)
+  jwt_secret           = var.jwt_secret
+  gemini_api_key       = var.gemini_api_key
+  groq_api_key         = var.groq_api_key
+  mistral_api_key      = var.mistral_api_key
+  resend_api_key       = var.resend_api_key
+  google_client_id     = var.google_client_id
+  google_client_secret = var.google_client_secret
+  frontend_url         = var.frontend_url
 }

@@ -1,10 +1,10 @@
 # Terraform Cost & Demo-Readiness Review
 
-**Reviewed:** 2026-07-23 · **Scope:** `terraform/` (no deploy performed, no `terraform apply`/`destroy` run)
-**Region assumed:** `eu-west-1`
-
-This is a static review of the infrastructure code. Figures are rough monthly
-estimates for a single always-on environment and will vary by region and usage.
+**Reviewed:** 2026-07-23 · **Updated:** 2026-07-24 (gaps filled) · **Scope:** `terraform/`
+**Verification:** `terraform validate` + `terraform fmt -check` pass (run via the
+`hashicorp/terraform:1.9` Docker image). **No `apply`/`destroy` was run** — this
+remains a static review; figures are rough monthly estimates for a single
+always-on environment in `eu-west-1` and will vary by region and usage.
 
 ---
 
@@ -14,8 +14,8 @@ estimates for a single always-on environment and will vary by region and usage.
 |--------|----------|-------|
 | networking | VPC, 2 public + 2 private subnets, Internet Gateway, public route table | **No NAT gateway** (see below) |
 | database | RDS PostgreSQL 16, `db.t3.micro`, 20 GB, single-AZ, private | `skip_final_snapshot = true` |
-| compute | ECS Fargate cluster + 1 API service (0.5 vCPU / 1 GB), CloudWatch logs (14d) | Runs in **public** subnets with public IP |
-| storage | S3 bucket (AES256, public access blocked) | No `force_destroy` |
+| compute | ECS Fargate cluster + **API** service + **worker** service (each 0.5 vCPU / 1 GB), ElastiCache Redis, Secrets Manager, CloudWatch logs (14d) | Tasks run in **public** subnets with public IP; Redis in private subnets |
+| storage | S3 bucket (AES256, public access blocked, `force_destroy`) | |
 | auth | Cognito user pool + client | **Currently unused by the app** |
 
 ## Estimated monthly cost (always-on)
@@ -24,89 +24,83 @@ estimates for a single always-on environment and will vary by region and usage.
 |------|----------|
 | RDS `db.t3.micro` (on-demand) | ~$12 (or **$0** under 12-month Free Tier) |
 | RDS storage (20 GB gp2) | ~$2.50 |
-| Fargate (0.5 vCPU + 1 GB, 1 task) | ~$16 |
+| Fargate — API (0.5 vCPU + 1 GB) | ~$16 |
+| Fargate — worker (0.5 vCPU + 1 GB) | ~$16 |
+| ElastiCache `cache.t3.micro` (1 node) | ~$12 |
+| Secrets Manager (1 secret) | ~$0.40 |
 | S3 + CloudWatch Logs + Cognito | ~$1–2 (Cognito free < 50k MAU) |
 | NAT gateway | **$0 — none provisioned** |
 | Application Load Balancer | **$0 — none provisioned** |
-| **Total** | **~$30–32/mo** (~$18/mo if RDS is Free-Tier eligible) |
+| **Total** | **~$60/mo** (~$48/mo if RDS is Free-Tier eligible) |
 
 The two most common AWS cost traps for this kind of stack — **NAT gateways
-(~$32/mo each)** and an **ALB (~$16/mo)** — are both absent. That keeps the bill
-low, but has functional consequences (below).
+(~$32/mo each)** and an **ALB (~$16/mo)** — are still deliberately absent, which
+keeps the bill roughly half of a "typical" ECS + RDS + Redis setup.
 
-## Cost-smart choices already made ✅
+## Cost-smart choices ✅
 
-- **No NAT gateway.** RDS sits in private subnets (no internet needed); the ECS
-  task runs in a public subnet with `assign_public_ip = true`, reaching the
-  internet via the Internet Gateway. This is the single biggest saving.
-- **Single-AZ RDS** on `db.t3.micro` — no Multi-AZ doubling.
-- **`skip_final_snapshot = true`** — teardown is fast with no lingering snapshot storage.
-- **CloudWatch log retention capped at 14 days** — avoids unbounded log cost.
+- **No NAT gateway.** RDS and Redis sit in private subnets (no internet needed);
+  the ECS tasks run in public subnets with `assign_public_ip = true`, reaching
+  the internet (Textract, Gemini, S3) via the Internet Gateway. Biggest saving.
+- **Single-AZ RDS** on `db.t3.micro` and a single-node `cache.t3.micro` Redis.
+- **`skip_final_snapshot`** on RDS and **`force_destroy`** on S3 → fast, clean teardown.
+- **CloudWatch log retention capped at 14 days.**
 
-## ⚠️ Functional gaps (deployment is a skeleton, not the full app)
+## ✅ Gaps closed (2026-07-24)
 
-The Terraform provisions core infra but does **not** match the current running
-system. Deploying as-is would give a degraded app:
+The IaC now deploys the *real* app rather than an API-only skeleton:
 
-1. **No ARQ worker service** — only the API task is defined. Background OCR/AI
-   processing would fall back to inline request processing (the app supports
-   this, but uploads would block).
-2. **No Redis / ElastiCache** — caching and the job queue fall back to in-memory;
-   fine functionally, but no shared cache across tasks.
-3. **No embedding provider configured** — the task env sets only `DATABASE_URL`,
-   `S3_BUCKET`, `OCR_BACKEND=textract`. With no `OLLAMA_URL`, `GEMINI_API_KEY`, or
-   `GROQ_API_KEY`, embeddings fall back to **zero vectors** → search and RAG would
-   not work. Q&A generation would hit the dev fallback.
-4. **`JWT_SECRET` not set** → the API would boot on the insecure default (the app
-   now warns about this at startup).
-5. **Unused Cognito module** — the app moved to custom JWT + direct Google OAuth,
-   so the Cognito user pool is vestigial from the original design. Harmless
-   (free) but misleading; either wire it up or remove it.
+1. **ARQ worker service added** — a second Fargate service runs
+   `arq app.worker.WorkerSettings` with the same image and env, so background
+   OCR / categorisation / embedding / the warranty cron run properly (no reliance
+   on the inline fallback).
+2. **Redis via ElastiCache** — `cache.t3.micro` in private subnets, reachable only
+   from the ECS security group; `REDIS_URL` is wired into both services.
+3. **AI + secrets wired via Secrets Manager** — `DATABASE_URL`, `JWT_SECRET`,
+   `GEMINI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `RESEND_API_KEY`, and the
+   Google OAuth pair are stored in one secret and injected as container `secrets`
+   (never plaintext in the task definition). `EMBEDDING_PROVIDER=gemini` is set
+   because Ollama isn't deployed on AWS, so embeddings use Gemini.
+4. **Textract IAM** — the task role now has `textract:DetectDocumentText` /
+   `AnalyzeDocument` (the task defs set `OCR_BACKEND=textract`).
+5. **S3 via IAM task role** — the S3 client (app code) now falls back to the
+   default credential chain and the deployment region when no explicit endpoint /
+   keys are set, so on AWS it uses the task role instead of static keys. Local
+   MinIO behaviour is unchanged (docker-compose still provides the env).
+6. **S3 `force_destroy = true`** — `terraform destroy` no longer stalls on a
+   non-empty bucket.
 
-## ⚠️ Security / correctness notes
+## ⚠️ Remaining caveats
 
-- **Secrets as plaintext env** — `db_password` and (if added) API keys are passed
-  directly in the task definition. Use **AWS Secrets Manager / SSM Parameter
-  Store** with `secrets` in the container definition instead.
-- **No HTTPS / stable endpoint** — with no ALB, the task is reached by its public
-  IP on port 8000, which changes on redeploy. The `api_url` output is a
-  placeholder, not a real resolvable URL. A real demo needs an ALB (+TLS) or at
-  minimum a documented way to find the current task IP.
-- **ECS security group allows `0.0.0.0/0` on 8000** — acceptable for a public API
-  but there's no WAF/rate-limiting at the edge (app-level rate limiting exists).
-
-## ⚠️ Teardown gotcha
-
-- The S3 bucket has **no `force_destroy = true`**, so `terraform destroy` will
-  **fail if any documents have been uploaded**. Empty the bucket first, or add
-  `force_destroy = true` for demo environments.
+- **No HTTPS / stable endpoint.** With no ALB, a task is reached by its public IP
+  on port 8000, which changes on redeploy. The `api_url` output is a placeholder,
+  not a resolvable URL. For a real public demo add an **ALB + ACM certificate**
+  (~$16/mo) or document how to find the current task IP. *(Left out intentionally
+  to keep cost down; it's the main thing standing between this and a "real" URL.)*
+- **Unused Cognito module.** The app uses custom JWT + direct Google OAuth, so the
+  Cognito user pool is vestigial. Harmless (free) but misleading — wire it up or
+  remove it.
+- **ECS security group allows `0.0.0.0/0` on 8000** — fine for a public API; edge
+  protection relies on app-level rate limiting (no WAF).
+- **`db_password` still flows through Terraform state** (used to build
+  `DATABASE_URL`). Keep the state backend private/encrypted.
 
 ## Recommendations
 
-### To keep cost near zero for FYP demos
-1. **Tear down between demos:** `terraform destroy` (everything is reproducible).
-   Add `force_destroy = true` to the S3 bucket so destroy doesn't stall.
-2. **Or scale to zero:** set ECS `desired_count = 0` and stop/start RDS when idle
-   (RDS can be stopped for up to 7 days at a time).
-3. **Set an AWS Budget alert** (e.g. $10) on day one — the single most important
-   guardrail.
-4. Prefer **Fargate Spot** for the demo task (~70% cheaper) if brief interruptions
-   are acceptable.
-
-### To make it a *working* deployment (if you demo live on AWS)
-5. Add a **worker** ECS service (same image, `arq` command) and an
-   **ElastiCache Redis** (or a small Redis task) and wire `REDIS_URL`.
-6. Add the **AI env** (`GEMINI_API_KEY` / `GROQ_API_KEY`, `EMBEDDING_PROVIDER`)
-   and `JWT_SECRET` via Secrets Manager — otherwise search/RAG/auth are broken or
-   insecure.
-7. Add an **ALB + ACM certificate** for a stable HTTPS endpoint, or accept the
-   ephemeral public-IP approach and document it.
+### Keep cost low for FYP demos
+1. **Tear down between demos:** `terraform destroy` (fully reproducible; S3
+   `force_destroy` and RDS `skip_final_snapshot` make this clean).
+2. **Or scale to zero:** set both ECS services' `desired_count = 0` and stop RDS
+   when idle (RDS can be stopped up to 7 days). ElastiCache can be deleted/re-created.
+3. **Set an AWS Budget alert** (e.g. $20) on day one — the most important guardrail.
+4. Consider **Fargate Spot** for the worker (~70% cheaper) — brief interruptions
+   are fine for background processing.
 
 ### Bottom line
-The Terraform is a **cost-conscious teaching skeleton** — great for demonstrating
-IaC structure (modules, VPC, RDS, ECS, S3, IAM least-privilege) at ~$30/mo or
-less, and it tears down cleanly. It is **not** a turnkey deployment of the current
-app: to run the real thing on AWS you'd need the worker, Redis, AI configuration,
-and secrets wiring above. For the FYP, the honest framing is *"infrastructure
-modules demonstrating a production-shaped AWS deployment"* rather than *"the app
-runs in production on this."*
+The Terraform now describes a **working, production-shaped deployment** of the
+full app — API + worker + Postgres + Redis + S3 with secrets in Secrets Manager
+and least-privilege IAM — validated with `terraform validate`/`fmt`, at ~$60/mo
+(≈$48 with RDS Free Tier) and clean teardown. The one remaining piece for a
+"real" public demo is an ALB/TLS front door, deliberately omitted to keep cost
+down. Deploying still requires user-supplied values (`db_password`, `jwt_secret`,
+AI keys) via `terraform.tfvars` — see `terraform.tfvars.example`.
