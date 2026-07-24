@@ -197,8 +197,12 @@ export async function uploadDocument(file: File, title?: string): Promise<Docume
 }
 
 export async function getDocuments(categoryId?: string): Promise<{ documents: Document[]; total: number }> {
-  const url = categoryId ? `${BASE}/documents?category_id=${categoryId}` : `${BASE}/documents`
-  const res = await authorizedFetch(url)
+  // Request a high limit so the full collection loads — the Dashboard does its
+  // own client-side folders / sort / filter / analytics over the whole set.
+  // (The backend still supports skip/limit for future server-side pagination.)
+  const params = new URLSearchParams({ limit: '1000' })
+  if (categoryId) params.set('category_id', categoryId)
+  const res = await authorizedFetch(`${BASE}/documents?${params.toString()}`)
   return res.json()
 }
 

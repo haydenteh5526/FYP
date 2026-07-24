@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('docvault-view') as ViewMode) || 'grid')
   const [fileFilter, setFileFilter] = useState<FileFilter>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
   const [showSortMenu, setShowSortMenu] = useState(false)
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [showViewMenu, setShowViewMenu] = useState(false)
@@ -204,6 +205,9 @@ export default function Dashboard() {
     if (fileFilter === 'pdf') docs = docs.filter(d => d.title.toLowerCase().endsWith('.pdf'))
     else if (fileFilter === 'image') docs = docs.filter(d => !d.title.toLowerCase().endsWith('.pdf'))
 
+    // Document-type filter (Manual, Warranty, Receipt, …)
+    if (typeFilter !== 'all') docs = docs.filter(d => d.document_type === typeFilter)
+
     // Sort (favourites always first)
     docs = [...docs].sort((a, b) => {
       if (a.is_favourite && !b.is_favourite) return -1
@@ -219,8 +223,15 @@ export default function Dashboard() {
     })
 
     return docs
-  }, [allDocs, currentFolder, fileFilter, sortKey, sortDir])
+  }, [allDocs, currentFolder, fileFilter, typeFilter, sortKey, sortDir])
   const totalDocs = allDocs.length
+
+  // Distinct document types present in the collection (for the type filter).
+  const docTypes = useMemo(() => {
+    const set = new Set<string>()
+    allDocs.forEach(d => { if (d.document_type) set.add(d.document_type) })
+    return Array.from(set).sort()
+  }, [allDocs])
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto h-full overflow-y-auto">
@@ -319,17 +330,31 @@ export default function Dashboard() {
           <div className="relative">
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 rounded-full" onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); setShowViewMenu(false) }}>
               <Filter size={13} /> Filter
-              {fileFilter !== 'all' && <span className="text-primary">· {fileFilter}</span>}
+              {(fileFilter !== 'all' || typeFilter !== 'all') && <span className="text-primary">· {[fileFilter !== 'all' ? fileFilter : null, typeFilter !== 'all' ? typeFilter : null].filter(Boolean).join(', ')}</span>}
             </Button>
             {showFilterMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
-                <div className="absolute top-full mt-1.5 left-0 z-50 w-40 bg-card/80 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl shadow-black/5 p-1 animate-scale-in">
+                <div className="absolute top-full mt-1.5 left-0 z-50 w-52 max-h-80 overflow-y-auto bg-card/80 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl shadow-black/5 p-1 animate-scale-in">
                   {([['all', 'All files'], ['pdf', 'PDFs only'], ['image', 'Images only']] as [FileFilter, string][]).map(([key, label]) => (
                     <button key={key} onClick={() => { setFileFilter(key); setShowFilterMenu(false) }} className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${fileFilter === key ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
                       {label}
                     </button>
                   ))}
+                  {docTypes.length > 0 && (
+                    <>
+                      <div className="my-1 border-t border-border/50" />
+                      <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Document type</p>
+                      <button onClick={() => { setTypeFilter('all'); setShowFilterMenu(false) }} className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${typeFilter === 'all' ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
+                        All types
+                      </button>
+                      {docTypes.map(t => (
+                        <button key={t} onClick={() => { setTypeFilter(t); setShowFilterMenu(false) }} className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${typeFilter === t ? 'bg-primary/[0.08] text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}>
+                          {t}
+                        </button>
+                      ))}
+                    </>
+                  )}
                 </div>
               </>
             )}
