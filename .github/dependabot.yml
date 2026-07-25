@@ -1,11 +1,18 @@
 version: 2
+
+# Tuned for a near-complete project: monthly cadence, small PR limits, and
+# minor/patch only (major bumps are ignored to avoid breaking changes — review
+# and bump those deliberately when needed).
 updates:
   # Backend Python dependencies
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       python-dev:
         patterns:
@@ -20,8 +27,11 @@ updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       react:
         patterns:
@@ -45,8 +55,11 @@ updates:
   - package-ecosystem: "npm"
     directory: "/mobile"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
       - "mobile"
@@ -55,8 +68,11 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
       - "ci"
@@ -65,8 +81,11 @@ updates:
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 3
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
       - "docker"
