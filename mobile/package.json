@@ -4,7 +4,7 @@
   "main": "index.ts",
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "~56.0.12",
+    "expo": "~56.0.17",
     "expo-camera": "~56.0.8",
     "expo-device": "~56.0.4",
     "expo-image-manipulator": "~56.0.19",
