@@ -54,8 +54,6 @@ export function AnalyticsWidgets({ docs, categories }: Props) {
 
   // Storage
   const totalBytes = useMemo(() => docs.reduce((sum, d) => sum + (d.file_size || 0), 0), [docs])
-  const maxBytes = 500 * 1024 * 1024 // 500 MB plan limit
-  const pct = Math.min((totalBytes / maxBytes) * 100, 100)
 
   if (docs.length === 0) return null
 
@@ -100,17 +98,11 @@ export function AnalyticsWidgets({ docs, categories }: Props) {
         <div className="rounded-xl border border-border/40 bg-card p-5">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Storage</p>
           <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="font-medium">{formatBytes(totalBytes)}</span>
-              <span className="text-muted-foreground">500 MB</span>
-            </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full gradient-bg transition-all duration-700"
-                style={{ width: `${Math.max(pct, 0.5)}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground">{pct.toFixed(1)}% used · {docs.length} file{docs.length !== 1 ? 's' : ''}</p>
+            <p className="text-2xl font-bold tracking-tight">{formatBytes(totalBytes)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              across {docs.length} file{docs.length !== 1 ? 's' : ''}
+              {docs.length > 0 && <> · {formatBytes(Math.round(totalBytes / docs.length))} avg</>}
+            </p>
           </div>
         </div>
       </div>

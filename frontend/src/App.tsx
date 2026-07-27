@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, Suspense, lazy } from 'react'
-import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, ArrowUpCircle, MoreVertical, Pin, Pencil, Trash2, Upload } from 'lucide-react'
+import { FileText, Search, Settings as SettingsIcon, Layers, Plus, LogOut, ExternalLink, MoreVertical, Pin, Pencil, Trash2, Upload } from 'lucide-react'
 import { AuthProvider, useAuth } from './lib/auth'
 import { useFocusTrap } from './lib/useFocusTrap'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -86,7 +86,7 @@ function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<'general' | 'account' | 'billing'>('general')
+  const [settingsTab, setSettingsTab] = useState<'general' | 'account'>('general')
   const settingsTrapRef = useFocusTrap<HTMLDivElement>(settingsOpen)
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
@@ -363,9 +363,6 @@ function AppShell() {
                   <button onClick={() => { setSettingsOpen(true); setSettingsTab('general'); setUserMenuOpen(false) }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
                     <SettingsIcon size={15} className="text-muted-foreground" /> Settings
                   </button>
-                  <button onClick={() => { setSettingsOpen(true); setSettingsTab('billing'); setUserMenuOpen(false) }} className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
-                    <span className="flex items-center gap-3"><ArrowUpCircle size={15} className="text-muted-foreground" /> Upgrade plan</span>
-                  </button>
                   <button onClick={() => { window.open('https://github.com/haydenteh5526/FYP', '_blank'); setUserMenuOpen(false) }} className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground/80 hover:bg-accent/50 transition-colors">
                     <span className="flex items-center gap-3"><ExternalLink size={15} className="text-muted-foreground" /> Learn more</span>
                     <ExternalLink size={12} className="text-muted-foreground/40" />
@@ -390,7 +387,7 @@ function AppShell() {
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-sm font-medium truncate">{userName || 'User'}</p>
-                <p className="text-[10px] text-muted-foreground">Free plan</p>
+                <p className="text-[10px] text-muted-foreground truncate">{userEmail || ''}</p>
               </div>
             </button>
             <NotificationCenter

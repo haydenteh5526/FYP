@@ -61,3 +61,4 @@
 - Push notifications for warranty expiry
 - Family/household sharing
 - AR overlay for appliance recognition
+- Monetisation: freemium tiering (storage/AI-query quotas, priority processing, handwriting OCR, public API) with a payment provider — requires quota enforcement in the API and a billing data model
