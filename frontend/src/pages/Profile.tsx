@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Mail, Calendar, FileText, Star, FolderOpen, Sparkles } from 'lucide-react'
+import { Mail, Calendar, FileText, Star, FolderOpen } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -79,24 +79,6 @@ export default function ProfilePage() {
                 <span className="flex items-center gap-1.5"><Calendar size={13} /> Joined {new Date(profile.created_at).toLocaleDateString('en-IE', { month: 'long', year: 'numeric' })}</span>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Plan */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-primary" />
-                <h3 className="font-semibold text-sm">Free Plan</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Unlimited documents · AI-powered OCR · Semantic search</p>
-            </div>
-            <Button variant="outline" size="sm" disabled className="text-xs">
-              Upgrade (coming soon)
-            </Button>
           </div>
         </CardContent>
       </Card>

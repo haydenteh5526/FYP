@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Sun, Moon, Sparkles, Check, CreditCard, Download } from 'lucide-react'
+import { Settings as SettingsIcon, ShieldCheck, Trash2, Smartphone, Sun, Moon, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
@@ -8,14 +8,14 @@ import { setup2FA, disable2FA, deleteAccount, getProfile, updateProfile, exportD
 import { useToast } from '@/components/Toast'
 import { useTheme } from '@/lib/theme'
 
-type Tab = 'general' | 'account' | 'billing'
+type Tab = 'general' | 'account'
 
 export default function Settings({ initialTab }: { initialTab?: Tab }) {
   const [searchParams] = useSearchParams()
   const [tab, setTab] = useState<Tab>(() => {
     if (initialTab) return initialTab
     const t = searchParams.get('tab')
-    if (t === 'account' || t === 'billing') return t
+    if (t === 'account') return t
     return 'general'
   })
 
@@ -27,7 +27,6 @@ export default function Settings({ initialTab }: { initialTab?: Tab }) {
         <nav className="space-y-0.5">
           <SettingsNavItem active={tab === 'general'} onClick={() => setTab('general')} icon={<SettingsIcon size={15} />} label="General" />
           <SettingsNavItem active={tab === 'account'} onClick={() => setTab('account')} icon={<ShieldCheck size={15} />} label="Account" />
-          <SettingsNavItem active={tab === 'billing'} onClick={() => setTab('billing')} icon={<CreditCard size={15} />} label="Billing" />
         </nav>
       </div>
 
@@ -36,7 +35,6 @@ export default function Settings({ initialTab }: { initialTab?: Tab }) {
         <div className="max-w-2xl">
           {tab === 'general' && <GeneralSettings />}
           {tab === 'account' && <AccountSettings />}
-          {tab === 'billing' && <BillingSettings />}
         </div>
       </div>
     </div>
@@ -263,65 +261,6 @@ function AccountSettings() {
             <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>Cancel</Button>
           </div>
         )}
-      </section>
-    </div>
-  )
-}
-
-function BillingSettings() {
-  return (
-    <div className="space-y-8 animate-fade-in">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">Billing</h2>
-        <p className="text-sm text-muted-foreground mt-1">Manage your subscription and plan</p>
-      </div>
-
-      {/* Current plan */}
-      <section>
-        <h3 className="text-sm font-semibold mb-4">Current plan</h3>
-        <div className="rounded-xl border border-border/50 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">Free</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">Current</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">Unlimited documents · AI-powered OCR · Semantic search</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <hr className="border-border/30" />
-
-      {/* Pro plan */}
-      <section>
-        <h3 className="text-sm font-semibold mb-4">Upgrade</h3>
-        <div className="rounded-xl border-2 border-primary/30 bg-primary/[0.02] p-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-bl-lg">Coming Soon</div>
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <Sparkles size={18} className="text-primary" />
-                <span className="text-lg font-bold">Pro</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1.5">Everything in Free, plus:</p>
-              <ul className="mt-3 space-y-2">
-                <li className="flex items-center gap-2 text-sm"><Check size={14} className="text-primary" /> Unlimited AI questions per day</li>
-                <li className="flex items-center gap-2 text-sm"><Check size={14} className="text-primary" /> Priority document processing</li>
-                <li className="flex items-center gap-2 text-sm"><Check size={14} className="text-primary" /> Advanced OCR (handwriting support)</li>
-                <li className="flex items-center gap-2 text-sm"><Check size={14} className="text-primary" /> Email support</li>
-                <li className="flex items-center gap-2 text-sm"><Check size={14} className="text-primary" /> API access</li>
-              </ul>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-bold">€9<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-            </div>
-          </div>
-          <Button className="mt-6 gradient-bg border-0 text-white w-full" disabled>
-            Coming soon
-          </Button>
-        </div>
       </section>
     </div>
   )
