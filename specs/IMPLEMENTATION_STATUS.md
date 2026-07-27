@@ -118,11 +118,11 @@ This document maps the original design spec to what was actually implemented, no
 
 | Suite | Count | Coverage |
 |-------|-------|----------|
-| Backend unit tests (pure logic) | 24 | chunking, cache, retry, task queue, push |
-| Backend integration tests | 11 | auth, upload, tags, categories, search, notifications, metrics |
-| Frontend unit tests (Vitest) | 4 | cn utility |
-| E2e tests (Playwright) | 4 | landing, login, dashboard, upload navigation |
-| CI | GitHub Actions | lint + migrate + test with coverage on every push |
+| Backend unit tests (pure logic) | 44 | chunking, cache, retry, task queue, push, auth service, embedding service, security |
+| Backend API + integration tests | 26 | auth, upload, tags, categories, search, export, notifications, metrics |
+| Frontend unit tests (Vitest) | 25 | cn utility, formatting, .ics builder, ErrorBoundary, QueryError |
+| E2e tests (Playwright) | 4 | landing, registration, invalid login, dashboard redirect |
+| CI | GitHub Actions | lint + migrate + test with coverage, plus Playwright e2e, on every push |
 
 ## Deferred / Future Work
 

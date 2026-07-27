@@ -73,7 +73,7 @@ The system follows a three-tier cloud-native architecture:
 | Component | Technology | Why |
 |-----------|-----------|-----|
 | Backend | Python 3.12 + FastAPI | Async performance, excellent AI/ML ecosystem, type hints |
-| Web Frontend | React 18 + TypeScript | Component-based, type-safe, large ecosystem |
+| Web Frontend | React 19 + TypeScript | Component-based, type-safe, large ecosystem |
 | Mobile Frontend | React Native | Code sharing with web, cross-platform from one codebase |
 | Database | PostgreSQL 16 (AWS RDS) | ACID, full-text search, pgvector for embeddings |
 | Vector Storage | pgvector extension | Avoids separate vector DB service, simplifies infra |
