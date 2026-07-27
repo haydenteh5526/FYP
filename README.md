@@ -162,7 +162,7 @@ Full Swagger docs at http://localhost:8000/docs
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic |
-| Frontend | React 18, TypeScript, Tailwind CSS, shadcn/ui |
+| Frontend | React 19, TypeScript, Tailwind CSS v4, shadcn/ui |
 | Mobile | React Native, Expo |
 | Database | PostgreSQL 16 + pgvector |
 | Storage | AWS S3 (MinIO locally) |
