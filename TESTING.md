@@ -104,7 +104,9 @@ URL: http://localhost:3000/verify?token=XXXXX
 3. Click Search
 4. Should return results with relevant text excerpts
 
-> Note: Without an OpenAI API key, semantic search uses zero-vectors (all results show 0% relevance). The keyword search still works.
+> Note: Embeddings come from Ollama (local, started by docker compose) or Gemini. If
+> neither is available, semantic search falls back to zero-vectors (all results show
+> 0% relevance) and only the keyword half of hybrid search contributes.
 
 ## Step 10: Test Ask AI
 
@@ -113,7 +115,7 @@ URL: http://localhost:3000/verify?token=XXXXX
 3. Should return an answer (in dev mode: shows raw document text)
 4. Source citations appear below the answer
 
-> Note: Real AI answers require `OPENAI_API_KEY` in your `.env` file.
+> Note: Real AI answers require `GROQ_API_KEY` (or `GEMINI_API_KEY`) in your `.env` file.
 
 ## Step 11: Test Categories
 
@@ -139,17 +141,18 @@ URL: http://localhost:3000/verify?token=XXXXX
 | "Email already registered" | Use a different email, or delete: `docker compose exec db psql -U docvault -c "DELETE FROM users WHERE email = 'xxx';"` |
 | "Please verify your email" | Check logs for verify URL: `docker compose logs api --tail 10` |
 | OCR text is empty | Image too blurry or small. Try a clearer photo |
-| Search shows 0% relevance | Expected without OpenAI key. Keyword search still works |
-| AI answer shows raw text | Expected without OpenAI key. Set it in `.env` for real answers |
+| Search shows 0% relevance | Expected with no embedding provider (Ollama/Gemini). Keyword search still works |
+| AI answer shows raw text | Expected without `GROQ_API_KEY`/`GEMINI_API_KEY`. Set one in `.env` for real answers |
 | Can't see frontend changes | Run frontend locally: `cd frontend && npm run dev` |
 
 ---
 
 ## Optional: Enable Real AI
 
-Add to `C:\FYP\.env`:
+Add to `C:\FYP\.env` (Groq is free and powers Q&A):
 ```
-OPENAI_API_KEY=sk-your-key-here
+GROQ_API_KEY=your-groq-key
+MISTRAL_API_KEY=your-mistral-key   # optional: summaries + categorisation
 ```
 
 Rebuild: `docker compose up --build -d`

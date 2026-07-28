@@ -2,7 +2,8 @@
 
 ## 1. Setup (Do First)
 
-- [ ] Set `OPENAI_API_KEY=sk-...` in `.env` file
+- [ ] Copy `.env.example` to `.env` and set `GROQ_API_KEY` (free, powers Q&A) and
+      `JWT_SECRET`. Optionally add `MISTRAL_API_KEY` for summaries/categorisation.
 - [ ] Run `docker compose up --build` and test the full app at http://localhost:3000
 - [ ] Upload 5-10 real documents (manuals, receipts, guides) to verify everything works
 
