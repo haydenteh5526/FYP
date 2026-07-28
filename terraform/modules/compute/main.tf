@@ -50,13 +50,16 @@ resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-cluster"
 }
 
-resource "aws_security_group" "ecs" {
-  name   = "${var.project_name}-ecs-sg"
+# ---------------------------------------------------------------------------
+# Load balancer security group — the only thing allowed to reach the API tasks
+# ---------------------------------------------------------------------------
+resource "aws_security_group" "alb" {
+  name   = "${var.project_name}-alb-sg"
   vpc_id = var.vpc_id
 
   ingress {
-    from_port   = 8000
-    to_port     = 8000
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -66,6 +69,67 @@ resource "aws_security_group" "ecs" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "ecs" {
+  name   = "${var.project_name}-ecs-sg"
+  vpc_id = var.vpc_id
+
+  # Tasks are no longer exposed directly to the internet — only the ALB may
+  # reach port 8000. Public ingress now terminates at CloudFront -> ALB.
+  ingress {
+    from_port       = 8000
+    to_port         = 8000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Application Load Balancer — stable origin for CloudFront (task IPs change
+# on every redeploy, so CloudFront cannot point at them directly).
+# ---------------------------------------------------------------------------
+resource "aws_lb" "api" {
+  name               = "${var.project_name}-alb"
+  load_balancer_type = "application"
+  internal           = false
+  subnets            = var.public_subnets
+  security_groups    = [aws_security_group.alb.id]
+}
+
+resource "aws_lb_target_group" "api" {
+  name        = "${var.project_name}-api-tg"
+  port        = 8000
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    path                = "/health"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+  }
+}
+
+resource "aws_lb_listener" "api" {
+  load_balancer_arn = aws_lb.api.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
   }
 }
 
@@ -271,17 +335,26 @@ resource "aws_ecs_task_definition" "api" {
 }
 
 resource "aws_ecs_service" "api" {
-  name            = "${var.project_name}-api"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
+  name                              = "${var.project_name}-api"
+  cluster                           = aws_ecs_cluster.main.id
+  task_definition                   = aws_ecs_task_definition.api.arn
+  desired_count                     = 1
+  launch_type                       = "FARGATE"
+  health_check_grace_period_seconds = 60
 
   network_configuration {
     subnets          = var.public_subnets
     security_groups  = [aws_security_group.ecs.id]
     assign_public_ip = true
   }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.api.arn
+    container_name   = "api"
+    container_port   = 8000
+  }
+
+  depends_on = [aws_lb_listener.api]
 }
 
 # ---------------------------------------------------------------------------
@@ -332,5 +405,11 @@ resource "aws_ecs_service" "worker" {
   }
 }
 
-output "api_url" { value = "http://${var.project_name}-api.${data.aws_region.current.name}.amazonaws.com:8000" }
+# Real, resolvable ALB hostname (HTTP). Public traffic should go via CloudFront
+# (see the edge module) which puts HTTPS in front of this origin.
+output "alb_dns_name" { value = aws_lb.api.dns_name }
+output "api_origin_url" { value = "http://${aws_lb.api.dns_name}" }
+output "ecs_cluster_name" { value = aws_ecs_cluster.main.name }
+output "api_service_name" { value = aws_ecs_service.api.name }
+output "worker_service_name" { value = aws_ecs_service.worker.name }
 output "redis_endpoint" { value = aws_elasticache_cluster.redis.cache_nodes[0].address }
