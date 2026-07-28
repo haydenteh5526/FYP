@@ -56,3 +56,11 @@ module "compute" {
   google_client_secret = var.google_client_secret
   frontend_url         = var.frontend_url
 }
+
+# Public HTTPS front door: CloudFront serving the SPA from S3 and proxying
+# /api/* to the API load balancer (same origin, so no CORS and no mixed content).
+module "edge" {
+  source       = "./modules/edge"
+  project_name = var.project_name
+  alb_dns_name = module.compute.alb_dns_name
+}

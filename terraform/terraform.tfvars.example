@@ -10,6 +10,14 @@ gemini_api_key   = "" # Q&A + embeddings (Ollama isn't deployed on AWS)
 groq_api_key     = "" # optional alternative Q&A provider
 mistral_api_key  = "" # categorisation + Mistral OCR
 resend_api_key   = "" # transactional email (verification / reset)
-frontend_url     = "" # e.g. https://app.example.com
+
+# Public URL of the app. CloudFront generates this, so it isn't known until the
+# first apply — leave it blank initially, then:
+#   1. terraform apply
+#   2. terraform output app_url   ->  https://dxxxxxxxxxxxxx.cloudfront.net
+#   3. paste it below and re-apply (updates FRONTEND_URL for OAuth redirects
+#      and verification emails)
+# The same value must be registered as the Google OAuth redirect URI.
+frontend_url = ""
 # google_client_id     = ""
 # google_client_secret = ""
