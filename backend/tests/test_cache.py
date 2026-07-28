@@ -30,8 +30,8 @@ def test_embedding_cache_key_is_deterministic():
 
 
 def test_embeddings_dev_fallback_dimensions(monkeypatch):
-    # No OpenAI / Ollama -> zero vectors of correct dim
-    monkeypatch.setattr(embedding_service.settings, "OPENAI_API_KEY", "")
+    # No Gemini / Ollama -> zero vectors of correct dim
+    monkeypatch.setattr(embedding_service.settings, "GEMINI_API_KEY", "")
     monkeypatch.setattr(embedding_service.settings, "OLLAMA_URL", "")
     embedding_service._cache.clear()
     result = embedding_service.get_embeddings(["some new unique text 12345"])

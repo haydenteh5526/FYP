@@ -152,41 +152,6 @@ def _categorise_mistral(text: str) -> DocumentMetadata:
         return _fallback_categorise(text)
 
 
-def _categorise_openai(text: str) -> DocumentMetadata:
-    """Use OpenAI for metadata extraction."""
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Extract metadata from this document text. Return JSON only with these fields: "
-                    "brand, model, document_type (e.g. 'User Manual', 'Quick Start Guide', 'Warranty Card'), "
-                    "suggested_title. Use null for fields you cannot determine. "
-                    "For 'model', extract the specific product model number/name (e.g. 'DR-HSH004', 'Galaxy S24')."
-                ),
-            },
-            {"role": "user", "content": text[:2000]},
-        ],
-        temperature=0,
-        response_format={"type": "json_object"},
-    )
-
-    try:
-        data = json.loads(response.choices[0].message.content)
-        return DocumentMetadata(
-            brand=data.get("brand"),
-            model=data.get("model"),
-            document_type=data.get("document_type"),
-            title=data.get("suggested_title"),
-        )
-    except (json.JSONDecodeError, AttributeError):
-        return _fallback_categorise(text)
-
-
 def _fallback_categorise(text: str) -> DocumentMetadata:
     """Simple keyword-based fallback when no LLM available."""
     if not text:

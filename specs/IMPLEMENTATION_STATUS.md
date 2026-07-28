@@ -37,7 +37,7 @@ This document maps the original design spec to what was actually implemented, no
 |--------|--------------|----------------------|
 | Task queue | Celery + RabbitMQ | ARQ + Redis (simpler, reuses existing Redis) |
 | Email provider | AWS SES / SMTP | Resend API (with console fallback) |
-| AI provider | AWS Bedrock | OpenAI GPT-4o-mini + text-embedding-3-small |
+| AI provider | AWS Bedrock | Groq (Llama 3.3 70B) or Gemini 2.0 Flash for Q&A · Mistral for categorisation/summaries · Ollama `nomic-embed-text` or Gemini for embeddings |
 | OCR | AWS Textract | Tesseract (local) with Textract as prod option |
 | Object storage | AWS S3 | MinIO locally, S3 in prod (identical API) |
 | Auth | AWS Cognito | Custom JWT (HS256, 30-min access + 30-day refresh) + bcrypt + TOTP 2FA + Google OAuth |
@@ -112,7 +112,7 @@ This document maps the original design spec to what was actually implemented, no
 - **Structured logging** with request-ID correlation (ContextVar)
 - **Request metrics**: `docvault_requests_total{method,path,status}`, `docvault_request_latency_seconds{method,path}`
 - **Readiness check** reports DB, S3, AI, and Redis cache status
-- **Retry/backoff** on OpenAI + Resend API calls
+- **Retry/backoff** on LLM (Groq/Gemini) + Resend API calls
 
 ## Testing
 
