@@ -24,12 +24,19 @@
 
 ## 4. AWS Deployment (Semester 1)
 
+- [ ] **Set an AWS Budget alert (e.g. $20) before anything else**
 - [ ] Create AWS account (free tier)
 - [ ] Run `cd terraform && cp terraform.tfvars.example terraform.tfvars` and fill values
 - [ ] Run `terraform init && terraform apply`
+- [ ] Set `frontend_url` in `terraform.tfvars` to `terraform output app_url`, then re-apply
+      (CloudFront's domain isn't known until it exists; the API needs it for OAuth
+      redirects and verification emails)
 - [ ] Add `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` to GitHub repo Secrets
+- [ ] Add repo Variables: `FRONTEND_BUCKET` and `CLOUDFRONT_DISTRIBUTION_ID`
+      (from `terraform output frontend_bucket` / `cloudfront_distribution_id`)
 - [ ] Set `DEPLOY_ENABLED=true` in GitHub repo Settings > Variables
-- [ ] Verify CD pipeline deploys successfully
+- [ ] Verify CD pipeline deploys successfully (API + worker + frontend)
+- [ ] Run the smoke test against the deployed URL, then `terraform destroy` when done
 
 ## 5. Usability Testing (Semester 2)
 

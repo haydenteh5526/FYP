@@ -165,6 +165,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend, frontend, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    env:
+      AWS_REGION: eu-west-1
+      ECS_CLUSTER: docvault-cluster
+      API_SERVICE: docvault-api
+      WORKER_SERVICE: docvault-worker
     steps:
       - uses: actions/checkout@v4
 
@@ -172,16 +177,66 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - uses: aws-actions/amazon-ecr-login@v2
         id: ecr
 
-      - name: Build and push Docker image
+      # Tag with the commit SHA as well as :latest so a running task can be
+      # traced back to a specific commit.
+      - name: Build and push API image
         run: |
-          docker build -t ${{ steps.ecr.outputs.registry }}/docvault-api:latest ./backend
-          docker push ${{ steps.ecr.outputs.registry }}/docvault-api:latest
+          IMAGE="${{ steps.ecr.outputs.registry }}/docvault-api"
+          docker build -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" ./backend
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:${{ github.sha }}"
 
-      - name: Deploy to ECS
+      # Both services run the same image, so both must be redeployed — otherwise
+      # the worker keeps processing uploads with stale code.
+      - name: Redeploy API and worker services
         run: |
-          aws ecs update-service --cluster docvault-cluster --service docvault-api --force-new-deployment
+          aws ecs update-service --cluster "$ECS_CLUSTER" \
+            --service "$API_SERVICE" --force-new-deployment >/dev/null
+          aws ecs update-service --cluster "$ECS_CLUSTER" \
+            --service "$WORKER_SERVICE" --force-new-deployment >/dev/null
+
+      # Fail the pipeline if a new task crash-loops instead of reporting success.
+      - name: Wait for services to stabilise
+        run: |
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" \
+            --services "$API_SERVICE" "$WORKER_SERVICE"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
+
+      - name: Check frontend deploy targets are configured
+        run: |
+          if [ -z "${{ vars.FRONTEND_BUCKET }}" ] || [ -z "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
+            echo "::error::Set the FRONTEND_BUCKET and CLOUDFRONT_DISTRIBUTION_ID repository variables"
+            echo "Get them with: terraform output frontend_bucket / cloudfront_distribution_id"
+            exit 1
+          fi
+
+      # Hashed asset filenames can be cached indefinitely; index.html must not be,
+      # or clients keep loading the previous build's asset references.
+      - name: Publish frontend to S3
+        run: |
+          aws s3 sync frontend/dist "s3://${{ vars.FRONTEND_BUCKET }}" \
+            --delete \
+            --exclude index.html \
+            --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp frontend/dist/index.html "s3://${{ vars.FRONTEND_BUCKET }}/index.html" \
+            --cache-control "no-cache,must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/index.html" "/" >/dev/null
+
