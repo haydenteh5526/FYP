@@ -79,6 +79,12 @@ Prerequisites: Docker Desktop, Node.js 20+, Git, `gh` CLI.
 
 ```bash
 git clone https://github.com/haydenteh5526/FYP.git && cd FYP
+
+# Set a personal identity for this repo. Most existing history was authored with
+# a work email that will stop existing — use a personal address going forward.
+git config user.name  "Hayden"
+git config user.email "your-personal@email.com"
+
 cp .env.example .env          # then paste your saved keys in
 docker compose up --build     # API :8000, db, redis, minio, ollama, worker
 cd frontend && npm install && npm run dev   # http://localhost:3000
