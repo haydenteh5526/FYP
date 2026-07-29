@@ -1,8 +1,8 @@
-# Handover — AI Cloud Document Vault
+# Context — AI Cloud Document Vault
 
-Written 2026-07-29, at the end of development on a work laptop. Everything needed
-to pick the project up on a different machine, plus the reasoning behind decisions
-that aren't obvious from the code.
+Working context and handover notes, written 2026-07-29 at the end of development on
+a work laptop. Everything needed to pick the project up on a different machine, plus
+the reasoning behind decisions that aren't obvious from the code.
 
 **Repo:** https://github.com/haydenteh5526/FYP · **HEAD:** `fff8469` (PR #104)
 **Timeline:** Sep 2026 – May 2027 (TUS Athlone, Software Design with AI for Cloud Computing, L8)
@@ -328,7 +328,8 @@ Highest marks-per-hour first. Code is in good shape; most remaining work is not 
 | `README.md` | Overview, quick start, architecture diagrams, API table, config reference |
 | `TODO.md` | Priority-ordered plan across both semesters + future work |
 | `TESTING.md` | Manual test walkthrough + troubleshooting |
-| `HANDOVER.md` | This file |
+| `CONTEXT.md` | This file — working context and handover |
+| `frontend/CONTEXT.md` | Frontend-specific design-system notes (separate, pre-existing) |
 | `terraform/COST_REVIEW.md` | AWS footprint, costs, caveats, teardown strategy |
 | `specs/REQUIREMENTS.md` | Functional/non-functional requirements, constraints, scope |
 | `specs/DESIGN.md` | Architecture and technology decisions (original plan) |
