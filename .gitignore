@@ -5,8 +5,11 @@ node_modules/
 .venv/
 venv/
 
-# Environment
+# Environment — this repo is PUBLIC, so block every .env variant
+# (.env.local, .env.backup, .env.enc, ...) and allow only the template.
 .env
+.env.*
+!.env.example
 
 # IDE
 .vscode/
