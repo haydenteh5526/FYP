@@ -11,20 +11,65 @@ the reasoning behind decisions that aren't obvious from the code.
 
 ## 1. Do these before you lose the laptop
 
+### `.env` — the only thing that can't be stored in this repo
+
+**This repository is public.** Committing `.env` would expose your API keys to
+automated scrapers within minutes, so it must not go in git — `.gitignore` now
+blocks `.env` *and* every variant (`.env.local`, `.env.enc`, …) to prevent
+accidents. Verified: `.env` has never been committed in any history, so nothing
+is currently exposed.
+
+Only five values actually matter. Everything else in `.env` is non-secret local
+config already present in `.env.example`.
+
+| Setting | If lost |
+|---------|---------|
+| `GROQ_API_KEY` | Re-issue free — console.groq.com |
+| `GEMINI_API_KEY` | Re-issue free — Google AI Studio |
+| `MISTRAL_API_KEY` | Re-issue free — console.mistral.ai |
+| `RESEND_API_KEY` | Re-issue free — resend.com |
+| `JWT_SECRET` | Any long random string; changing it only invalidates existing sessions |
+
+Pick one:
+
+1. **Password manager** (recommended) — paste the file contents into a secure note.
+2. **Private GitHub gist**, retrievable from any machine with `gh`:
+   ```bash
+   gh gist create --secret .env --desc "FYP .env backup"
+   gh gist list                      # later, on the new machine
+   gh gist view <id> > .env
+   ```
+   Note: a "secret" gist is *unlisted*, not encrypted — anyone with the URL can
+   read it. Fine for free re-issuable keys; weaker than a password manager.
+3. **Re-issue all four keys** on the new machine. Takes ~10 minutes, all free.
+
+Prefer option 3 if the keys were created under a work email or work-linked
+account — those may not survive the internship, and re-creating them under
+personal accounts avoids copying credentials off a work machine.
+
+### `reference/` — already stored
+
+Restored by script rather than vendored (~317 MB of third-party code, and
+committing GPL/MIT projects into an academic repo invites licensing questions):
+
+```bash
+bash scripts/fetch-reference.sh    # Git Bash on Windows
+```
+
+Clones paperless-ngx, docling, quivr and kreuzberg **at the exact commits
+reviewed**, so citations and line references in the report stay valid.
+
+### Other
+
 | # | Action | Why |
 |---|--------|-----|
-| 1 | **Copy `.env` to a password manager** (not email/git) | Gitignored, so it is *not* in the repo. Holds 9 live settings incl. `JWT_SECRET`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `RESEND_API_KEY`. Without it the app runs but AI features degrade to heuristics. |
-| 2 | Confirm your **personal** GitHub account owns/can access the repo | If access came via a work identity you could lose the remote. |
-| 3 | Note any **Google OAuth** client config | `GOOGLE_CLIENT_ID`/`SECRET` and the registered redirect URI live in Google Cloud Console under whichever account created them. |
-| 4 | ✅ *Done* — experiment branches preserved as tags | See §7. They existed only on this laptop. |
+| 1 | Confirm your **personal** GitHub account owns/can access the repo | If access came via a work identity you could lose the remote. |
+| 2 | Note any **Google OAuth** client config | `GOOGLE_CLIENT_ID`/`SECRET` and the redirect URI live in Google Cloud Console under whichever account created them. |
+| 3 | ✅ *Done* — experiment branches preserved as tags | See §7. They existed only on this laptop. |
 
-**Will be lost and does not matter:** Docker volumes (`pgdata`, `miniodata`) holding
-test documents — re-upload a few after setup; `node_modules`; `reference/`
-(317 MB of paperless-ngx, gitignored, re-clone if wanted for the literature review).
-
-If keys are compromised or you can't retrieve them, rotate: Groq/Gemini/Mistral/Resend
-consoles all issue new keys, and `JWT_SECRET` can be any long random string (changing
-it just invalidates existing sessions).
+**Lost and unimportant:** Docker volumes (`pgdata`, `miniodata`) holding test
+documents — re-upload a few and run `make smoke`; `node_modules` — reinstalled by
+`npm install`.
 
 ---
 
@@ -298,7 +343,9 @@ Highest marks-per-hour first. Code is in good shape; most remaining work is not 
    (`backend/tests/locustfile.py` exists), Lighthouse audit. These produce the
    results tables your testing chapter needs. Nothing blocks them; they only need
    the local stack.
-2. **Literature review (§3)** — `reference/paperless-ngx` was cloned for this.
+2. **Literature review (§3)** — restore the reviewed sources with
+   `bash scripts/fetch-reference.sh` (paperless-ngx, docling, quivr, kreuzberg,
+   pinned to the commits actually reviewed).
 3. **AWS burst deployment (§4)** — budget alert first, then the two-phase apply, then
    evidence capture, then `destroy`. Verify the CD pipeline redeploys API **and**
    worker and publishes the frontend (fixed in PR #103).
