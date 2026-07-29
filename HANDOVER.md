@@ -1,0 +1,336 @@
+# Handover — AI Cloud Document Vault
+
+Written 2026-07-29, at the end of development on a work laptop. Everything needed
+to pick the project up on a different machine, plus the reasoning behind decisions
+that aren't obvious from the code.
+
+**Repo:** https://github.com/haydenteh5526/FYP · **HEAD:** `fff8469` (PR #104)
+**Timeline:** Sep 2026 – May 2027 (TUS Athlone, Software Design with AI for Cloud Computing, L8)
+
+---
+
+## 1. Do these before you lose the laptop
+
+| # | Action | Why |
+|---|--------|-----|
+| 1 | **Copy `.env` to a password manager** (not email/git) | Gitignored, so it is *not* in the repo. Holds 9 live settings incl. `JWT_SECRET`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `RESEND_API_KEY`. Without it the app runs but AI features degrade to heuristics. |
+| 2 | Confirm your **personal** GitHub account owns/can access the repo | If access came via a work identity you could lose the remote. |
+| 3 | Note any **Google OAuth** client config | `GOOGLE_CLIENT_ID`/`SECRET` and the registered redirect URI live in Google Cloud Console under whichever account created them. |
+| 4 | ✅ *Done* — experiment branches preserved as tags | See §7. They existed only on this laptop. |
+
+**Will be lost and does not matter:** Docker volumes (`pgdata`, `miniodata`) holding
+test documents — re-upload a few after setup; `node_modules`; `reference/`
+(317 MB of paperless-ngx, gitignored, re-clone if wanted for the literature review).
+
+If keys are compromised or you can't retrieve them, rotate: Groq/Gemini/Mistral/Resend
+consoles all issue new keys, and `JWT_SECRET` can be any long random string (changing
+it just invalidates existing sessions).
+
+---
+
+## 2. Setup on a new machine
+
+Prerequisites: Docker Desktop, Node.js 20+, Git, `gh` CLI.
+
+```bash
+git clone https://github.com/haydenteh5526/FYP.git && cd FYP
+cp .env.example .env          # then paste your saved keys in
+docker compose up --build     # API :8000, db, redis, minio, ollama, worker
+cd frontend && npm install && npm run dev   # http://localhost:3000
+```
+
+`.env.example` is accurate as of PR #104 — it documents the real providers and
+precedence. Only `GROQ_API_KEY` and `JWT_SECRET` matter for a working demo.
+
+### Verification commands (all confirmed working)
+
+```bash
+# Backend — 70 tests. Dev deps are ephemeral: reinstall after any image rebuild.
+docker compose exec -T api pip install -q -r dev-requirements.txt
+docker compose exec -T api python -m pytest tests/ -q
+
+# Backend lint. MUST use `python -m ruff` + `--no-cache`: the container runs as
+# non-root `appuser`, so the ruff console script isn't on PATH and
+# /app/.ruff_cache isn't writable.
+docker compose exec -T api python -m ruff check --no-cache app/ tests/
+
+# Frontend — 25 tests. `tsc -b` matches CI (not --noEmit).
+cd frontend && npx tsc -b && npm test && npm run build
+
+# End-to-end pipeline: register→upload→OCR→categorise→search→AI→export (11 checks)
+docker compose exec -T api python scripts/e2e_smoke.py     # or: make smoke
+
+# Terraform (CLI not installed locally — use Docker)
+docker run --rm -v "$PWD/terraform:/tf" -w /tf hashicorp/terraform:1.9 init -backend=false
+docker run --rm -v "$PWD/terraform:/tf" -w /tf hashicorp/terraform:1.9 validate
+docker run --rm -v "$PWD/terraform:/tf" -w /tf hashicorp/terraform:1.9 fmt -check -recursive
+# then delete terraform/.terraform and .terraform.lock.hcl
+```
+
+**PowerShell notes** (if staying on Windows): `<` redirection is unsupported — use
+`Get-Content file | docker compose exec -T ...`. Use `Select-Object` / `Select-String`
+for filtering.
+
+### Last verified state (2026-07-29)
+
+| Check | Result |
+|-------|--------|
+| main CI | success |
+| Backend | ruff clean · **70** pytest pass |
+| Frontend | `tsc -b` exit 0 · **25** vitest pass · build passes |
+| E2E | Playwright **4** tests · smoke **11/11** |
+| Terraform | `validate` + `fmt -check` pass (**never applied**) |
+| Repo | 0 open PRs · only `main` · clean tree |
+
+---
+
+## 3. Working practices used throughout
+
+- **Never push directly to `main`.** Always branch → commit → PR → watch CI green →
+  `gh pr merge --merge --delete-branch`. Branch protection requires `backend` +
+  `frontend` checks and is `strict` (branch must be up to date).
+- Verify with real tool output before claiming something works.
+- Dependabot is dialled back (monthly, minor/patch only, ignores majors) after an
+  initial flood of 21 PRs. If PRs reappear in bulk, the cause is an outdated
+  dependency tail — bump it in one PR rather than merging them one by one.
+
+---
+
+## 4. Where deployment stands
+
+**Nothing is deployed.** Terraform is complete and statically validated but
+`apply` has never run, so none of it is confirmed against live AWS.
+
+`terraform/` provisions: VPC (no NAT gateway), RDS Postgres 16, ECS Fargate API +
+ARQ worker, ElastiCache Redis, S3 documents bucket, Secrets Manager, least-privilege
+IAM (incl. Textract), an **ALB**, and an **`edge` module** (S3 frontend bucket +
+CloudFront). See `terraform/COST_REVIEW.md` for the full breakdown.
+
+### Key design decision: why CloudFront fronts everything
+
+A public **ACM certificate can only be issued for a domain you control**, so TLS
+would normally mean buying a domain. Instead CloudFront uses its default
+`*.cloudfront.net` certificate — **free HTTPS, no domain**. Because the React app
+calls the API with same-origin relative paths (`const BASE = '/api/v1'` in
+`frontend/src/lib/api.ts`), routing `/api/*` through the same distribution also
+means **no CORS config and no mixed-content errors**, and needed zero frontend changes.
+
+### Cost reality
+
+~$76–80/mo always-on (≈$64–68 with RDS Free Tier) — but that's the wrong frame.
+Hourly it's about **$0.11**, so:
+
+- 6-hour evidence session: **under $1**
+- Full day live for the demo: **~$2.50**
+
+**Burst-deploy**: apply → capture evidence (screenshots, CloudWatch logs, `/metrics`,
+load-test output) → `terraform destroy`. Teardown is clean (`force_destroy` on both
+buckets, `skip_final_snapshot` on RDS). **Set an AWS Budget alert before the first
+apply.** The ALB (~$16–18/mo) is the one charge that isn't Free-Tier eligible.
+
+### Two-phase first apply
+
+CloudFront's domain doesn't exist until after the first apply, so:
+
+1. `terraform apply` with `frontend_url = ""`
+2. `terraform output app_url` → e.g. `https://dxxxx.cloudfront.net`
+3. Put it in `terraform.tfvars` and re-apply (sets `FRONTEND_URL` for OAuth
+   redirects and verification emails). Register the same URL in Google Cloud Console.
+
+Then add GitHub repo **Variables** `FRONTEND_BUCKET` and `CLOUDFRONT_DISTRIBUTION_ID`
+(from the matching `terraform output`s), **Secrets** `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY`, and set `DEPLOY_ENABLED=true`. The `deploy` job is inert
+until then. Full checklist in `TODO.md` §4.
+
+### Runtime differences on AWS
+
+Ollama isn't deployed, so `EMBEDDING_PROVIDER=gemini`; and `OCR_BACKEND=textract`
+makes OCR **pay-per-page** instead of local Tesseract. Re-run the smoke test after
+deploying — behaviour differs from local.
+
+---
+
+## 5. Free hosting — the analysis, so you don't redo it
+
+**First action: ask your supervisor whether TUS provides AWS/Azure credits for FYPs.**
+Many departments do (AWS Academy, Azure for Education, GitHub Student Developer Pack).
+That's free money that keeps you on the graded architecture.
+
+What any free host must satisfy — this rules most of them out:
+
+1. **pgvector** — the DB image is `pgvector/pgvector:pg16`; semantic search needs the extension
+2. **Tesseract** — `backend/Dockerfile` apt-installs `tesseract-ocr` + `poppler-utils`, so you need Docker or apt access
+3. **Two long-running processes** — API *and* the ARQ worker; most free tiers give one
+4. Ollama wants ~1–2 GB RAM, avoidable via `EMBEDDING_PROVIDER=gemini`
+
+### Option A — one free VM running the existing compose stack (recommended)
+
+Simplest by far: `docker-compose.yml` already runs all 7 services, so one VM with
+Docker hosts the whole app with **no code changes and one origin**.
+
+- **Oracle Cloud Always Free** — most generous allowance (ARM Ampere, always free,
+  enough RAM for Ollama too). Caveats: images must build for `arm64`, and ARM
+  capacity is often exhausted in popular regions.
+- **AWS Free Tier EC2 `t3.micro`** (750 h/mo for 12 months) — keeps you on AWS,
+  but 1 GB RAM is tight; drop Ollama and consider offloading Postgres.
+
+Honest trade-off: a VM running compose is **not cloud-native**. Fine as an always-on
+demo host; weak as your *only* cloud story — which is why the AWS burst matters.
+
+### Option B — managed free pieces (Neon/Supabase + Upstash + R2 + Pages)
+
+More cloud-native, but rejected for now because:
+
+1. **Origin split** — frontend and API on different hosts breaks the relative
+   `/api/v1` assumption → absolute URL + CORS + code changes. *(Mitigation: Vercel/
+   Pages rewrites can proxy `/api/*` to the backend, preserving same-origin.)*
+2. **The worker has nowhere free to live.** The inline fallback exists
+   (`task_queue.enqueue_document_processing()` returns `False` → `documents.py`
+   processes in-request) but the pipeline takes ~25 s, which risks free-tier request
+   timeouts on the most important demo action, and deletes the background-processing
+   architecture the README highlights.
+3. **ARQ polls Redis continuously**, burning command-quota-based free Redis tiers even when idle.
+4. **Sleeping/pausing** free services = cold start or paused DB mid-viva.
+5. It's a *third* architecture to defend (compose local, ECS Terraform graded, free-tier prod).
+
+### Vercel + Supabase specifically
+
+- **Vercel for the frontend: yes.** Free, HTTPS, CDN, and rewrites keep same-origin.
+- **Vercel for the API: no.** No apt layer for Tesseract/poppler, OpenCV strains
+  bundle limits, function duration caps are below the ~25 s pipeline, and there's no
+  second always-on process for the worker.
+- **Supabase Postgres: legitimate** — free tier has pgvector, drop-in `DATABASE_URL`,
+  Alembic migrations run normally. Two gotchas: free projects **pause on inactivity**
+  (wake + smoke-test before demo day), and **asyncpg + the transaction-mode pooler**
+  don't get along (no prepared statements — use the direct port or disable the
+  statement cache).
+
+Free-tier terms change and couldn't be verified from this session — confirm before committing.
+
+---
+
+## 6. Why not Next.js / Supabase / Convex
+
+The stack is already current: React 19.2.8, TypeScript 6, Vite 8, Tailwind v4,
+FastAPI, Postgres 16 + pgvector. Next.js vs Vite is SSR-vs-SPA, not modernity — and
+an authenticated vault has no SEO surface.
+
+**You already tried it.** Tag `experiment/supabase-nextjs` (§7) is the migration.
+It deleted all 13 page components (~3,400 lines: Dashboard 765, DocumentDetail 661,
+Landing 520, Auth 250, AskAI 222, Search 201…), replaced them with ~220 lines of
+app-router scaffolding, removed the **Playwright e2e suite** and `vitest.config.ts`,
+deleted custom auth (`routers/auth.py` 264 lines + `auth_service.py`) — and never
+touched `terraform/`, stranding the IaC on an architecture the app no longer used.
+
+The structural reason: BaaS platforms **abstract away exactly what this degree
+assesses** — VPC design, IaC, container orchestration, IAM, queue/worker
+architecture, auth implementation. Your hand-rolled JWT rotation + TOTP + bcrypt +
+rate limiting is the substance of a security chapter; Supabase Auth would delete it.
+Convex would replace FastAPI/Postgres/Redis/ARQ with primitives you can't Terraform.
+
+Practical blocker too: the AI pipeline is **Python** (Tesseract, opencv, PIL), and
+`TODO.md` plans an OCR benchmark across Tesseract/Textract/PaddleOCR plus a review of
+Paperless-ngx and Docling. A JS-first BaaS pushes OCR to paid APIs and kills that
+comparison.
+
+Where it genuinely wins: free always-on hosting, auth for free, far less code. If
+this were a product rather than a graded artefact, it'd likely be the right call.
+
+**For the viva** (`TODO.md` already lists "Why not Supabase?"): you have the
+strongest possible answer — *"I built it; here's the diff; it cost 3,400 lines of
+tested UI and my e2e suite while stranding my IaC."* An evidenced rejection beats a
+stack you never evaluated.
+
+---
+
+## 7. Preserved experiment tags
+
+Both branches were deleted from GitHub earlier and existed **only** as unreferenced
+objects on this laptop. Now pushed as annotated tags:
+
+| Tag | Commit | Contents |
+|-----|--------|----------|
+| `experiment/supabase-nextjs` | `e947ba4` | Supabase + Next.js migration, incl. `acb3ecf` (the migration) and the Groq/Gemini provider work |
+| `experiment/ui-overhaul` | `183af52` | Superseded UI overhaul (sidebar redesign, rich summaries, markdown chat, mobile rewrite) |
+
+```bash
+git show acb3ecf --stat                    # what the migration changed
+git checkout -b review experiment/supabase-nextjs   # explore it safely
+```
+
+---
+
+## 8. What's been done recently (context for the report)
+
+Two themes dominated the last stretch.
+
+**Removing anything fake.** A non-functional **€9/mo Pro plan** was deleted from
+Settings/Profile/user-menu (PR #100) — it advertised five features that didn't
+exist, including handwriting OCR that `specs/REQUIREMENTS.md` line 232 explicitly
+lists as *out of scope*, and mapped to no requirement at all. Also removed: a
+fabricated "500 MB plan limit" storage bar (now shows real totals), and dead
+`OPENAI_API_KEY` config plus an unreachable `_categorise_openai()` — the setup docs
+told you to buy a key the app never uses (PR #104).
+
+**Correcting documentation drift.** README and `specs/DESIGN.md` claimed React 18
+(actual: 19.2.8). `specs/IMPLEMENTATION_STATUS.md` understated testing as 35 backend
+/ 4 frontend when the verified reality is **70 / 25**, and listed the *actual* AI
+provider as OpenAI GPT-4o-mini (PRs #101, #104).
+
+Audited and found clean: no coming-soon/mock markers, no dead controls, no invented
+social proof (no fake testimonials or user counts), and every README API endpoint
+exists (the real API has 55 routes; the README lists ~20 — under-claiming).
+`reference/` is gitignored with 0 files tracked, so no licensing exposure.
+
+**Deliberately left alone:** `specs/DESIGN.md`, `TASKS.md`, `REQUIREMENTS.md` still
+name OpenAI. They're *planning* documents, and `IMPLEMENTATION_STATUS.md` exists to
+record deviations — rewriting them would erase a design-evolution story worth
+discussing. Revisit if you'd rather they match the current build.
+
+---
+
+## 9. Next steps
+
+Highest marks-per-hour first. Code is in good shape; most remaining work is not code.
+
+1. **Evaluation (Semester 1, `TODO.md` §2)** — OCR accuracy benchmark, RAG Q&A
+   evaluation (50 questions), categorisation accuracy, load test
+   (`backend/tests/locustfile.py` exists), Lighthouse audit. These produce the
+   results tables your testing chapter needs. Nothing blocks them; they only need
+   the local stack.
+2. **Literature review (§3)** — `reference/paperless-ngx` was cloned for this.
+3. **AWS burst deployment (§4)** — budget alert first, then the two-phase apply, then
+   evidence capture, then `destroy`. Verify the CD pipeline redeploys API **and**
+   worker and publishes the frontend (fixed in PR #103).
+4. **Free always-on host** if you want a persistent demo URL — option A above.
+5. **Usability testing (§5)** — 5 participants + SUS. Needs sustained uptime over
+   days, so a free VM suits this better than a paid AWS burst.
+6. **Report + demo (§6, §7)**.
+
+### Not done / open questions
+
+- Terraform never applied — no live-AWS confirmation of any resource
+- `frontend/Dockerfile` is **dev-only** (runs `npx vite`); a production multi-stage
+  build + a reverse proxy (e.g. Caddy for free TLS) is needed for the VM route
+- Cognito module is provisioned but unused (app uses custom JWT + direct Google
+  OAuth) — wire it up or remove it
+- Mobile app has **no CI coverage** — CI doesn't build or test `mobile/`
+- Search page has no filter UI (genuinely deferred, correctly documented)
+- ALB listener is HTTP; TLS terminates at CloudFront, so CloudFront→ALB is
+  unencrypted inside AWS. End-to-end TLS would need a custom domain + ACM.
+
+---
+
+## 10. Map of the docs
+
+| File | Contents |
+|------|----------|
+| `README.md` | Overview, quick start, architecture diagrams, API table, config reference |
+| `TODO.md` | Priority-ordered plan across both semesters + future work |
+| `TESTING.md` | Manual test walkthrough + troubleshooting |
+| `HANDOVER.md` | This file |
+| `terraform/COST_REVIEW.md` | AWS footprint, costs, caveats, teardown strategy |
+| `specs/REQUIREMENTS.md` | Functional/non-functional requirements, constraints, scope |
+| `specs/DESIGN.md` | Architecture and technology decisions (original plan) |
+| `specs/TASKS.md` | Work breakdown, estimates, risk register |
+| `specs/IMPLEMENTATION_STATUS.md` | Planned vs actual, test counts, security measures, deferred work |
