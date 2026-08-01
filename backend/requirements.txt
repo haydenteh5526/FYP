@@ -18,7 +18,7 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-jose[cryptography]==3.3.0
 email-validator==2.2.0
-slowapi==0.1.9
+slowapi==0.1.10
 httpx==0.28.1
 resend==2.32.2
 pyotp==2.9.0
