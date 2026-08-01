@@ -13,7 +13,7 @@
     "expo-notifications": "~56.0.22",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
-    "react-native": "0.85.3"
+    "react-native": "0.86.2"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
