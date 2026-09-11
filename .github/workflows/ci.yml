@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -25,9 +28,9 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -39,6 +42,9 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt -r dev-requirements.txt
+
+      - name: Audit production dependencies
+        run: cd backend && pip-audit -r requirements.txt
 
       - name: Lint
         run: cd backend && ruff check app/ tests/
@@ -55,16 +61,16 @@ jobs:
           S3_ACCESS_KEY: minioadmin
           S3_SECRET_KEY: minioadmin
           S3_BUCKET: documents
-          JWT_SECRET: test-secret
+          JWT_SECRET: test-secret-that-is-at-least-32-bytes-long
           OCR_BACKEND: tesseract
         run: cd backend && pytest tests/ -v --cov=app --cov-report=term-missing
 
   frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -76,11 +82,37 @@ jobs:
       - name: Type check
         run: cd frontend && npx tsc -b
 
+      - name: Lint
+        run: cd frontend && npm run lint
+
+      - name: Audit production dependencies
+        run: cd frontend && npm audit --omit=dev --audit-level=high
+
       - name: Test
         run: cd frontend && npm test
 
       - name: Build
         run: cd frontend && npm run build
+
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: cd mobile && npm ci
+
+      - name: Type check
+        run: cd mobile && npm run typecheck
+
+      - name: Validate Expo configuration
+        run: cd mobile && npm run doctor
 
   e2e:
     runs-on: ubuntu-latest
@@ -100,9 +132,9 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -119,7 +151,7 @@ jobs:
       - name: Start API
         env:
           DATABASE_URL: postgresql+asyncpg://docvault:docvault@localhost:5432/docvault_test
-          JWT_SECRET: test-secret
+          JWT_SECRET: test-secret-that-is-at-least-32-bytes-long
           OCR_BACKEND: tesseract
           S3_ENDPOINT: http://localhost:9000
           S3_ACCESS_KEY: minioadmin
@@ -134,7 +166,7 @@ jobs:
             echo "waiting for API ($i)"; sleep 1
           done
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -155,7 +187,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: frontend/playwright-report/
@@ -163,7 +195,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: [backend, frontend, e2e]
+    needs: [backend, frontend, mobile, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
     env:
       AWS_REGION: eu-west-1
@@ -171,9 +203,9 @@ jobs:
       API_SERVICE: docvault-api
       WORKER_SERVICE: docvault-worker
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -206,7 +238,7 @@ jobs:
           aws ecs wait services-stable --cluster "$ECS_CLUSTER" \
             --services "$API_SERVICE" "$WORKER_SERVICE"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm

@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -44,7 +45,7 @@ def decode_token(token: str, expected_type: str = "access") -> uuid.UUID | None:
         if token_type != expected_type:
             return None
         return uuid.UUID(payload["sub"])
-    except (JWTError, ValueError, KeyError):
+    except (InvalidTokenError, ValueError, KeyError):
         return None
 
 
@@ -59,7 +60,7 @@ def verify_oauth_state(state: str) -> bool:
     try:
         payload = jwt.decode(state, settings.JWT_SECRET, algorithms=["HS256"])
         return payload.get("type") == "oauth_state"
-    except JWTError:
+    except InvalidTokenError:
         return False
 
 
@@ -76,5 +77,14 @@ def verify_password_reset_token(token: str) -> uuid.UUID | None:
         if payload.get("type") != "password_reset":
             return None
         return uuid.UUID(payload["sub"])
-    except (JWTError, ValueError, KeyError):
+    except (InvalidTokenError, ValueError, KeyError):
+        return None
+
+
+def token_expiry(token: str) -> datetime | None:
+    """Return a verified token's expiry, or ``None`` if it is invalid."""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        return datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+    except (InvalidTokenError, KeyError, TypeError, ValueError):
         return None

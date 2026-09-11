@@ -8,7 +8,7 @@ A cloud-based document management app that lets you digitise physical documents 
 
 ### Prerequisites
 - Docker & Docker Compose
-- Node.js 20+
+- Node.js 22+
 - (Optional) A Groq or Google Gemini API key for AI Q&A (embeddings run locally via Ollama by default)
 
 ### Run the app
@@ -17,7 +17,10 @@ A cloud-based document management app that lets you digitise physical documents 
 # 1. Start the backend (API + database + storage)
 docker compose up --build
 
-# 2. Start the frontend
+# 2. On first run, install the local embedding model (one-time download)
+docker compose exec ollama ollama pull nomic-embed-text
+
+# 3. Start the frontend
 cd frontend && npm install && npm run dev
 ```
 

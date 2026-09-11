@@ -16,6 +16,7 @@ from app.services.auth_service import (
     create_refresh_token,
     decode_token,
     hash_password,
+    token_expiry,
     verify_oauth_state,
     verify_password,
     verify_password_reset_token,
@@ -145,18 +146,15 @@ async def refresh(req: RefreshRequest, db: AsyncSession = Depends(get_db)):
     if not result.scalar_one_or_none():
         raise HTTPException(401, "Invalid or expired refresh token")
 
-    # Preserve the original refresh window: read remaining lifetime from the
-    # presented token so refreshing doesn't extend a session indefinitely.
-    import jose.jwt as _jwt
-
-    from app.config import settings as _settings
-    payload = _jwt.decode(req.refresh_token, _settings.JWT_SECRET, algorithms=["HS256"])
+    # Preserve the original refresh window rather than extending a session
+    # indefinitely.  The payload is verified before its expiry is read.
     from datetime import datetime, timezone
-    remaining_days = (
-        datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-        - datetime.now(timezone.utc)
-    ).days
-    remember = remaining_days > _settings.REFRESH_TOKEN_EXPIRY_DAYS_SHORT
+
+    expires_at = token_expiry(req.refresh_token)
+    if not expires_at:
+        raise HTTPException(401, "Invalid or expired refresh token")
+    remaining_days = (expires_at - datetime.now(timezone.utc)).days
+    remember = remaining_days > settings.REFRESH_TOKEN_EXPIRY_DAYS_SHORT
 
     return TokenResponse(
         access_token=create_access_token(user_id),

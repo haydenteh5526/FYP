@@ -9,11 +9,7 @@
 
 ## 2. Evaluation (Semester 1)
 
-- [ ] **OCR accuracy benchmark** — Scan 20 documents, compare extracted vs actual, calculate %
-- [ ] **RAG Q&A evaluation** — Write 50 questions, rate AI answers (correct/partial/wrong)
-- [ ] **Categorisation accuracy** — Upload 30 docs, check brand/model/type detection %
-- [ ] **Load testing** — Run `locust -f backend/tests/locustfile.py --host http://localhost:8000`, record results
-- [ ] **Accessibility audit** — Run Lighthouse on frontend, document score
+- [ ] Complete the repeatable evaluation protocol in [`specs/EVALUATION_PLAN.md`](specs/EVALUATION_PLAN.md).
 
 ## 3. Literature Review (Semester 1)
 
@@ -66,7 +62,7 @@
 
 - Multi-page scanning UI flow
 - Camera overlay alignment guide
-- Push notifications for warranty expiry
+- On-device push-notification delivery validation (requires a development/EAS build)
 - Family/household sharing
 - AR overlay for appliance recognition
 - Monetisation: freemium tiering (storage/AI-query quotas, priority processing, handwriting OCR, public API) with a payment provider — requires quota enforcement in the API and a billing data model
