@@ -1,4 +1,7 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEVELOPMENT_JWT_SECRET = "development-only-secret-replace-before-production-32chars"
+_INSECURE_JWT_SECRETS = frozenset({"change-me-in-production", _DEVELOPMENT_JWT_SECRET})
 
 
 class Settings(BaseSettings):
@@ -13,7 +16,7 @@ class Settings(BaseSettings):
     MISTRAL_API_KEY: str = ""
     OCR_BACKEND: str = "tesseract"
     AWS_REGION: str = "eu-west-1"
-    JWT_SECRET: str = "change-me-in-production"
+    JWT_SECRET: str = _DEVELOPMENT_JWT_SECRET
     JWT_EXPIRY_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRY_DAYS: int = 30
     REFRESH_TOKEN_EXPIRY_DAYS_SHORT: int = 1
@@ -38,8 +41,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 
 settings = Settings()

@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Updated:** 2026-07-22
-**Status:** Feature-complete, pre-submission
+**Updated:** 2026-09-11
+**Status:** Feature-complete; hardening and evaluation in progress
 
 This document maps the original design spec to what was actually implemented, noting additions, changes, and deferred items.
 
@@ -148,3 +148,4 @@ This document maps the original design spec to what was actually implemented, no
 - Per-user data isolation (all queries filter by user_id)
 - No secrets in client responses
 - Pre-commit hooks detect private keys
+- Dependency audits are enforced in CI for backend and web production dependencies; the mobile SDK is validated with Expo Doctor.

@@ -8,6 +8,7 @@ from app.services.auth_service import (
     create_refresh_token,
     decode_token,
     hash_password,
+    token_expiry,
     verify_oauth_state,
     verify_password,
     verify_password_reset_token,
@@ -37,6 +38,12 @@ def test_access_token_not_valid_as_refresh():
 def test_decode_garbage_returns_none():
     assert decode_token("not-a-token") is None
     assert decode_token("") is None
+
+
+def test_token_expiry_only_reads_verified_tokens():
+    token = create_access_token(uuid.uuid4())
+    assert token_expiry(token) is not None
+    assert token_expiry("not-a-token") is None
 
 
 def test_password_reset_token_roundtrip():

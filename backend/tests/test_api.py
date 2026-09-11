@@ -41,42 +41,42 @@ async def test_register_invalid_email():
 async def test_documents_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/documents")
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_export_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/documents/export")
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_search_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/search?q=test")
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_ask_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.post("/api/v1/ai/ask", json={"question": "test"})
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_categories_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/categories")
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_warranties_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/warranties")
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -113,7 +113,7 @@ async def test_forgot_password_is_generic():
 async def test_delete_account_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.delete("/api/v1/auth/account")
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio

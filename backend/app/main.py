@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from app.config import settings
+from app.config import _INSECURE_JWT_SECRETS, settings
 from app.logging_config import configure_logging, get_logger, new_request_id, request_id_var
 from app.rate_limit import limiter
 from app.routers import ai, auth, categories, conversations, documents, notifications, search, tags, warranties
@@ -19,7 +19,7 @@ logger = get_logger("app")
 async def lifespan(app: FastAPI):
     from app.services.storage_service import ensure_bucket_exists
 
-    if settings.JWT_SECRET == "change-me-in-production":
+    if settings.JWT_SECRET in _INSECURE_JWT_SECRETS:
         logger.warning(
             "JWT_SECRET is set to the insecure default. Set a strong random "
             "JWT_SECRET in the environment before deploying to production."

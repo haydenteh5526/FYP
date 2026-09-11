@@ -19,13 +19,13 @@ logs: ## Tail API logs
 	docker compose logs -f api
 
 test: ## Run full backend test suite (needs DB)
-	docker compose exec api sh -c "pip install -q -r dev-requirements.txt && python -m pytest tests/ -v"
+	docker compose exec api sh -c "python -m pip install -q -r dev-requirements.txt && python -m pytest tests/ -v"
 
 test-unit: ## Run fast unit tests (no DB required)
-	docker compose exec api sh -c "pip install -q -r dev-requirements.txt && python -m pytest tests/test_chunking.py tests/test_cache.py tests/test_retry.py -v"
+	docker compose exec api sh -c "python -m pip install -q -r dev-requirements.txt && python -m pytest tests/test_chunking.py tests/test_cache.py tests/test_retry.py -v"
 
 cov: ## Run tests with coverage report
-	docker compose exec api sh -c "pip install -q -r dev-requirements.txt && python -m pytest tests/ --cov=app --cov-report=term-missing"
+	docker compose exec api sh -c "python -m pip install -q -r dev-requirements.txt && python -m pytest tests/ --cov=app --cov-report=term-missing"
 
 lint: ## Lint backend with ruff
 	cd backend && ruff check app/ tests/

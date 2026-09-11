@@ -25,7 +25,7 @@ async def test_upload_requires_auth():
     png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 50
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.post("/api/v1/documents", files={"file": ("t.png", io.BytesIO(png), "image/png")})
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -45,14 +45,14 @@ async def test_upload_rejects_bad_type():
 async def test_tags_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/tags")
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_notifications_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.post("/api/v1/notifications/register", json={"token": "x"})
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -90,11 +90,11 @@ async def test_metrics_returns_prometheus_format():
 async def test_search_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/search?q=hello")
-    assert res.status_code == 403
+    assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_bulk_delete_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.post("/api/v1/documents/bulk/delete", json={"document_ids": []})
-    assert res.status_code == 403
+    assert res.status_code == 401

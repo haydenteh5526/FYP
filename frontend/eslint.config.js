@@ -18,5 +18,15 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // These rules are React Compiler diagnostics. The app does not enable the
+      // compiler, and several established async/request patterns intentionally
+      // use effects and refs without compiler transforms.
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      // Co-located providers and hooks are intentional; this is an HMR hint,
+      // not a production correctness concern.
+      'react-refresh/only-export-components': 'warn',
+    },
   },
 ])
