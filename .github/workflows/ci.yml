@@ -49,10 +49,14 @@ jobs:
       - name: Lint
         run: cd backend && ruff check app/ tests/
 
-      - name: Run migrations
+      - name: Verify migration round trip
         env:
           DATABASE_URL: postgresql://docvault:docvault@localhost:5432/docvault_test
-        run: cd backend && alembic upgrade head
+        run: |
+          cd backend
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
 
       - name: Run tests
         env:

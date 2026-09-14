@@ -29,7 +29,7 @@ requirement-level gaps.
 - [ ] Add a browser upload workflow backed by MinIO/Tesseract in CI, or document
       why the Docker smoke test is the integration gate.
 - [ ] Add automated accessibility checks and manually verify keyboard and screen-reader flows.
-- [ ] Test migration upgrade/downgrade behaviour against a fresh database.
+- [x] Test migration upgrade/downgrade behaviour against a fresh database in CI.
 - [ ] Test mobile registration, session refresh, camera upload and 2FA on one Android and one iOS device.
 - [ ] Validate push receipt in an EAS/development build.
 

@@ -51,6 +51,8 @@ npm run doctor
 Verified baseline: 136 backend tests, 67.69% coverage, 25 frontend tests and
 five Playwright scenarios. The authenticated Playwright scenario is seeded in
 CI and skips locally unless `E2E_EMAIL` and `E2E_PASSWORD` are supplied.
+The backend CI job also upgrades a fresh database to head, downgrades it to
+base, then upgrades it again before running tests.
 
 ## Full-stack smoke test
 
