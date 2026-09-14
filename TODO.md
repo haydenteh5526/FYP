@@ -12,7 +12,7 @@ requirement-level gaps.
 
 - [x] Full local Docker stack starts and reports ready dependencies.
 - [x] Backend, frontend, mobile and browser checks run in CI.
-- [x] Backend coverage cannot fall below the 50% baseline.
+- [x] Backend coverage cannot fall below the 65% baseline.
 - [x] Full-stack synthetic smoke journey passes 12/12 checks.
 - [x] Mobile email-verification, 2FA, secure access/refresh sessions and API error handling are implemented.
 - [x] Account deletion removes database data and the complete object-storage user prefix.
@@ -21,8 +21,11 @@ requirement-level gaps.
 
 ## Priority 1 — critical-path confidence
 
-- [ ] Raise backend coverage from 50.52% to at least 65%, prioritising OCR,
-      document processing, RAG, categorisation, storage and worker failure paths.
+- [x] Raise backend coverage to at least 65%. The 2026-09-14 baseline is 67.69%
+      across 129 tests; categorisation, document processing, image preprocessing,
+      OCR, RAG and warranty extraction have full line coverage.
+- [ ] Continue targeted tests for storage adapters, the worker entry point and
+      external email/notification failure handling rather than chasing a vanity total.
 - [ ] Add a browser upload workflow backed by MinIO/Tesseract in CI, or document
       why the Docker smoke test is the integration gate.
 - [ ] Add automated accessibility checks and manually verify keyboard and screen-reader flows.

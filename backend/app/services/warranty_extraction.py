@@ -1,4 +1,5 @@
 import re
+from calendar import monthrange
 from datetime import date
 
 
@@ -25,15 +26,24 @@ def extract_warranty_dates(text: str) -> dict | None:
     # Calculate expiry from warranty period
     if purchase_date and warranty_years:
         years = int(warranty_years.group(1))
-        expiry_date = date(purchase_date.year + years, purchase_date.month, purchase_date.day)
+        expiry_date = _add_months(purchase_date, years * 12)
     elif purchase_date and warranty_months:
         months = int(warranty_months.group(1))
-        expiry_date = date(purchase_date.year + months // 12, purchase_date.month + months % 12, purchase_date.day)
+        expiry_date = _add_months(purchase_date, months)
 
     if not purchase_date and not expiry_date:
         return None
 
     return {"purchase_date": purchase_date, "expiry_date": expiry_date}
+
+
+def _add_months(value: date, months: int) -> date:
+    """Add calendar months, clamping to the destination month's final day."""
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, monthrange(year, month)[1])
+    return date(year, month, day)
 
 
 def _parse_date(date_str: str) -> date | None:

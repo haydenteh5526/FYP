@@ -63,7 +63,7 @@ jobs:
           S3_BUCKET: documents
           JWT_SECRET: test-secret-that-is-at-least-32-bytes-long
           OCR_BACKEND: tesseract
-        run: cd backend && pytest tests/ -v --cov=app --cov-report=term-missing --cov-fail-under=50
+        run: cd backend && pytest tests/ -v --cov=app --cov-report=term-missing --cov-fail-under=65
 
   frontend:
     runs-on: ubuntu-latest

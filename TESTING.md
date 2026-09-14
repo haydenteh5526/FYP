@@ -48,7 +48,7 @@ npm run typecheck
 npm run doctor
 ```
 
-Verified baseline: 76 backend tests, 50.52% coverage, 25 frontend tests and
+Verified baseline: 129 backend tests, 67.69% coverage, 25 frontend tests and
 five Playwright scenarios. The authenticated Playwright scenario is seeded in
 CI and skips locally unless `E2E_EMAIL` and `E2E_PASSWORD` are supplied.
 

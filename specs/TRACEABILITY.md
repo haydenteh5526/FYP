@@ -51,7 +51,7 @@ Status meanings:
 | NFR-18 | Implemented | Responsive web plus mobile companion; physical devices pending |
 | NFR-19–20 | Unverified | Click-count and WCAG targets require structured audits |
 | NFR-21 | Implemented | Loading, polling, empty and error states exist |
-| NFR-22 | Partial | Style gates pass; documentation is being aligned; critical-path coverage needs improvement |
+| NFR-22 | Verified | Style gates pass, current documentation is organised, and CI enforces 65% backend coverage |
 | NFR-23–24 | Verified locally | Docker Compose and Terraform source exist; AWS apply remains unverified |
 | NFR-25 | Partial | CI runs automatically; conditional CD has not completed a real deployment |
 
