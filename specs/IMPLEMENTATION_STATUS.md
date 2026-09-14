@@ -1,151 +1,92 @@
-# Implementation Status
+# Verified implementation status
 
-**Updated:** 2026-09-11
-**Status:** Feature-complete; hardening and evaluation in progress
+**Last verified:** 2026-09-14
+**Commit baseline:** `d5bd14c`
+**Overall status:** Web/backend MVP implemented; evaluation, physical-device validation and live-cloud evidence remain.
 
-This document maps the original design spec to what was actually implemented, noting additions, changes, and deferred items.
+This is the canonical status document for the system as built. The original
+proposal remains in [REQUIREMENTS.md](REQUIREMENTS.md), [DESIGN.md](DESIGN.md)
+and [TASKS.md](TASKS.md). Differences between the proposal and implementation
+are intentional evidence of the project's design evolution.
 
----
+## Verification snapshot
 
-## Features Implemented (beyond original spec)
+| Area | Verified result | Meaning |
+|---|---|---|
+| Git | `main` clean and synchronized with `origin/main` | No uncommitted production work at verification time |
+| Local runtime | API, worker, PostgreSQL/pgvector, Redis, MinIO, Ollama and web running | Full Docker development stack operational |
+| Readiness | Database, storage, Ollama embeddings and Redis reported healthy | Dependencies reachable |
+| Backend | 76 tests; ruff clean; 50.52% coverage with a 50% CI floor | Good regression baseline, but critical AI/processing coverage must rise |
+| Frontend | 25 Vitest tests; ESLint clean; production build succeeds | Build and component/utility baseline healthy |
+| Browser E2E | 5 Playwright tests, including verified login and protected dashboard access | Auth routing covered; upload UI is not exercised against real OCR in CI |
+| Full-stack smoke | 12/12 checks passed | Register, verify, login, upload, OCR, categorise, search, RAG retrieval, export and cleanup work locally |
+| Mobile | TypeScript clean; Expo Doctor 21/21 | Static/configuration validation passes |
+| Generated AI answer | Not verified in the smoke run | No Groq/Gemini key was active; the development excerpt fallback was used |
+| AWS | Not deployed | Terraform and CD exist, but live infrastructure is not yet proven |
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Multi-tag system | ✅ Done | M2M tags on documents, CRUD, assign/remove, UI editor |
-| OCR version history | ✅ Done | Every text edit snapshots prior version; list + restore (reversible) |
-| Background task queue (ARQ) | ✅ Done | Uploads return immediately; worker processes OCR/AI/embeddings; inline fallback |
-| Push notifications | ✅ Done | Expo token registration, warranty-expiry daily cron + manual trigger |
-| Dark mode | ✅ Done | Full oklch dark tokens, persists to localStorage, respects system preference |
-| Prometheus metrics | ✅ Done | `/metrics` with request count + latency histograms (method/route/status) |
-| Redis caching | ✅ Done | 2-tier embedding cache (L1 in-process, L2 Redis 24h TTL); graceful fallback |
-| Conversation threads | ✅ Done | Ask AI sends last 6 turns of history for follow-up context |
-| Bulk operations | ✅ Done | Multi-select + bulk delete/categorise on dashboard |
-| Document sharing | ✅ Done | Time-limited presigned URLs (1h–7d) |
-| Biometric auth (mobile) | ✅ Done | FaceID/TouchID gate via expo-local-authentication |
-| Camera capture flow | ✅ Done | Preview → Retake/Upload → processing indicator |
-| Persistent sessions | ✅ Done | Short access token + rotating refresh token; "Keep me signed in"; silent refresh on 401 |
-| Google OAuth | ✅ Done | Direct Google sign-in with CSRF state; links to existing accounts by email |
-| Token-based password reset | ✅ Done | Signed 30-min reset link via email; no email enumeration |
-| Hybrid RAG retrieval | ✅ Done | Vector + full-text keyword fused via Reciprocal Rank Fusion, with a similarity floor |
-| LLM observability | ✅ Done | Optional Langfuse tracing of RAG generations (no-op without keys) |
-| Pinned embedding provider | ✅ Done | `EMBEDDING_PROVIDER` config keeps all vectors in one comparable space |
-| TanStack Query | ✅ Partial | Server-state caching for conversations, warranties, categories (pattern established for remaining pages) |
+Automated success is not the same as evaluation evidence. Accuracy, latency,
+accessibility, load capacity and usability targets remain unproven until the
+protocol in [EVALUATION_PLAN.md](EVALUATION_PLAN.md) is executed.
 
-## Architecture Changes from Original Design
+## Component status
 
-| Aspect | Original Spec | Actual Implementation |
-|--------|--------------|----------------------|
-| Task queue | Celery + RabbitMQ | ARQ + Redis (simpler, reuses existing Redis) |
-| Email provider | AWS SES / SMTP | Resend API (with console fallback) |
-| AI provider | AWS Bedrock | Groq (Llama 3.3 70B) or Gemini 2.0 Flash for Q&A · Mistral for categorisation/summaries · Ollama `nomic-embed-text` or Gemini for embeddings |
-| OCR | AWS Textract | Tesseract (local) with Textract as prod option |
-| Object storage | AWS S3 | MinIO locally, S3 in prod (identical API) |
-| Auth | AWS Cognito | Custom JWT (HS256, 30-min access + 30-day refresh) + bcrypt + TOTP 2FA + Google OAuth |
-| Search | AWS OpenSearch | pgvector semantic + PostgreSQL full-text |
-| Caching | ElastiCache | Redis 7 (docker-compose service) |
+| Component | Status | Notes |
+|---|---|---|
+| Email/password authentication | Implemented and tested | Verification, access/refresh rotation, password reset and server-side password length validation |
+| TOTP 2FA | Implemented | Web and mobile login flows support it; physical-device validation remains |
+| Google OAuth | Implemented, externally unverified | Requires valid Google credentials and redirect configuration |
+| Document CRUD and export | Implemented | JSON/CSV export, favourite, sharing, bulk actions and OCR history included |
+| Account deletion | Implemented and tested | Removes relational data and the complete S3/MinIO user prefix |
+| OCR pipeline | Implemented | Tesseract default; Mistral OCR and Textract adapters available; benchmark not run |
+| Image preprocessing | Partial | Deskew, contrast enhancement and denoising exist; automatic cropping is not implemented |
+| Background processing | Implemented | ARQ/Redis worker with inline fallback |
+| Categorisation and warranty extraction | Implemented, not formally evaluated | Accuracy and provider-dependent behaviour need measurement |
+| Hybrid search | Implemented | PostgreSQL full-text plus pgvector semantic retrieval; comparative evaluation not run |
+| RAG Q&A and conversations | Implemented, generated-answer evaluation pending | Groq or Gemini generates answers when configured; sources and safe fallback are present |
+| Web client | Primary client implemented | Responsive routes for documents, upload, search, Q&A, warranties, profile and settings |
+| Mobile client | Companion client implemented | Camera, documents, search, Q&A, secure sessions, 2FA and push registration; not feature-equivalent to web |
+| Push notifications | Backend implemented; device delivery unverified | Requires an EAS/development build and physical device |
+| Observability | Partially implemented | Structured request logs, request IDs, Prometheus metrics and optional Langfuse tracing; no deployed dashboards/alerts yet |
+| Local infrastructure | Implemented and verified | Docker Compose starts the complete development stack |
+| AWS infrastructure | Defined, not deployed | Terraform describes edge, compute, database, storage and secrets resources |
+| CI/CD | CI verified; CD unverified | CI gates PRs; deploy job is conditional and has not deployed a live environment |
 
-## Database Schema (13 migrations, all reversible)
+## Material architecture changes
 
-| Migration | Table(s) | Purpose |
-|-----------|----------|---------|
-| 001 | users, documents, doc_chunks, categories, warranties | Initial schema |
-| 002 | users.hashed_password | Password auth |
-| 003 | users.is_verified, verification_token | Email verification |
-| 004 | users.totp_secret | 2FA (TOTP) |
-| 005 | tags, document_tags | Multi-tag system |
-| 006 | document_versions | OCR edit version history |
-| 007 | documents.processing_status | Background queue status |
-| 008 | push_tokens | Push notification device tokens |
-| 009 | documents.summary | AI-generated structured summary |
-| 010 | documents.is_favourite | Favourite/star documents |
-| 011 | conversations, conversation_messages | Persistent AI chat threads |
-| 012 | conversations.is_pinned | Pin conversations |
-| 013 | documents.summary → Text | Widen summary column for rich JSON summaries |
+| Proposal | As built | Rationale |
+|---|---|---|
+| Cognito | Custom JWT, refresh rotation, TOTP and direct Google OAuth | Demonstrates authentication design and avoids coupling local development to AWS |
+| Celery and RabbitMQ | ARQ and Redis | One service provides queueing and caching with lower operational complexity |
+| OpenAI/Bedrock | Groq or Gemini for Q&A, Mistral for extraction, Ollama or Gemini for embeddings | Supports local/free development and provider substitution |
+| OpenSearch | PostgreSQL full-text search plus pgvector | Keeps relational, keyword and vector data in one database |
+| Textract as primary OCR | Tesseract locally, with Mistral/Textract adapters | Enables repeatable local evaluation before paid-cloud comparison |
+| LocalStack | MinIO | Smaller S3-compatible local service |
 
-## API Endpoints (complete list)
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the current system view and
+[TRACEABILITY.md](TRACEABILITY.md) for requirement-level completion.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/auth/register` | Create account |
-| POST | `/api/v1/auth/login` | Login, get JWT (access + refresh); `remember_me` extends refresh to 30d |
-| POST | `/api/v1/auth/login/2fa` | Verify TOTP code on login |
-| POST | `/api/v1/auth/refresh` | Exchange refresh token for a new access + refresh pair (rotated) |
-| POST | `/api/v1/auth/forgot-password` | Request a password reset link (generic response, no enumeration) |
-| POST | `/api/v1/auth/reset-password` | Reset password using a signed, expiring token from the email link |
-| GET | `/api/v1/auth/oauth/google` | Begin Google OAuth (redirects to consent) |
-| GET | `/api/v1/auth/oauth/google/callback` | Google OAuth callback (CSRF state, links by email) |
-| DELETE | `/api/v1/auth/account` | Delete account |
-| POST | `/api/v1/auth/2fa/setup` | Set up TOTP 2FA |
-| POST | `/api/v1/documents` | Upload (returns pending; worker processes) |
-| GET | `/api/v1/documents` | List documents (filterable by brand/type/date) |
-| GET | `/api/v1/documents/{id}` | Get document detail (includes tags) |
-| PATCH | `/api/v1/documents/{id}` | Update metadata (snapshots text version) |
-| DELETE | `/api/v1/documents/{id}` | Delete document + S3 files |
-| POST | `/api/v1/documents/{id}/reprocess` | Re-run OCR + AI via worker |
-| GET | `/api/v1/documents/{id}/versions` | List text edit history |
-| POST | `/api/v1/documents/{id}/versions/{vid}/restore` | Restore prior version |
-| GET | `/api/v1/documents/{id}/share` | Generate time-limited share link |
-| POST | `/api/v1/documents/bulk/delete` | Bulk delete |
-| POST | `/api/v1/documents/bulk/categorise` | Bulk re-categorise |
-| GET | `/api/v1/search?q=` | Semantic + keyword hybrid search |
-| POST | `/api/v1/ai/ask` | RAG Q&A (with conversation history) |
-| GET | `/api/v1/ai/status` | AI provider availability |
-| GET | `/api/v1/categories` | List categories |
-| POST | `/api/v1/categories` | Create category |
-| GET | `/api/v1/tags` | List tags |
-| POST | `/api/v1/tags` | Create tag (idempotent) |
-| DELETE | `/api/v1/tags/{id}` | Delete tag |
-| PUT | `/api/v1/tags/documents/{docId}/tags/{tagId}` | Assign tag |
-| DELETE | `/api/v1/tags/documents/{docId}/tags/{tagId}` | Remove tag |
-| GET | `/api/v1/warranties` | List warranties |
-| POST | `/api/v1/warranties` | Add warranty |
-| GET | `/api/v1/warranties/expiring` | List expiring warranties |
-| POST | `/api/v1/notifications/register` | Register push token |
-| DELETE | `/api/v1/notifications/register` | Unregister push token |
-| POST | `/api/v1/notifications/warranty-check` | Trigger warranty notification check |
-| GET | `/health` | Liveness probe |
-| GET | `/health/ready` | Readiness (DB, S3, AI, cache) |
-| GET | `/metrics` | Prometheus metrics |
+## Known gaps and risks
 
-## Observability
+1. No formal OCR, retrieval, RAG or categorisation results have been collected.
+2. Critical processing and AI modules have low automated coverage despite the
+   overall 50% floor. Increase the floor in measured steps toward 65%.
+3. The mobile app has not been validated on real iOS and Android devices.
+4. Search filters are available for document listing but not the dedicated
+   search results page.
+5. Offline document access and an offline upload queue are not implemented.
+6. Terraform and CD have not been exercised in an AWS account.
+7. Accessibility and the 50-concurrent-user target have not been measured.
+8. CloudFront terminates public TLS, but the current proposed CloudFront-to-ALB
+   path requires review before claiming end-to-end encryption.
 
-- **Structured logging** with request-ID correlation (ContextVar)
-- **Request metrics**: `docvault_requests_total{method,path,status}`, `docvault_request_latency_seconds{method,path}`
-- **Readiness check** reports DB, S3, AI, and Redis cache status
-- **Retry/backoff** on LLM (Groq/Gemini) + Resend API calls
+## Definition of project completion
 
-## Testing
+The implementation should only be called FYP-complete when:
 
-| Suite | Count | Coverage |
-|-------|-------|----------|
-| Backend unit tests (pure logic) | 44 | chunking, cache, retry, task queue, push, auth service, embedding service, security |
-| Backend API + integration tests | 26 | auth, upload, tags, categories, search, export, notifications, metrics |
-| Frontend unit tests (Vitest) | 25 | cn utility, formatting, .ics builder, ErrorBoundary, QueryError |
-| E2e tests (Playwright) | 4 | landing, registration, invalid login, dashboard redirect |
-| CI | GitHub Actions | lint + migrate + test with coverage, plus Playwright e2e, on every push |
-
-## Deferred / Future Work
-
-| Item | Reason |
-|------|--------|
-| Mobile offline upload queue | Needs physical device testing |
-| On-device push delivery | Needs EAS/dev build (backend fully wired, Expo API verified) |
-| Full AWS deployment | Terraform modules ready; no live AWS account for CI |
-| Celery/RabbitMQ migration | ARQ sufficient for this scale; would matter at >100 concurrent uploads |
-| Search filters UI (date/category pills) | Design ready, deprioritised for queue work |
-
-## Security Measures
-
-- JWT HS256 tokens: short-lived access (30 min) + rotating refresh (30 days, or 1 day without "remember me"); token-type validation prevents using a refresh token as an access token
-- Token-based password reset (signed, 30-min expiry) — no email enumeration; replaced an earlier insecure email+new-password endpoint
-- bcrypt password hashing (passlib + bcrypt 4.0.1)
-- TOTP 2FA (pyotp + QR setup)
-- Email verification (Resend)
-- Google OAuth with signed CSRF `state` and tokens returned via URL fragment
-- Rate limiting (slowapi) on login (10/min), 2FA, register, forgot-password, and reset-password (5/min)
-- Startup warning if `JWT_SECRET` is left at the insecure default
-- CORS with configurable origins
-- Per-user data isolation (all queries filter by user_id)
-- No secrets in client responses
-- Pre-commit hooks detect private keys
-- Dependency audits are enforced in CI for backend and web production dependencies; the mobile SDK is validated with Expo Doctor.
+- every Must requirement is implemented or explicitly renegotiated;
+- the automated gate is green and critical-path coverage is at least 65%;
+- OCR, retrieval/RAG, categorisation, performance and accessibility results are recorded;
+- one physical-device mobile test matrix is complete;
+- a live cloud deployment has been smoke-tested and evidenced;
+- the usability study has consented participants and anonymised results;
+- the report, demo script and limitations are consistent with measured evidence.

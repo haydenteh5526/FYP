@@ -1,86 +1,152 @@
-# Evaluation Plan
+# Reproducible evaluation plan
 
-This plan records evidence for the FYP without inventing results. Run each
-exercise against a clean, configured environment and commit only anonymised
-measurements, not source documents or user data.
+**Protocol version:** 2.0
+**Updated:** 2026-09-14
+**Results status:** Not yet collected
 
-## 1. Preflight
+This protocol must be frozen before viewing final results. Commit anonymised
+measurements and analysis only; keep source documents, participant data,
+provider keys and identifiable ground truth outside version control.
 
-1. Copy `.env.example` to `.env` and use a strong, unique `JWT_SECRET`.
-2. Start the stack with `docker compose up --build -d`.
-3. Confirm `http://localhost:8000/health` returns `{"status":"ok"}` and
-   `http://localhost:8000/health/ready` reports healthy dependencies.
-4. Run the automated gate:
+## Research questions
 
-   ```powershell
-   C:\venv\fyp\Scripts\python.exe -m pytest backend\tests -v
-   npm --prefix frontend run lint
-   npm --prefix frontend test
-   npm --prefix frontend run build
-   npm --prefix mobile run typecheck
-   npm --prefix mobile run doctor
-   ```
+- **RQ1:** How accurately does the pipeline extract text from representative
+  household documents, and how much does image preprocessing help?
+- **RQ2:** Does hybrid retrieval outperform keyword-only and semantic-only
+  retrieval for this document collection?
+- **RQ3:** How often does RAG return a correct, citation-supported answer or
+  safely decline when the answer is absent?
+- **RQ4:** Does automatic metadata extraction reduce organisation effort while
+  remaining accurate enough to correct manually?
+- **RQ5:** Does the system meet its latency, load, accessibility and usability targets?
 
-## 2. OCR accuracy benchmark
+## Reproducibility record
 
-Use 20 representative documents: receipts, manuals, warranty cards, clean
-prints, skewed phone photos, and at least two multi-page PDFs. For every item,
-retain approved ground-truth text outside the repository.
+For every run, record:
 
-Record the number of words in the ground truth, substitutions, insertions, and
-deletions. Report word error rate as:
+- UTC timestamp and Git commit SHA;
+- anonymised dataset version and inclusion/exclusion rules;
+- operating system, CPU/RAM and Docker resource limits;
+- OCR backend and preprocessing state;
+- embedding provider/model and vector dimensions;
+- Q&A provider/model, temperature, prompt revision and maximum output tokens;
+- database state and whether caches were cold or warm;
+- script/worksheet version and evaluator identities using anonymous codes.
+
+Never mix stored vectors from different embedding models. Reprocess the dataset
+after changing the embedding provider.
+
+## 1. Preflight gate
+
+1. Use a strong unique `JWT_SECRET` and a disposable evaluation account.
+2. Start the stack and confirm `/health/ready` is healthy.
+3. Pin `OCR_BACKEND` and `EMBEDDING_PROVIDER`.
+4. Configure Groq or Gemini before evaluating generated answers. If neither is
+   configured, label the run retrieval-only.
+5. Run every command in [../TESTING.md](../TESTING.md), including the 12-check
+   full-stack smoke test.
+6. Copy the templates from `evaluation/templates/` into a dated results folder.
+7. Freeze all questions, relevance judgements and ground truth before tuning.
+
+## 2. OCR experiment
+
+### Dataset
+
+Use 20 or more documents covering receipts, warranty cards, manuals, clean
+prints, low-light/skewed phone photos, multi-column pages and at least two
+multi-page PDFs. Assign anonymous IDs and record input characteristics.
+
+### Conditions
+
+At minimum compare:
+
+1. Tesseract without preprocessing;
+2. Tesseract with the implemented deskew/contrast/denoise pipeline.
+
+If credentials/budget permit, add Mistral OCR and/or Textract as separate
+conditions using the same pages. Do not tune on final evaluation pages.
+
+### Metrics
+
+Normalise whitespace and Unicode consistently, but retain punctuation/case
+rules in the protocol. Record ground-truth words, substitutions, insertions and
+deletions.
 
 ```text
 WER = (substitutions + insertions + deletions) / ground-truth words
-OCR accuracy = (1 - WER) × 100
+OCR accuracy = max(0, 1 - WER) × 100
 ```
 
-Also record processing time, input type, and whether manual correction was
-needed. Do not average away failure cases; report median and range.
+Report per-document values, median, interquartile range, full range, total
+micro-averaged WER, processing latency and manual-correction requirement.
+Analyse the worst cases instead of reporting only an average.
 
-## 3. RAG evaluation
+## 3. Retrieval ablation
 
-Write 50 questions before seeing the answers. Balance factual lookups,
-multi-step questions, negative/no-answer prompts, and documents with similar
-terminology. For each response, two reviewers independently mark it as
-correct, partial, wrong, or safely declined, and verify that its cited source
-supports the answer.
+Prepare at least 30 information needs with independently judged relevant
+documents/chunks. Include exact terms, paraphrases, ambiguous terms and queries
+with no relevant document.
 
-Report answer accuracy, grounded-citation rate, safe-decline rate, median
-latency, provider/model, embedding provider, and disagreements resolved.
+Run the same query set in `keyword`, `semantic` and `hybrid` modes with identical
+limits. Report Precision@k, Recall@k, Mean Reciprocal Rank and no-answer false
+positive rate. Compare per-query outcomes and describe cases where hybrid
+retrieval helps or harms. This ablation is the clearest evidence for the chosen
+search architecture.
 
-## 4. Categorisation evaluation
+## 4. RAG evaluation
 
-Upload 30 labelled documents. For brand, model, and document type, report
-exact-match accuracy separately, plus examples of ambiguous labels. Exclude
-documents used to tune prompts from the final sample.
+Write 50 questions before viewing answers:
 
-## 5. Performance and accessibility
+- 20 direct factual lookups;
+- 10 paraphrased lookups;
+- 10 questions requiring evidence from more than one excerpt;
+- 10 deliberately unanswerable questions.
 
-With the stack running, execute a conservative load test first:
+Two reviewers independently score each response as `correct`, `partial`,
+`wrong` or `safely_declined`, and separately mark whether every substantive
+claim is supported by the cited excerpt. Resolve disagreements after recording
+the initial ratings.
 
-```powershell
-cd backend
-C:\venv\fyp\Scripts\locust.exe -f tests\locustfile.py --host http://localhost:8000
-```
+Report answer accuracy, grounded-citation rate, unsupported-claim rate,
+safe-decline rate, answerable-question refusal rate, median/p95 latency and
+inter-rater agreement. Include representative successes and failures.
 
-Record concurrent users, duration, request count, error rate, p50/p95 response
-times, CPU/memory observations, and the database/Redis configuration. Increase
-load gradually and stop if errors become sustained.
+## 5. Categorisation experiment
 
-Run Lighthouse in Chrome against the web application in both desktop and mobile
-emulation. Record Performance, Accessibility, Best Practices, and SEO scores,
-then manually verify keyboard navigation, visible focus, Escape-to-close,
-semantic labels, contrast, and screen-reader announcements for upload and
-errors.
+Use at least 30 documents with frozen labels for title acceptability, brand,
+model and document type. Exclude any prompt-tuning examples. Report exact-match
+accuracy for structured fields, accepted-title rate, correction rate and
+latency. Record `unknown` separately rather than treating missing labels as a
+match.
 
-## 6. Usability study
+## 6. Performance and reliability
 
-Recruit five consenting participants. Give each the same tasks: register,
-upload a document, find it through search, and ask a question. Record task
-completion, time, observed issues, and the ten standard SUS responses.
+Run Locust progressively at 1, 10, 25 and 50 concurrent users. Hold each level
+long enough to stabilise and stop if errors become sustained. Record request
+count, error rate, throughput, p50/p95/p99, CPU/RAM and database/Redis settings.
 
-SUS score: for odd questions subtract 1; for even questions subtract the
-response from 5; sum the adjusted values and multiply by 2.5. Report the mean,
-range, participant profile at a high level, and qualitative themes. Obtain
-consent and keep raw responses outside version control.
+Measure cold and warm search/Q&A latency separately. Exercise Redis and worker
+failure to verify documented fallbacks. Do not infer uptime or durability from
+a short load test; those require a deployed observation period.
+
+## 7. Accessibility and usability
+
+Run Lighthouse in desktop and mobile emulation and add automated axe checks to
+critical browser journeys. Manually verify keyboard order, visible focus,
+dialogs, Escape behaviour, labels, contrast, reduced motion and live feedback
+for processing/errors.
+
+Conduct the participant study in [USABILITY_TEST_PLAN.md](USABILITY_TEST_PLAN.md).
+
+## 8. Analysis and reporting
+
+- Keep raw anonymised rows; derive charts/tables from them reproducibly.
+- Report missing data and failed runs, not just successes.
+- Separate statistical observations from interpretation.
+- State threats to validity: small/private dataset, synthetic smoke document,
+  provider drift, evaluator subjectivity, caching and hardware dependence.
+- Do not claim that the smoke test proves accuracy, that Terraform proves a
+  deployment, or that the development excerpt fallback proves RAG quality.
+
+The evaluation is complete only when each research question is answered with
+recorded evidence or explicitly marked unresolved.

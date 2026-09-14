@@ -1,5 +1,11 @@
 # Design Document
 
+> **Document role:** Original design baseline (2026-06-11). This intentionally
+> preserves early choices such as Cognito and OpenAI so the report can explain
+> design evolution. It is not the current deployment description. See
+> [ARCHITECTURE.md](ARCHITECTURE.md) for the as-built system and
+> [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for verified status.
+
 ## AI Cloud Document Vault
 
 **Project:** Final Year Project — Software Design with AI for Cloud Computing (Level 8)  
