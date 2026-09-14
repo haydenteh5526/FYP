@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Alert, ScrollView, Image, ActivityIndicator, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { login, register, uploadDocument, getDocuments, getDocument, searchDocuments, askQuestion, listConversations, createConversation, getConversation, sendMessage } from './src/api';
+import { clearSession, login, register, restoreSession, setSessionExpiredHandler, uploadDocument, getDocuments, getDocument, searchDocuments, askQuestion, listConversations, createConversation, getConversation, sendMessage, verify2FA } from './src/api';
 import { registerForPushNotifications } from './src/push';
 
 type Screen = 'docs' | 'search' | 'ask' | 'detail';
@@ -18,11 +17,16 @@ export default function App() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem('token').then(t => {
+    restoreSession().then(t => {
       setToken(t);
       setLoading(false);
       if (t) attemptBiometric();
-    });
+    }).catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    setSessionExpiredHandler(() => setToken(null));
+    return () => setSessionExpiredHandler(null);
   }, []);
 
   useEffect(() => {
@@ -80,7 +84,7 @@ export default function App() {
       <StatusBar barStyle="light-content" />
       <View style={s.header}>
         <Text style={s.brand}>DocVault</Text>
-        <TouchableOpacity onPress={() => { AsyncStorage.removeItem('token'); setToken(null); }}>
+        <TouchableOpacity onPress={async () => { await clearSession(); setToken(null); }}>
           <Text style={s.headerLink}>Sign Out</Text>
         </TouchableOpacity>
       </View>
@@ -127,23 +131,70 @@ function AuthScreen({ onAuth }: { onAuth: (t: string) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
 
   async function handleSubmit() {
+    if (!email.trim() || !password) {
+      Alert.alert('Missing details', 'Enter your email address and password.');
+      return;
+    }
+    if (!isLogin && password.length < 8) {
+      Alert.alert('Password too short', 'Use at least 8 characters.');
+      return;
+    }
+    setBusy(true);
     try {
-      const token = isLogin ? await login(email, password) : await register(email, password);
-      onAuth(token);
-    } catch (e: any) { Alert.alert('Error', e.message); }
+      if (requires2FA) {
+        if (!/^\d{6}$/.test(code)) {
+          Alert.alert('Invalid code', 'Enter the 6-digit code from your authenticator app.');
+          return;
+        }
+        onAuth(await verify2FA(email.trim(), password, code));
+      } else if (isLogin) {
+        const result = await login(email.trim(), password);
+        if (result.requires2FA) setRequires2FA(true);
+        else onAuth(result.accessToken);
+      } else {
+        await register(email.trim(), password);
+        setVerificationSent(true);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (verificationSent) {
+    return (
+      <View style={s.authContainer}>
+        <StatusBar barStyle="light-content" />
+        <Text style={s.authBrand}>Check your email</Text>
+        <Text style={[s.authSubtitle, { textAlign: 'center' }]}>Open the verification link, then return here to sign in.</Text>
+        <TouchableOpacity style={s.btn} onPress={() => { setVerificationSent(false); setIsLogin(true); }}>
+          <Text style={s.btnText}>Continue to sign in</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
     <View style={s.authContainer}>
       <StatusBar barStyle="light-content" />
       <Text style={s.authBrand}>DocVault</Text>
-      <Text style={s.authSubtitle}>{isLogin ? 'Sign in to your account' : 'Create a new account'}</Text>
+      <Text style={s.authSubtitle}>{requires2FA ? 'Enter your authenticator code' : isLogin ? 'Sign in to your account' : 'Create a new account'}</Text>
       <TextInput style={s.input} placeholder="Email" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
       <TextInput style={s.input} placeholder="Password" placeholderTextColor={colors.muted} value={password} onChangeText={setPassword} secureTextEntry />
-      <TouchableOpacity style={s.btn} onPress={handleSubmit}><Text style={s.btnText}>{isLogin ? 'Sign In' : 'Sign Up'}</Text></TouchableOpacity>
-      <TouchableOpacity onPress={() => setIsLogin(!isLogin)}><Text style={s.link}>{isLogin ? 'Create account' : 'Sign in instead'}</Text></TouchableOpacity>
+      {requires2FA && <TextInput style={s.input} placeholder="6-digit code" placeholderTextColor={colors.muted} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />}
+      <TouchableOpacity style={[s.btn, busy && { opacity: 0.6 }]} onPress={handleSubmit} disabled={busy}>
+        <Text style={s.btnText}>{busy ? 'Please wait…' : requires2FA ? 'Verify' : isLogin ? 'Sign In' : 'Sign Up'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => { setIsLogin(!isLogin); setRequires2FA(false); setCode(''); }} disabled={busy}>
+        <Text style={s.link}>{isLogin ? 'Create account' : 'Sign in instead'}</Text>
+      </TouchableOpacity>
     </View>
   );
 }

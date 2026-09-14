@@ -1,7 +1,7 @@
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,7 +27,7 @@ router = APIRouter()
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=128)
     display_name: str | None = None
 
 
@@ -43,7 +43,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class RefreshRequest(BaseModel):
@@ -301,6 +301,11 @@ async def delete_account(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user:
+        # Database cascades cannot remove objects from S3/MinIO. Delete the
+        # entire user prefix first, including any orphaned upload objects.
+        from app.services import storage_service
+
+        storage_service.delete_user_files(str(user_id))
         await db.delete(user)
         await db.commit()
 
