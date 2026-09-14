@@ -40,4 +40,20 @@ test.describe('DocVault auth flow', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.getByText(/Invalid email or password/i)).toBeVisible({ timeout: 10000 });
   });
+
+  test('verified user can sign in and open the protected document dashboard', async ({ page }) => {
+    const email = process.env.E2E_EMAIL;
+    const password = process.env.E2E_PASSWORD;
+    test.skip(!email || !password, 'CI seed credentials are required for this integration test');
+
+    await page.goto('/login');
+    await page.getByPlaceholder('name@example.com').fill(email!);
+    await page.getByRole('button', { name: /Continue with Email/i }).click();
+    await page.getByPlaceholder('Password').fill(password!);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Ask anything about your documents' })).toBeVisible({ timeout: 10000 });
+    await page.getByRole('button', { name: 'Documents', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 10000 });
+  });
 });

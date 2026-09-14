@@ -21,24 +21,24 @@ export default function UploadPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setDragging(false)
-    const files = Array.from(e.dataTransfer.files)
-    addFiles(files)
-  }, [])
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    addFiles(files)
-  }
-
-  function addFiles(files: File[]) {
+  const addFiles = useCallback((files: File[]) => {
     const items: UploadItem[] = files
       .filter(f => f.type.startsWith('image/') || f.type === 'application/pdf')
       .map(f => ({ id: Math.random().toString(36).slice(2), file: f, status: 'pending' as const, progress: 0 }))
     if (items.length === 0) { toast('Only images and PDFs are supported', 'error'); return }
     setQueue(prev => [...prev, ...items])
+  }, [toast])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const files = Array.from(e.dataTransfer.files)
+    addFiles(files)
+  }, [addFiles])
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    addFiles(files)
   }
 
   function removeFromQueue(id: string) {

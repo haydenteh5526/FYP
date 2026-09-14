@@ -25,8 +25,8 @@ const features = [
 const securityFeatures = [
   { icon: <Lock size={18} />, title: 'Hashed passwords', desc: 'bcrypt with salt rounds — passwords are never stored in plain text.' },
   { icon: <ShieldCheck size={18} />, title: 'JWT authentication', desc: 'Stateless token-based auth with expiry and refresh.' },
-  { icon: <Users size={18} />, title: 'User isolation', desc: 'Row-level filtering — no user can ever access another\u2019s data.' },
-  { icon: <EyeOff size={18} />, title: 'No data sharing', desc: 'Your documents are never used for AI training or shared with third parties.' },
+  { icon: <Users size={18} />, title: 'User isolation', desc: 'Authenticated API queries are scoped to the current user, with cross-user access covered by integration tests.' },
+  { icon: <EyeOff size={18} />, title: 'Controlled AI context', desc: 'Only retrieved document excerpts are sent to a configured Q&A provider; embeddings run locally by default.' },
 ]
 
 export default function Landing() {
