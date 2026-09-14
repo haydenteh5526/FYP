@@ -38,6 +38,15 @@ async def test_register_invalid_email():
 
 
 @pytest.mark.asyncio
+async def test_register_rejects_short_password():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
+        res = await c.post("/api/v1/auth/register", json={
+            "email": "short-password@example.com", "password": "short"
+        })
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_documents_requires_auth():
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         res = await c.get("/api/v1/documents")

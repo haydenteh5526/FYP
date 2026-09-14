@@ -59,6 +59,25 @@ def delete_file(key: str) -> None:
     s3.delete_object(Bucket=settings.S3_BUCKET, Key=key)
 
 
+def delete_user_files(user_id: str) -> int:
+    """Delete every object owned by a user and return the number removed.
+
+    Listing by the user prefix also catches orphaned objects that no longer
+    have a matching database row. S3 accepts at most 1,000 keys per bulk
+    delete request, which is also the paginator's normal page size.
+    """
+    s3 = get_s3_client()
+    deleted = 0
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=settings.S3_BUCKET, Prefix=f"users/{user_id}/"):
+        objects = [{"Key": item["Key"]} for item in page.get("Contents", [])]
+        if not objects:
+            continue
+        s3.delete_objects(Bucket=settings.S3_BUCKET, Delete={"Objects": objects, "Quiet": True})
+        deleted += len(objects)
+    return deleted
+
+
 def download_file(key: str) -> tuple[bytes, str]:
     """Fetch an object's bytes and content type from S3."""
     s3 = get_s3_client()
