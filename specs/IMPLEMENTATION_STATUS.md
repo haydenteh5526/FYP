@@ -1,7 +1,7 @@
 # Verified implementation status
 
 **Last verified:** 2026-09-14
-**Commit baseline:** `d5bd14c`
+**Code baseline:** `093b36f`
 **Overall status:** Web/backend MVP implemented; evaluation, physical-device validation and live-cloud evidence remain.
 
 This is the canonical status document for the system as built. The original
