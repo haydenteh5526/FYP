@@ -22,7 +22,7 @@ requirement-level gaps.
 ## Priority 1 — critical-path confidence
 
 - [x] Raise backend coverage to at least 65%. The 2026-09-14 baseline is 67.69%
-      across 129 tests; categorisation, document processing, image preprocessing,
+      across 136 tests; categorisation, document processing, image preprocessing,
       OCR, RAG and warranty extraction have full line coverage.
 - [ ] Continue targeted tests for storage adapters, the worker entry point and
       external email/notification failure handling rather than chasing a vanity total.
@@ -35,6 +35,8 @@ requirement-level gaps.
 
 ## Priority 2 — reproducible AI evaluation
 
+- [x] Define frozen result schemas and a tested analyser for OCR, retrieval,
+      RAG, categorisation and usability metrics.
 - [ ] Configure Groq or Gemini for generated-answer evaluation. Do not present
       the development excerpt fallback as an LLM result.
 - [ ] Freeze an anonymised dataset manifest and ground truth before tuning.

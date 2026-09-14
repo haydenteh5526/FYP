@@ -48,7 +48,7 @@ npm run typecheck
 npm run doctor
 ```
 
-Verified baseline: 129 backend tests, 67.69% coverage, 25 frontend tests and
+Verified baseline: 136 backend tests, 67.69% coverage, 25 frontend tests and
 five Playwright scenarios. The authenticated Playwright scenario is seeded in
 CI and skips locally unless `E2E_EMAIL` and `E2E_PASSWORD` are supplied.
 
@@ -66,6 +66,21 @@ the account plus object-storage prefix. The verified baseline is 12/12.
 Without `GROQ_API_KEY` or `GEMINI_API_KEY`, Q&A deliberately returns retrieved
 excerpts in development mode. That verifies retrieval wiring but is not proof
 of LLM answer quality. Ollama provides local embeddings independently.
+
+## Evaluation result validation
+
+After collecting anonymised rows using the schemas under `evaluation/templates`,
+derive the report metrics with:
+
+```powershell
+C:\venv\fyp\Scripts\python.exe backend\scripts\analyse_evaluation.py `
+  evaluation\results\YYYY-MM-DD `
+  --output evaluation\results\YYYY-MM-DD\summary.json
+```
+
+The analyser is covered by `backend/tests/test_evaluation_analysis.py`. See
+`evaluation/README.md` and `specs/EVALUATION_PLAN.md` for field conventions and
+the experimental protocol.
 
 ## Manual web acceptance path
 

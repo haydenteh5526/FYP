@@ -47,6 +47,9 @@ after changing the embedding provider.
    full-stack smoke test.
 6. Copy the templates from `evaluation/templates/` into a dated results folder.
 7. Freeze all questions, relevance judgements and ground truth before tuning.
+8. Validate and summarise the completed CSVs with
+   `backend/scripts/analyse_evaluation.py`; retain the generated JSON beside the
+   anonymised raw rows.
 
 ## 2. OCR experiment
 
