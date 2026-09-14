@@ -32,7 +32,9 @@ Open http://localhost:3000 — register an account and start uploading documents
 cd mobile && npm install && npx expo start
 ```
 
-Scan the QR code with Expo Go on your phone.
+Scan the QR code with Expo Go on your phone. For a physical device, set
+`EXPO_PUBLIC_API_URL` to an API address reachable from that device. Remote push
+notifications require an EAS/development build rather than Expo Go.
 
 ## Features
 
@@ -113,7 +115,10 @@ sequenceDiagram
     A-->>U: {status: "complete", raw_text, brand...}
 ```
 
-## API Endpoints
+## Selected API endpoints
+
+This is a quick-reference subset. The running Swagger document is the
+authoritative endpoint list.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -196,6 +201,11 @@ Copy `.env.example` to `.env` and set:
 
 ## Testing
 
+Verified on 2026-09-14: 76 backend tests at 50.52% coverage, 25 frontend unit
+tests, five Playwright scenarios, backend/frontend lint, production web build,
+mobile type checking and Expo Doctor 21/21. CI enforces a 50% backend coverage
+floor as a baseline; the target is to raise critical-path coverage to 65%.
+
 ```bash
 # Install dev/test tooling (pytest, ruff, coverage)
 cd backend && pip install -r requirements.txt -r dev-requirements.txt
@@ -261,7 +271,7 @@ Document OCR, AI categorisation, and embedding generation run in a background **
 
 ### Push notifications
 
-The mobile app registers an Expo push token (`POST /api/v1/notifications/register`). A daily **ARQ cron job** checks for warranties expiring within 30 days and pushes a reminder to the owner's devices via the Expo push API; a manual `POST /api/v1/notifications/warranty-check` endpoint runs the same check on demand. Push sending degrades gracefully — failures are logged, never raised. On-device token retrieval requires a development/EAS build on a physical device; the backend and delivery pipeline are fully wired and verified against Expo's API.
+The mobile app registers an Expo push token (`POST /api/v1/notifications/register`). A daily **ARQ cron job** checks for warranties expiring within 30 days and pushes a reminder to the owner's devices via the Expo push API; a manual `POST /api/v1/notifications/warranty-check` endpoint runs the same check on demand. Push sending degrades gracefully — failures are logged, never raised. Backend message construction is tested, but end-to-end delivery still requires an EAS/development build and physical-device validation.
 
 ## Deployment (AWS)
 
@@ -270,8 +280,14 @@ cd terraform
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your values
 terraform init
+terraform plan
+# Review the plan and confirm an AWS Budget alert exists before applying.
 terraform apply
 ```
+
+The configuration is validated, but this repository does not yet contain
+evidence of a live deployment. Applying it creates chargeable AWS resources;
+follow the cloud-evidence checklist in [`TODO.md`](TODO.md).
 
 ## FYP Context
 
@@ -279,7 +295,14 @@ terraform apply
 **Institution:** TUS Athlone  
 **Timeline:** September 2026 – May 2027
 
-See `specs/` for detailed requirements, design, tasks, and security documentation.
+Start with:
+
+- [`specs/README.md`](specs/README.md) — documentation map and maintenance rules
+- [`specs/IMPLEMENTATION_STATUS.md`](specs/IMPLEMENTATION_STATUS.md) — verified current state
+- [`specs/ARCHITECTURE.md`](specs/ARCHITECTURE.md) — system as built
+- [`specs/TRACEABILITY.md`](specs/TRACEABILITY.md) — requirements mapped to evidence and gaps
+- [`specs/EVALUATION_PLAN.md`](specs/EVALUATION_PLAN.md) — repeatable experimental protocol
+- [`specs/DESIGN.md`](specs/DESIGN.md) — original design baseline
 
 ## License
 

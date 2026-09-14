@@ -1,167 +1,104 @@
-# Testing Guide — DocVault
+# Testing and verification guide
 
-## Prerequisites
+**Updated:** 2026-09-14
 
-- Docker Desktop running
-- Node.js 20+ installed
-- A document photo ready (phone manual, warranty card, anything with text)
+Use this guide for engineering verification. Formal academic measurements use
+[specs/EVALUATION_PLAN.md](specs/EVALUATION_PLAN.md); do not mix smoke-test
+success with accuracy or usability results.
 
----
+## Start and check the stack
 
-## Step 1: Start the Backend
-
-```bash
+```powershell
 cd C:\FYP
 docker compose up --build -d
-```
-
-Wait ~30 seconds, then verify:
-```bash
-curl http://localhost:8000/health
-```
-Should return: `{"status":"ok"}`
-
-## Step 2: Run Database Migration
-
-```bash
+docker compose exec ollama ollama pull nomic-embed-text
 docker compose exec api alembic upgrade head
+curl.exe http://localhost:8000/health/ready
 ```
 
-## Step 3: Start the Frontend
+Expected services: `api`, `worker`, `db`, `redis`, `minio`, `ollama`, `web`.
+Open the web client at <http://localhost:3000> and Swagger at
+<http://localhost:8000/docs>.
 
-```bash
+## Automated gate
+
+Run backend tests with explicit development-database credentials so a stale
+shell environment cannot substitute the placeholder defaults:
+
+```powershell
+cd C:\FYP\backend
+$env:DATABASE_URL='postgresql+asyncpg://docvault:docvault@localhost:5432/docvault'
+$env:S3_ENDPOINT='http://localhost:9000'
+$env:S3_ACCESS_KEY='minioadmin'
+$env:S3_SECRET_KEY='minioadmin'
+$env:S3_BUCKET='documents'
+$env:JWT_SECRET='test-secret-that-is-at-least-32-bytes-long'
+$env:OCR_BACKEND='tesseract'
+C:\venv\fyp\Scripts\python.exe -m pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=50
+C:\venv\fyp\Scripts\python.exe -m ruff check app tests scripts
+
 cd C:\FYP\frontend
-npm run dev
+npm run lint
+npm test -- --run
+npm run build
+npx playwright test
+
+cd C:\FYP\mobile
+npm run typecheck
+npm run doctor
 ```
 
-Open http://localhost:3000
+Verified baseline: 76 backend tests, 50.52% coverage, 25 frontend tests and
+five Playwright scenarios. The authenticated Playwright scenario is seeded in
+CI and skips locally unless `E2E_EMAIL` and `E2E_PASSWORD` are supplied.
 
----
+## Full-stack smoke test
 
-## Step 4: Test Registration
-
-1. Click **"Get started"** on landing page
-2. Enter email: `haydenteh0@gmail.com` (to receive real Resend email) OR any email
-3. Click **"Continue with Email"**
-4. Enter your full name
-5. Enter a password — watch the **strength meter** fill (aim for green)
-6. Click **"Create account"**
-7. You'll see **"Check your email"** screen
-
-### Get the verification link:
-
-**If using haydenteh0@gmail.com:** Check your Gmail inbox (or spam).
-
-**If using any other email:** The link prints to Docker logs:
-```bash
-docker compose logs api --tail 10
-```
-Look for:
-```
-📧 EMAIL (dev mode)
-To: your@email.com
-URL: http://localhost:3000/verify?token=XXXXX
+```powershell
+cd C:\FYP
+docker compose exec -T api python scripts/e2e_smoke.py
 ```
 
-8. Open that URL in your browser
-9. You should see **"Email verified!"** with a green checkmark
+The script creates and verifies an isolated account, uploads a generated
+document, waits for OCR, checks categorisation/search/Q&A/export, and deletes
+the account plus object-storage prefix. The verified baseline is 12/12.
 
-## Step 5: Test Login
+Without `GROQ_API_KEY` or `GEMINI_API_KEY`, Q&A deliberately returns retrieved
+excerpts in development mode. That verifies retrieval wiring but is not proof
+of LLM answer quality. Ollama provides local embeddings independently.
 
-1. Go to http://localhost:3000/login
-2. Enter your email → "Continue with Email"
-3. Enter your password → "Sign in"
-4. You should land on the **Dashboard**
+## Manual web acceptance path
 
-## Step 6: Test Document Upload
+1. Register and open the verification link from email or development API logs.
+2. Sign in and confirm an unverified account is rejected.
+3. Upload a real JPEG/PNG/WebP and a multi-page PDF.
+4. Confirm pending → complete/failed feedback, OCR text, original preview and metadata.
+5. Correct OCR text, restore a previous version, add tags/category and favourite it.
+6. Search by an exact term and a semantic paraphrase; inspect excerpts/highlights.
+7. Ask an answerable and an unanswerable question; verify every citation manually.
+8. Export JSON/CSV, create a signed share link, then delete the document.
+9. Delete a disposable account and confirm its database rows and storage objects are gone.
 
-1. Click **"Upload"** in the sidebar (or the Upload button on dashboard)
-2. Drag and drop an image of a document (or click "Choose file")
-   - Use a real photo: phone manual, receipt, warranty card, spec sheet
-   - Must be JPEG, PNG, WebP, or PDF
-3. Wait for the spinner — "Processing..."
-4. Should show **"Uploaded successfully"** with the detected title/brand
-5. Click **"View"** to see the document detail
+Record failures as reproducible issues rather than changing evaluation data.
 
-## Step 7: Test Document Detail
+## Mobile acceptance path
 
-1. Click the **"Text"** tab — verify OCR extracted readable text
-2. Click **"Edit text"** — make a correction → Save
-3. Click **"Image"** tab — see the original uploaded image
-4. Click **"Info"** tab — see brand, model, type, file size, date
+Set `EXPO_PUBLIC_API_URL` to an address reachable from the device. Android
+emulators default to `10.0.2.2`; a physical device normally needs the host's LAN
+address or a deployed HTTPS URL.
 
-## Step 8: Test Dashboard
+Test registration/verification, login, 2FA, biometric restart, access-token
+refresh, camera denial/acceptance, failed upload feedback, successful upload,
+search, Q&A and sign-out. Remote push requires an EAS/development build and a
+configured Expo project.
 
-1. Click **"Documents"** in sidebar to go back
-2. Your document card should appear with brand/type badges
-3. Try the **filter bar** — type part of the title
-4. Hover a card — trash icon appears (don't delete yet)
+## Interpreting failures
 
-## Step 9: Test Search
-
-1. Click **"Search"** in sidebar
-2. Type a word you KNOW is in your uploaded document
-3. Click Search
-4. Should return results with relevant text excerpts
-
-> Note: Embeddings come from Ollama (local, started by docker compose) or Gemini. If
-> neither is available, semantic search falls back to zero-vectors (all results show
-> 0% relevance) and only the keyword half of hybrid search contributes.
-
-## Step 10: Test Ask AI
-
-1. Click **"Ask AI"** in sidebar
-2. Click one of the suggested questions, or type your own
-3. Should return an answer (in dev mode: shows raw document text)
-4. Source citations appear below the answer
-
-> Note: Real AI answers require `GROQ_API_KEY` (or `GEMINI_API_KEY`) in your `.env` file.
-
-## Step 11: Test Categories
-
-1. Click **"Categories"** in sidebar
-2. If auto-categorisation worked, a category may already exist
-3. Type a name (e.g., "Electronics") and click the + button
-4. Category appears in the list
-
-## Step 12: Test Sign Out
-
-1. Click **"Sign out"** at the bottom of the sidebar
-2. Should return to the landing page
-3. Try going to http://localhost:3000/app — should redirect to /login
-
----
-
-## Common Issues
-
-| Problem | Solution |
-|---------|----------|
-| "Server unavailable" | Backend not running. Run `docker compose up --build -d` |
-| 500 error on register | Run migration: `docker compose exec api alembic upgrade head` |
-| "Email already registered" | Use a different email, or delete: `docker compose exec db psql -U docvault -c "DELETE FROM users WHERE email = 'xxx';"` |
-| "Please verify your email" | Check logs for verify URL: `docker compose logs api --tail 10` |
-| OCR text is empty | Image too blurry or small. Try a clearer photo |
-| Search shows 0% relevance | Expected with no embedding provider (Ollama/Gemini). Keyword search still works |
-| AI answer shows raw text | Expected without `GROQ_API_KEY`/`GEMINI_API_KEY`. Set one in `.env` for real answers |
-| Can't see frontend changes | Run frontend locally: `cd frontend && npm run dev` |
-
----
-
-## Optional: Enable Real AI
-
-Add to `C:\FYP\.env` (Groq is free and powers Q&A):
-```
-GROQ_API_KEY=your-groq-key
-MISTRAL_API_KEY=your-mistral-key   # optional: summaries + categorisation
-```
-
-Rebuild: `docker compose up --build -d`
-
-Now search uses real embeddings and Ask AI generates proper answers via GPT-4o-mini.
-
----
-
-## Optional: Enable Real Email (Resend)
-
-Already configured. Works with `haydenteh0@gmail.com` (your Resend account email).
-For other emails, verify a domain at https://resend.com/domains.
+- `InvalidPasswordError` for database user `user`/`pass`: the test process read
+  placeholder defaults; set `DATABASE_URL` explicitly as above.
+- Search works but generated Q&A does not: check `/api/v1/ai/status` and provider keys.
+- Semantic results are empty: confirm `nomic-embed-text` exists in Ollama and do
+  not mix embeddings from different providers.
+- Mobile cannot reach localhost: configure `EXPO_PUBLIC_API_URL` for that device.
+- Expo Doctor mismatch: run `npx expo install --check`, review, then use
+  `npx expo install --fix` on a dedicated dependency branch.

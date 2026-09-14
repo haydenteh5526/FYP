@@ -1,10 +1,10 @@
 # Context — AI Cloud Document Vault
 
-Working context and handover notes, written 2026-07-29 at the end of development on
-a work laptop. Everything needed to pick the project up on a different machine, plus
-the reasoning behind decisions that aren't obvious from the code.
+Historical handover notes first written 2026-07-29. Machine-transfer details and
+decision history remain useful, but live status is maintained in
+`specs/IMPLEMENTATION_STATUS.md` and current priorities in `TODO.md`.
 
-**Repo:** https://github.com/haydenteh5526/FYP · **HEAD:** `fff8469` (PR #104)
+**Repo:** https://github.com/haydenteh5526/FYP
 **Timeline:** Sep 2026 – May 2027 (TUS Athlone, Software Design with AI for Cloud Computing, L8)
 
 ---
@@ -96,7 +96,7 @@ precedence. Only `GROQ_API_KEY` and `JWT_SECRET` matter for a working demo.
 ### Verification commands (all confirmed working)
 
 ```bash
-# Backend — 70 tests. Dev deps are ephemeral: reinstall after any image rebuild.
+# Backend — 76 tests at the 2026-09-14 baseline.
 docker compose exec -T api pip install -q -r dev-requirements.txt
 docker compose exec -T api python -m pytest tests/ -q
 
@@ -108,30 +108,30 @@ docker compose exec -T api python -m ruff check --no-cache app/ tests/
 # Frontend — 25 tests. `tsc -b` matches CI (not --noEmit).
 cd frontend && npx tsc -b && npm test && npm run build
 
-# End-to-end pipeline: register→upload→OCR→categorise→search→AI→export (11 checks)
+# End-to-end pipeline: register→upload→OCR→categorise→search→AI→export→cleanup (12 checks)
 docker compose exec -T api python scripts/e2e_smoke.py     # or: make smoke
 
 # Terraform (CLI not installed locally — use Docker)
 docker run --rm -v "$PWD/terraform:/tf" -w /tf hashicorp/terraform:1.9 init -backend=false
 docker run --rm -v "$PWD/terraform:/tf" -w /tf hashicorp/terraform:1.9 validate
 docker run --rm -v "$PWD/terraform:/tf" -w /tf hashicorp/terraform:1.9 fmt -check -recursive
-# then delete terraform/.terraform and .terraform.lock.hcl
+# then delete only terraform/.terraform; retain the committed provider lock file
 ```
 
 **PowerShell notes** (if staying on Windows): `<` redirection is unsupported — use
 `Get-Content file | docker compose exec -T ...`. Use `Select-Object` / `Select-String`
 for filtering.
 
-### Last verified state (2026-07-29)
+### Last verified state (2026-09-14)
 
 | Check | Result |
 |-------|--------|
 | main CI | success |
-| Backend | ruff clean · **70** pytest pass |
+| Backend | ruff clean · **76** pytest pass · 50.52% coverage (50% floor) |
 | Frontend | `tsc -b` exit 0 · **25** vitest pass · build passes |
-| E2E | Playwright **4** tests · smoke **11/11** |
+| E2E | Playwright **5** scenarios · smoke **12/12** |
 | Terraform | `validate` + `fmt -check` pass (**never applied**) |
-| Repo | 0 open PRs · only `main` · clean tree |
+| Mobile | TypeScript clean · Expo Doctor **21/21** · CI job enabled |
 
 ---
 
@@ -328,9 +328,9 @@ told you to buy a key the app never uses (PR #104).
 / 4 frontend when the verified reality is **70 / 25**, and listed the *actual* AI
 provider as OpenAI GPT-4o-mini (PRs #101, #104).
 
-Audited and found clean: no coming-soon/mock markers, no dead controls, no invented
-social proof (no fake testimonials or user counts), and every README API endpoint
-exists (the real API has 55 routes; the README lists ~20 — under-claiming).
+The later 2026-09-14 audit removed fabricated authentication-page testimonials
+and replaced absolute privacy claims with accurate provider/context wording.
+README endpoint documentation is explicitly a selected subset; Swagger is canonical.
 `reference/` is gitignored with 0 files tracked, so no licensing exposure.
 
 **Deliberately left alone:** `specs/DESIGN.md`, `TASKS.md`, `REQUIREMENTS.md` still
@@ -342,23 +342,10 @@ discussing. Revisit if you'd rather they match the current build.
 
 ## 9. Next steps
 
-Highest marks-per-hour first. Code is in good shape; most remaining work is not code.
-
-1. **Evaluation (Semester 1, `TODO.md` §2)** — OCR accuracy benchmark, RAG Q&A
-   evaluation (50 questions), categorisation accuracy, load test
-   (`backend/tests/locustfile.py` exists), Lighthouse audit. These produce the
-   results tables your testing chapter needs. Nothing blocks them; they only need
-   the local stack.
-2. **Literature review (§3)** — restore the reviewed sources with
-   `bash scripts/fetch-reference.sh` (paperless-ngx, docling, quivr, kreuzberg,
-   pinned to the commits actually reviewed).
-3. **AWS burst deployment (§4)** — budget alert first, then the two-phase apply, then
-   evidence capture, then `destroy`. Verify the CD pipeline redeploys API **and**
-   worker and publishes the frontend (fixed in PR #103).
-4. **Free always-on host** if you want a persistent demo URL — option A above.
-5. **Usability testing (§5)** — 5 participants + SUS. Needs sustained uptime over
-   days, so a free VM suits this better than a paid AWS burst.
-6. **Report + demo (§6, §7)**.
+Use the priority-ordered root `TODO.md`. In summary: raise critical-path test
+coverage, configure a real Q&A provider, execute the frozen evaluation protocol,
+validate mobile on physical devices, prove the AWS deployment, conduct the
+consented usability study, then complete the report and demo.
 
 ### Not done / open questions
 
@@ -367,7 +354,7 @@ Highest marks-per-hour first. Code is in good shape; most remaining work is not 
   build + a reverse proxy (e.g. Caddy for free TLS) is needed for the VM route
 - Cognito module is provisioned but unused (app uses custom JWT + direct Google
   OAuth) — wire it up or remove it
-- Mobile app has **no CI coverage** — CI doesn't build or test `mobile/`
+- Mobile has static/configuration CI but no automated native-device UI suite
 - Search page has no filter UI (genuinely deferred, correctly documented)
 - ALB listener is HTTP; TLS terminates at CloudFront, so CloudFront→ALB is
   unencrypted inside AWS. End-to-end TLS would need a custom domain + ACM.
@@ -380,11 +367,15 @@ Highest marks-per-hour first. Code is in good shape; most remaining work is not 
 |------|----------|
 | `README.md` | Overview, quick start, architecture diagrams, API table, config reference |
 | `TODO.md` | Priority-ordered plan across both semesters + future work |
-| `TESTING.md` | Manual test walkthrough + troubleshooting |
-| `CONTEXT.md` | This file — working context and handover |
+| `TESTING.md` | Automated, full-stack, web and mobile verification guide |
+| `CONTEXT.md` | This file — historical handover and decision context |
 | `frontend/CONTEXT.md` | Frontend-specific design-system notes (separate, pre-existing) |
 | `terraform/COST_REVIEW.md` | AWS footprint, costs, caveats, teardown strategy |
 | `specs/REQUIREMENTS.md` | Functional/non-functional requirements, constraints, scope |
 | `specs/DESIGN.md` | Architecture and technology decisions (original plan) |
 | `specs/TASKS.md` | Work breakdown, estimates, risk register |
-| `specs/IMPLEMENTATION_STATUS.md` | Planned vs actual, test counts, security measures, deferred work |
+| `specs/IMPLEMENTATION_STATUS.md` | Canonical verified current state and known gaps |
+| `specs/ARCHITECTURE.md` | Current as-built runtime and security boundaries |
+| `specs/TRACEABILITY.md` | Requirements mapped to evidence and gaps |
+| `specs/EVALUATION_PLAN.md` | Frozen research questions and experimental protocol |
+| `specs/USABILITY_TEST_PLAN.md` | Consent, tasks, SUS and analysis procedure |

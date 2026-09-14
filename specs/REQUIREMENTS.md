@@ -1,5 +1,9 @@
 # Requirements Specification
 
+> **Document role:** Approved requirements baseline (2026-06-11). Completion
+> and evidence are maintained separately in [TRACEABILITY.md](TRACEABILITY.md)
+> so the original scope is not silently rewritten after implementation.
+
 ## AI Cloud Document Vault
 
 **Project:** Final Year Project — Software Design with AI for Cloud Computing (Level 8)  
