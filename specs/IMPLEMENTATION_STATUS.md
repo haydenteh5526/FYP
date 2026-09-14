@@ -16,7 +16,7 @@ are intentional evidence of the project's design evolution.
 | Git | `main` clean and synchronized with `origin/main` | No uncommitted production work at verification time |
 | Local runtime | API, worker, PostgreSQL/pgvector, Redis, MinIO, Ollama and web running | Full Docker development stack operational |
 | Readiness | Database, storage, Ollama embeddings and Redis reported healthy | Dependencies reachable |
-| Backend | 129 tests; ruff clean; 67.69% coverage with a 65% CI floor | Core processing, OCR, categorisation, RAG and warranty extraction modules have full line coverage |
+| Backend | 136 tests; ruff clean; 67.69% coverage with a 65% CI floor | Core processing, OCR, categorisation, RAG and warranty extraction modules have full line coverage |
 | Frontend | 25 Vitest tests; ESLint clean; production build succeeds | Build and component/utility baseline healthy |
 | Browser E2E | 5 Playwright tests, including verified login and protected dashboard access | Auth routing covered; upload UI is not exercised against real OCR in CI |
 | Full-stack smoke | 12/12 checks passed | Register, verify, login, upload, OCR, categorise, search, RAG retrieval, export and cleanup work locally |
