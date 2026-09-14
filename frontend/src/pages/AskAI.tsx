@@ -303,6 +303,7 @@ export default function AskAI() {
                 <Button
                   type="submit"
                   size="icon"
+                  aria-label="Send message"
                   className="relative h-10 w-10 rounded-xl gradient-bg border-0 text-white shadow-md shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none"
                   disabled={loading || !input.trim()}
                 >

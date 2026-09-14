@@ -1,7 +1,7 @@
 # Reproducible evaluation plan
 
 **Protocol version:** 2.0
-**Updated:** 2026-09-14
+**Updated:** 2026-09-15
 **Results status:** Not yet collected
 
 This protocol must be frozen before viewing final results. Commit anonymised
@@ -134,10 +134,11 @@ a short load test; those require a deployed observation period.
 
 ## 7. Accessibility and usability
 
-Run Lighthouse in desktop and mobile emulation and add automated axe checks to
-critical browser journeys. Manually verify keyboard order, visible focus,
-dialogs, Escape behaviour, labels, contrast, reduced motion and live feedback
-for processing/errors.
+CI runs axe checks against selected public, authentication, onboarding, Ask AI
+and document-library states. Also run Lighthouse in desktop and mobile
+emulation, and manually verify keyboard order, visible focus, dialogs, Escape
+behaviour, labels, contrast, reduced motion and live feedback for
+processing/errors.
 
 Conduct the participant study in [USABILITY_TEST_PLAN.md](USABILITY_TEST_PLAN.md).
 

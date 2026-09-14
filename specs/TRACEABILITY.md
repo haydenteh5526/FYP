@@ -1,6 +1,6 @@
 # Requirements traceability
 
-**Reviewed:** 2026-09-14
+**Reviewed:** 2026-09-15
 
 Status meanings:
 
@@ -49,7 +49,8 @@ Status meanings:
 | NFR-12–14 | Partial | Horizontally scalable design and provider adapters exist; no live scale test |
 | NFR-15–17 | Unverified | Uptime, durability and backups require a deployed evaluation environment |
 | NFR-18 | Implemented | Responsive web plus mobile companion; physical devices pending |
-| NFR-19–20 | Unverified | Click-count and WCAG targets require structured audits |
+| NFR-19 | Unverified | The click-count target requires a structured workflow audit |
+| NFR-20 | Partial | Axe reports no WCAG 2.1 A/AA violations on selected public/authenticated states; manual and Lighthouse audits remain |
 | NFR-21 | Implemented | Loading, polling, empty and error states exist |
 | NFR-22 | Verified | Style gates pass, current documentation is organised, and CI enforces 65% backend coverage |
 | NFR-23–24 | Verified locally | Docker Compose and Terraform source exist; AWS apply remains unverified |

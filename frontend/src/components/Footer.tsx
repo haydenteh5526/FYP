@@ -27,8 +27,8 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-border/30 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground/60">© 2026 DocVault. Final Year Project — TUS Athlone.</p>
-          <p className="text-xs text-muted-foreground/60">Software Design with AI for Cloud Computing</p>
+          <p className="text-xs text-muted-foreground">© 2026 DocVault. Final Year Project — TUS Athlone.</p>
+          <p className="text-xs text-muted-foreground">Software Design with AI for Cloud Computing</p>
         </div>
       </div>
     </footer>

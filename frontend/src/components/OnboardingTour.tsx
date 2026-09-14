@@ -29,15 +29,15 @@ const STEPS = [
   {
     id: 'folders',
     icon: <FolderOpen size={28} className="text-white" />,
-    title: 'Organise with folders',
-    desc: 'Create folders to group documents. Drag and drop to move them, or let AI suggest categories automatically on upload.',
+    title: 'Organise with categories',
+    desc: 'Create categories to group documents, or use the automatically detected document type as a sorting aid.',
     target: null,
   },
   {
     id: 'ai',
     icon: <MessageSquare size={28} className="text-white" />,
     title: 'Ask AI questions',
-    desc: 'Open any document and use the Ask AI tab to chat with it. Get sourced answers grounded in your actual documents — no hallucinations.',
+    desc: 'Open any document and use Ask AI to get answers accompanied by the retrieved source excerpts.',
     target: null,
   },
 ]
@@ -84,7 +84,12 @@ export function OnboardingTour({ onDone }: Props) {
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
 
       {/* Card */}
-      <div className="relative w-full max-w-sm bg-card border border-border/40 rounded-2xl shadow-2xl p-7 animate-scale-in">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-title"
+        className="relative w-full max-w-sm bg-card border border-border/40 rounded-2xl shadow-2xl p-7 animate-scale-in"
+      >
         {/* Close */}
         <button
           onClick={complete}
@@ -95,7 +100,7 @@ export function OnboardingTour({ onDone }: Props) {
         </button>
 
         {/* Progress dots */}
-        <div className="flex gap-1.5 mb-6">
+        <div className="flex gap-1.5 mb-6" aria-hidden="true">
           {STEPS.map((_, i) => (
             <div
               key={i}
@@ -110,7 +115,7 @@ export function OnboardingTour({ onDone }: Props) {
         </div>
 
         {/* Content */}
-        <h2 className="text-xl font-bold mb-2">{current.title}</h2>
+        <h2 id="onboarding-title" className="text-xl font-bold mb-2">{current.title}</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">{current.desc}</p>
 
         {/* Actions */}

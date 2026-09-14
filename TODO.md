@@ -1,6 +1,6 @@
 # Current FYP roadmap
 
-**Updated:** 2026-09-14
+**Updated:** 2026-09-15
 
 The feature set is frozen unless evaluation exposes a necessary change. Work
 from top to bottom: correctness and evidence are worth more than additional UI
@@ -28,7 +28,9 @@ requirement-level gaps.
       external email/notification failure handling rather than chasing a vanity total.
 - [ ] Add a browser upload workflow backed by MinIO/Tesseract in CI, or document
       why the Docker smoke test is the integration gate.
-- [ ] Add automated accessibility checks and manually verify keyboard and screen-reader flows.
+- [x] Block automated WCAG 2.1 A/AA violations on landing, login, onboarding,
+      Ask AI and document-library browser states with axe/Playwright.
+- [ ] Manually verify keyboard order, focus, dialogs and screen-reader flows.
 - [x] Test migration upgrade/downgrade behaviour against a fresh database in CI.
 - [ ] Test mobile registration, session refresh, camera upload and 2FA on one Android and one iOS device.
 - [ ] Validate push receipt in an EAS/development build.
