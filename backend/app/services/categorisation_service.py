@@ -32,28 +32,29 @@ def _categorise_groq(text: str) -> DocumentMetadata:
 
     from app.services.retry import with_retry
 
-    client = OpenAI(api_key=settings.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
-
-    def _call():
-        return client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Extract metadata from this document text. Return JSON only with these fields: "
-                        "brand, model, document_type (e.g. 'User Manual', 'Quick Start Guide', 'Warranty Card'), "
-                        "suggested_title. Use null for fields you cannot determine. "
-                        "For 'model', extract the specific product model number/name (e.g. 'DR-HSH004', 'Galaxy S24')."
-                    ),
-                },
-                {"role": "user", "content": text[:2000]},
-            ],
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-
     try:
+        client = OpenAI(api_key=settings.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
+
+        def _call():
+            return client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Extract metadata from this document text. Return JSON only with these fields: "
+                            "brand, model, document_type (e.g. 'User Manual', 'Quick Start Guide', 'Warranty Card'), "
+                            "suggested_title. Use null for fields you cannot determine. "
+                            "For 'model', extract the specific product model number/name "
+                            "(e.g. 'DR-HSH004', 'Galaxy S24')."
+                        ),
+                    },
+                    {"role": "user", "content": text[:2000]},
+                ],
+                temperature=0,
+                response_format={"type": "json_object"},
+            )
+
         response = with_retry(_call, label="groq.categorise", attempts=2)
         data = json.loads(response.choices[0].message.content)
         return DocumentMetadata(
@@ -72,8 +73,6 @@ def _categorise_gemini(text: str) -> DocumentMetadata:
 
     from app.services.retry import with_retry
 
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
-
     prompt = (
         "Extract metadata from this document text. Return JSON only with these fields: "
         "brand, model, document_type (e.g. 'User Manual', 'Quick Start Guide', 'Warranty Card'), "
@@ -83,6 +82,7 @@ def _categorise_gemini(text: str) -> DocumentMetadata:
     )
 
     try:
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
         response = with_retry(lambda: client.models.generate_content(
             model="gemini-2.0-flash",
             contents=prompt,

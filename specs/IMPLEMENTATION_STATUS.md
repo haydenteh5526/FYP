@@ -1,7 +1,7 @@
 # Verified implementation status
 
 **Last verified:** 2026-09-14
-**Commit baseline:** `d5bd14c`
+**Code baseline:** `093b36f`
 **Overall status:** Web/backend MVP implemented; evaluation, physical-device validation and live-cloud evidence remain.
 
 This is the canonical status document for the system as built. The original
@@ -16,7 +16,7 @@ are intentional evidence of the project's design evolution.
 | Git | `main` clean and synchronized with `origin/main` | No uncommitted production work at verification time |
 | Local runtime | API, worker, PostgreSQL/pgvector, Redis, MinIO, Ollama and web running | Full Docker development stack operational |
 | Readiness | Database, storage, Ollama embeddings and Redis reported healthy | Dependencies reachable |
-| Backend | 76 tests; ruff clean; 50.52% coverage with a 50% CI floor | Good regression baseline, but critical AI/processing coverage must rise |
+| Backend | 129 tests; ruff clean; 67.69% coverage with a 65% CI floor | Core processing, OCR, categorisation, RAG and warranty extraction modules have full line coverage |
 | Frontend | 25 Vitest tests; ESLint clean; production build succeeds | Build and component/utility baseline healthy |
 | Browser E2E | 5 Playwright tests, including verified login and protected dashboard access | Auth routing covered; upload UI is not exercised against real OCR in CI |
 | Full-stack smoke | 12/12 checks passed | Register, verify, login, upload, OCR, categorise, search, RAG retrieval, export and cleanup work locally |
@@ -68,8 +68,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the current system view and
 ## Known gaps and risks
 
 1. No formal OCR, retrieval, RAG or categorisation results have been collected.
-2. Critical processing and AI modules have low automated coverage despite the
-   overall 50% floor. Increase the floor in measured steps toward 65%.
+2. Storage adapters, the worker entry point and external email/notification
+   failure paths remain less covered than the core document-processing pipeline.
 3. The mobile app has not been validated on real iOS and Android devices.
 4. Search filters are available for document listing but not the dedicated
    search results page.

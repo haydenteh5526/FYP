@@ -201,10 +201,11 @@ Copy `.env.example` to `.env` and set:
 
 ## Testing
 
-Verified on 2026-09-14: 76 backend tests at 50.52% coverage, 25 frontend unit
+Verified on 2026-09-14: 129 backend tests at 67.69% coverage, 25 frontend unit
 tests, five Playwright scenarios, backend/frontend lint, production web build,
-mobile type checking and Expo Doctor 21/21. CI enforces a 50% backend coverage
-floor as a baseline; the target is to raise critical-path coverage to 65%.
+mobile type checking and Expo Doctor 21/21. CI enforces a 65% backend coverage
+floor. The categorisation, document-processing, image-preprocessing, OCR, RAG
+and warranty-extraction service modules have full line coverage.
 
 ```bash
 # Install dev/test tooling (pytest, ruff, coverage)
