@@ -146,8 +146,10 @@ async def main():
         check("export_json", r.status_code == 200 and str(doc_id) in r.text,
               f"{r.status_code} bytes={len(r.text)}")
 
-        # Cleanup: delete the test document
-        await c.delete(f"{BASE}/documents/{doc_id}", headers=auth)
+        # Cleanup through the real account-deletion path. This removes the
+        # database rows and the complete S3/MinIO user prefix.
+        cleanup = await c.delete(f"{BASE}/auth/account", headers=auth)
+        check("cleanup_test_account", cleanup.status_code == 204, f"{cleanup.status_code}")
 
     print("\n=== SMOKE TEST SUMMARY ===", flush=True)
     passed = sum(1 for v in results.values() if v)

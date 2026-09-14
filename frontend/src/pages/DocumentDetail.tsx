@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, FileText, Info, Eye, MessageSquare, Send, Bot, Check, Share2, X, Plus, Tag as TagIcon, Loader2, FolderOpen, Download, Star, Trash2, User, Sparkles, AlertTriangle, BookOpen, Zap, Hash, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -707,33 +707,7 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  // Load existing document-scoped conversation on mount
-  useEffect(() => {
-    listConversations().then(convs => {
-      // Find most recent conversation for this document (title starts with doc title)
-      const docConv = convs.find(c => c.title.startsWith(`[${documentTitle}]`))
-      if (docConv) {
-        setConversationId(docConv.id)
-        convIdRef.current = docConv.id
-        getConversation(docConv.id).then(data => {
-          setMessages(data.messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
-          // Auto-submit after loading existing messages
-          if (initialQuestion && !hasAutoSubmitted.current) {
-            hasAutoSubmitted.current = true
-            setTimeout(() => doSubmit(initialQuestion), 100)
-          }
-        })
-      } else {
-        // No existing conversation — auto-submit will create one
-        if (initialQuestion && !hasAutoSubmitted.current) {
-          hasAutoSubmitted.current = true
-          setTimeout(() => doSubmit(initialQuestion), 100)
-        }
-      }
-    })
-  }, [documentId, documentTitle])
-
-  async function doSubmit(question: string) {
+  const doSubmit = useCallback(async (question: string) => {
     if (!question.trim()) return
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: question }])
@@ -758,7 +732,33 @@ function DocumentChat({ documentId, documentTitle, initialQuestion }: { document
     } finally {
       setLoading(false)
     }
-  }
+  }, [documentId, documentTitle])
+
+  // Load existing document-scoped conversation on mount
+  useEffect(() => {
+    listConversations().then(convs => {
+      // Find most recent conversation for this document (title starts with doc title)
+      const docConv = convs.find(c => c.title.startsWith(`[${documentTitle}]`))
+      if (docConv) {
+        setConversationId(docConv.id)
+        convIdRef.current = docConv.id
+        getConversation(docConv.id).then(data => {
+          setMessages(data.messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
+          // Auto-submit after loading existing messages
+          if (initialQuestion && !hasAutoSubmitted.current) {
+            hasAutoSubmitted.current = true
+            setTimeout(() => doSubmit(initialQuestion), 100)
+          }
+        })
+      } else {
+        // No existing conversation — auto-submit will create one
+        if (initialQuestion && !hasAutoSubmitted.current) {
+          hasAutoSubmitted.current = true
+          setTimeout(() => doSubmit(initialQuestion), 100)
+        }
+      }
+    })
+  }, [documentId, documentTitle, initialQuestion, doSubmit])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

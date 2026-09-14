@@ -77,13 +77,10 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
         </div>
 
         <div className="relative">
-          <blockquote className="text-white/80 text-xl font-medium leading-relaxed max-w-md">
-            {isRegister
-              ? '"Scanned all my manuals in one afternoon. Now I just ask the app when something breaks."'
-              : '"The AI found the exact page I needed in 2 seconds. No more flipping through 60 pages."'
-            }
-          </blockquote>
-          <p className="mt-5 text-white/40 text-sm">{isRegister ? '— Mark T., Homeowner' : '— Sarah K., Product Designer'}</p>
+          <p className="text-white/80 text-xl font-medium leading-relaxed max-w-md">
+            Turn manuals, warranties and receipts into a private, searchable document library with grounded AI answers.
+          </p>
+          <p className="mt-5 text-white/40 text-sm">OCR · hybrid retrieval · source-backed Q&amp;A</p>
         </div>
 
         <p className="relative text-white/20 text-xs">© 2027 DocVault. All rights reserved.</p>

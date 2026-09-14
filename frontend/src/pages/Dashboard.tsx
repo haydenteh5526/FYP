@@ -57,7 +57,7 @@ export default function Dashboard() {
     queryFn: getCategories,
   })
 
-  const allDocs = docsQuery.data ?? []
+  const allDocs = useMemo(() => docsQuery.data ?? [], [docsQuery.data])
   const loading = docsQuery.isLoading
   const error = docsQuery.isError
 

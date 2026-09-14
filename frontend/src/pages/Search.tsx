@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, FileText, Sparkles, SearchX, Clock, ArrowRight } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
@@ -20,13 +20,15 @@ export default function SearchPage() {
     try { return JSON.parse(localStorage.getItem('docvault-recent-searches') || '[]') } catch { return [] }
   })
 
-  function addToRecent(q: string) {
+  const addToRecent = useCallback((q: string) => {
     const trimmed = q.trim()
     if (!trimmed) return
-    const updated = [trimmed, ...recentSearches.filter(s => s !== trimmed)].slice(0, 5)
-    setRecentSearches(updated)
-    localStorage.setItem('docvault-recent-searches', JSON.stringify(updated))
-  }
+    setRecentSearches(current => {
+      const updated = [trimmed, ...current.filter(s => s !== trimmed)].slice(0, 5)
+      localStorage.setItem('docvault-recent-searches', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
 
   useEffect(() => {
     if (!query.trim()) {
@@ -49,7 +51,7 @@ export default function SearchPage() {
       setLoading(false)
     }, 400)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query])
+  }, [query, addToRecent])
 
   return (
     <div className="p-4 sm:p-8 max-w-3xl mx-auto h-full overflow-y-auto">

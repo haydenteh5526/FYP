@@ -24,9 +24,9 @@ export default defineConfig([
       // use effects and refs without compiler transforms.
       'react-hooks/refs': 'off',
       'react-hooks/set-state-in-effect': 'off',
-      // Co-located providers and hooks are intentional; this is an HMR hint,
-      // not a production correctness concern.
-      'react-refresh/only-export-components': 'warn',
+      // Co-located providers, hooks and constants are an intentional project
+      // convention. This HMR-only rule does not identify runtime defects.
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])
