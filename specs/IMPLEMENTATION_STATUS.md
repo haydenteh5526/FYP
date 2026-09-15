@@ -1,7 +1,7 @@
 # Verified implementation status
 
 **Last verified:** 2026-09-15
-**Verification baseline:** `d9c547c`
+**Verification baseline:** `f5dbb6e`
 **Overall status:** Web/backend MVP implemented; evaluation, physical-device validation and live-cloud evidence remain.
 
 This is the canonical status document for the system as built. The original
@@ -16,7 +16,7 @@ are intentional evidence of the project's design evolution.
 | Git | `main` clean and synchronized with `origin/main` | No uncommitted production work at verification time |
 | Local runtime | API, worker, PostgreSQL/pgvector, Redis, MinIO, Ollama and web running | Full Docker development stack operational |
 | Readiness | Database, storage, Ollama embeddings and Redis reported healthy | Dependencies reachable |
-| Backend | 152 tests; ruff clean; 70.73% coverage with a 65% CI floor | Core processing, OCR, categorisation, RAG, storage, queueing, worker and warranty extraction modules have full line coverage |
+| Backend | 161 tests; ruff clean; 72.71% coverage with a 65% CI floor | Core processing, email/notifications, OCR, categorisation, RAG, storage, queueing, worker and warranty extraction modules have full line coverage |
 | Frontend | 25 Vitest tests; ESLint clean; production build succeeds | Build and component/utility baseline healthy |
 | Browser E2E | 8 Playwright tests, including verified login, protected access and 3 axe WCAG scans | Public/auth/onboarding/Ask AI/document states covered; upload UI is not exercised against real OCR in CI |
 | Full-stack smoke | 12/12 checks passed | Register, verify, login, upload, OCR, categorise, search, RAG retrieval, export and cleanup work locally |
@@ -68,16 +68,14 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the current system view and
 ## Known gaps and risks
 
 1. No formal OCR, retrieval, RAG or categorisation results have been collected.
-2. External email/notification failure paths remain less covered than the core
-   document-processing pipeline.
-3. The mobile app has not been validated on real iOS and Android devices.
-4. Search filters are available for document listing but not the dedicated
+2. The mobile app has not been validated on real iOS and Android devices.
+3. Search filters are available for document listing but not the dedicated
    search results page.
-5. Offline document access and an offline upload queue are not implemented.
-6. Terraform and CD have not been exercised in an AWS account.
-7. Automated WCAG scans cover selected browser states, but manual accessibility,
+4. Offline document access and an offline upload queue are not implemented.
+5. Terraform and CD have not been exercised in an AWS account.
+6. Automated WCAG scans cover selected browser states, but manual accessibility,
    Lighthouse and the 50-concurrent-user target have not been measured.
-8. CloudFront terminates public TLS, but the current proposed CloudFront-to-ALB
+7. CloudFront terminates public TLS, but the current proposed CloudFront-to-ALB
    path requires review before claiming end-to-end encryption.
 
 ## Definition of project completion
