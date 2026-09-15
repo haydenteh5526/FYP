@@ -44,9 +44,13 @@ def _send(to_email: str, subject: str, html: str, fallback_url: str | None = Non
             logger.info("Sent email to %s", to_email)
             return
         except Exception as e:  # noqa: BLE001
-            logger.warning("Resend failed (%s); falling back to console", type(e).__name__)
+            # Verification and reset URLs contain bearer tokens. A configured
+            # production provider failing must never expose those URLs in logs.
+            logger.warning("Resend failed (%s); email was not sent", type(e).__name__)
+            return
 
-    # Dev fallback — log to console
+    # Explicit development fallback only — this is intentionally unavailable
+    # when a production email provider has been configured.
     logger.info("EMAIL (dev) to=%s subject=%r url=%s", to_email, subject, fallback_url or "-")
 
 
