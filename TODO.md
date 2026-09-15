@@ -21,12 +21,13 @@ requirement-level gaps.
 
 ## Priority 1 — critical-path confidence
 
-- [x] Raise backend coverage to at least 65%. The 2026-09-15 baseline is 70.73%
-      across 152 tests; categorisation, document processing, image preprocessing,
-      OCR, RAG, storage, queueing, worker and warranty extraction have full line coverage.
+- [x] Raise backend coverage to at least 65%. The 2026-09-15 baseline is 72.71%
+      across 161 tests; categorisation, document processing, email, image preprocessing,
+      notifications, OCR, push, RAG, storage, queueing, worker and warranty extraction
+      have full line coverage.
 - [x] Cover storage adapters, queue success/fallback/cleanup and the worker entry point.
-- [ ] Continue targeted external email/notification failure handling rather than
-      chasing a vanity total.
+- [x] Cover external email and notification success/failure handling, including
+      safe provider degradation without bearer-token logging.
 - [ ] Add a browser upload workflow backed by MinIO/Tesseract in CI, or document
       why the Docker smoke test is the integration gate.
 - [x] Block automated WCAG 2.1 A/AA violations on landing, login, onboarding,
