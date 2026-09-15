@@ -1,6 +1,6 @@
 # Testing and verification guide
 
-**Updated:** 2026-09-14
+**Updated:** 2026-09-15
 
 Use this guide for engineering verification. Formal academic measurements use
 [specs/EVALUATION_PLAN.md](specs/EVALUATION_PLAN.md); do not mix smoke-test
@@ -49,8 +49,9 @@ npm run doctor
 ```
 
 Verified baseline: 136 backend tests, 67.69% coverage, 25 frontend tests and
-five Playwright scenarios. The authenticated Playwright scenario is seeded in
-CI and skips locally unless `E2E_EMAIL` and `E2E_PASSWORD` are supplied.
+eight Playwright scenarios, including three axe-based WCAG scans. Authenticated
+Playwright scenarios are seeded in CI and skip locally unless `E2E_EMAIL` and
+`E2E_PASSWORD` are supplied.
 The backend CI job also upgrades a fresh database to head, downgrades it to
 base, then upgrades it again before running tests.
 

@@ -151,7 +151,7 @@ function AppShell() {
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-0 lg:w-16 overflow-hidden' : 'w-[290px]'} flex flex-col bg-[oklch(0.12_0.005_264)] transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 !w-[290px]' : !sidebarCollapsed ? '' : '-translate-x-full'}`}>
+      <aside className={`dark fixed lg:static inset-y-0 left-0 z-50 ${sidebarCollapsed ? 'w-0 lg:w-16 overflow-hidden' : 'w-[290px]'} flex flex-col bg-[oklch(0.12_0.005_264)] text-foreground transition-all duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0 !w-[290px]' : !sidebarCollapsed ? '' : '-translate-x-full'}`}>
         {/* Top: Logo + Nav */}
         <div className={`${sidebarCollapsed ? 'px-3 pt-5 pb-2' : 'px-5 pt-5 pb-2'}`}>
           {/* Logo row */}
@@ -242,7 +242,7 @@ function AppShell() {
         {/* Conversations list */}
         {!sidebarCollapsed && (
         <div className="flex-1 overflow-auto px-3 py-2 min-h-0 mt-1" onClick={() => { setSidebarOpen(false); setMenuOpenId(null) }}>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 px-3 mb-2">Recent chats</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-2">Recent chats</p>
           {conversations.map(conv => (
             <div key={conv.id} className="group relative">
               {renamingId === conv.id ? (
@@ -344,7 +344,7 @@ function AppShell() {
             </div>
           ))}
           {conversations.length === 0 && (
-            <p className="text-[11px] text-muted-foreground/40 px-3 py-4 text-center">Your conversations will appear here</p>
+            <p className="text-[11px] text-muted-foreground px-3 py-4 text-center">Your conversations will appear here</p>
           )}
         </div>
         )}

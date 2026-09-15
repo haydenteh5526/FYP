@@ -599,7 +599,7 @@ export default function Dashboard() {
                   <div className="w-full h-1 bg-muted rounded-full" />
                 </div>
                 <div className="absolute bottom-2 right-2 w-10 h-10 rounded-lg bg-background border border-border shadow-lg rotate-[10deg] animate-float-delayed z-0 flex items-center justify-center">
-                  <span className="text-primary/40 font-bold text-xs">PDF</span>
+                  <span className="text-primary font-bold text-xs">PDF</span>
                 </div>
               </div>
               

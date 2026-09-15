@@ -146,7 +146,7 @@ export default function UploadPage() {
               <div className="w-full h-1 bg-muted rounded-full" />
             </div>
             <div className="absolute bottom-0 right-2 w-11 h-11 rounded-lg bg-background border border-border/50 shadow-lg rotate-[10deg] animate-float-delayed z-0 flex items-center justify-center">
-              <span className="text-primary/40 font-bold text-[10px]">PDF</span>
+              <span className="text-primary font-bold text-[10px]">PDF</span>
             </div>
             <div className="absolute top-4 right-6 w-8 h-8 rounded-md bg-background border border-border/50 shadow-md rotate-[6deg] animate-float z-0 flex items-center justify-center" style={{ animationDelay: '1s' }}>
               <FileImage size={12} className="text-blue-400/50" />

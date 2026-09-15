@@ -1,7 +1,7 @@
 # Verified implementation status
 
-**Last verified:** 2026-09-14
-**Verification baseline:** `29d0463`
+**Last verified:** 2026-09-15
+**Verification baseline:** `f3d5344`
 **Overall status:** Web/backend MVP implemented; evaluation, physical-device validation and live-cloud evidence remain.
 
 This is the canonical status document for the system as built. The original
@@ -18,7 +18,7 @@ are intentional evidence of the project's design evolution.
 | Readiness | Database, storage, Ollama embeddings and Redis reported healthy | Dependencies reachable |
 | Backend | 136 tests; ruff clean; 67.69% coverage with a 65% CI floor | Core processing, OCR, categorisation, RAG and warranty extraction modules have full line coverage |
 | Frontend | 25 Vitest tests; ESLint clean; production build succeeds | Build and component/utility baseline healthy |
-| Browser E2E | 5 Playwright tests, including verified login and protected dashboard access | Auth routing covered; upload UI is not exercised against real OCR in CI |
+| Browser E2E | 8 Playwright tests, including verified login, protected access and 3 axe WCAG scans | Public/auth/onboarding/Ask AI/document states covered; upload UI is not exercised against real OCR in CI |
 | Full-stack smoke | 12/12 checks passed | Register, verify, login, upload, OCR, categorise, search, RAG retrieval, export and cleanup work locally |
 | Mobile | TypeScript clean; Expo Doctor 21/21 | Static/configuration validation passes |
 | Generated AI answer | Not verified in the smoke run | No Groq/Gemini key was active; the development excerpt fallback was used |
@@ -75,7 +75,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the current system view and
    search results page.
 5. Offline document access and an offline upload queue are not implemented.
 6. Terraform and CD have not been exercised in an AWS account.
-7. Accessibility and the 50-concurrent-user target have not been measured.
+7. Automated WCAG scans cover selected browser states, but manual accessibility,
+   Lighthouse and the 50-concurrent-user target have not been measured.
 8. CloudFront terminates public TLS, but the current proposed CloudFront-to-ALB
    path requires review before claiming end-to-end encryption.
 

@@ -80,10 +80,10 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
           <p className="text-white/80 text-xl font-medium leading-relaxed max-w-md">
             Turn manuals, warranties and receipts into a private, searchable document library with grounded AI answers.
           </p>
-          <p className="mt-5 text-white/40 text-sm">OCR · hybrid retrieval · source-backed Q&amp;A</p>
+          <p className="mt-5 text-white/80 text-sm">OCR · hybrid retrieval · source-backed Q&amp;A</p>
         </div>
 
-        <p className="relative text-white/20 text-xs">© 2027 DocVault. All rights reserved.</p>
+        <p className="relative text-white/80 text-xs">© 2027 DocVault. All rights reserved.</p>
       </div>
 
       {/* Right pane */}
@@ -230,7 +230,7 @@ export default function AuthPage({ mode = 'login' }: { mode?: 'login' | 'registe
                 </form>
               )}
 
-              <p className="text-center text-[11px] text-muted-foreground/60 mt-8">
+              <p className="text-center text-[11px] text-muted-foreground mt-8">
                 By continuing, you agree to our Terms of Service and Privacy Policy.
               </p>
             </>

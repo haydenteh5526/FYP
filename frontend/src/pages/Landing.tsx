@@ -7,10 +7,10 @@ import Footer from '@/components/Footer'
 
 const faqs = [
   { q: 'What file formats are supported?', a: 'JPEG, PNG, WebP, and multi-page PDF.' },
-  { q: 'Is my data secure?', a: 'Yes. JWT authentication with bcrypt password hashing, per-user data isolation, and all storage is access-controlled.' },
+  { q: 'How is my data protected?', a: 'The app uses JWT authentication, bcrypt password hashing, per-user query isolation, and access-controlled object storage.' },
   { q: 'How does the AI Q&A work?', a: 'We split your documents into chunks, embed them semantically using vector search (pgvector), and use RAG (Retrieval-Augmented Generation) to answer questions grounded in your actual content.' },
   { q: 'What AI models are used?', a: 'Document categorisation uses Mistral. Q&A uses Groq (Llama 3.3 70B) or Google Gemini 2.0 Flash. OCR is handled by Tesseract.' },
-  { q: 'Is this a commercial product?', a: 'No — this is a final year project for TUS Athlone (Software Design with AI for Cloud Computing). It demonstrates a production-ready architecture.' },
+  { q: 'Is this a commercial product?', a: 'No — this is a final year project for TUS Athlone (Software Design with AI for Cloud Computing). It demonstrates a tested local architecture and cloud infrastructure definition.' },
 ]
 
 const features = [
@@ -67,7 +67,7 @@ export default function Landing() {
       </section>
 
       {/* Scanner showcase — enhanced mockup */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6" aria-hidden="true">
         <div className="max-w-3xl mx-auto opacity-0" style={{ animation: 'fadeSlideUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s forwards' }}>
           <div className="relative rounded-2xl border border-border/40 bg-card p-8 shadow-2xl shadow-black/[0.04] overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-0.5 gradient-bg animate-[scanLine_3s_ease-in-out_infinite]" />
@@ -81,23 +81,23 @@ export default function Landing() {
                     </div>
                     <span className="text-[11px] font-semibold text-foreground/70">Samsung User Manual</span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
-                    <span className="font-semibold text-foreground/50">Chapter 4: Washing Programmes</span>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    <span className="font-semibold text-foreground">Chapter 4: Washing Programmes</span>
                   </p>
-                  <p className="text-[9px] text-muted-foreground/50 leading-relaxed">
+                  <p className="text-[9px] text-muted-foreground leading-relaxed">
                     Select the appropriate programme for your fabric type. Delicate fabrics should be washed at 30°C with reduced spin speed...
                   </p>
-                  <p className="text-[9px] text-muted-foreground/50 leading-relaxed">
+                  <p className="text-[9px] text-muted-foreground leading-relaxed">
                     For heavily soiled items, use the Intensive programme at 60°C. Pre-soak is recommended for stubborn stains.
                   </p>
                   <div className="flex gap-2 mt-1">
-                    <div className="h-8 w-8 rounded bg-muted-foreground/[0.06] flex items-center justify-center text-[8px] text-muted-foreground/40">📷</div>
-                    <div className="h-8 w-8 rounded bg-muted-foreground/[0.06] flex items-center justify-center text-[8px] text-muted-foreground/40">📷</div>
+                    <div className="h-8 w-8 rounded bg-muted-foreground/[0.06] flex items-center justify-center text-[8px] text-muted-foreground">📷</div>
+                    <div className="h-8 w-8 rounded bg-muted-foreground/[0.06] flex items-center justify-center text-[8px] text-muted-foreground">📷</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pt-2 border-t border-border/30">
-                  <span className="text-[9px] text-muted-foreground/40">Page 42 of 98</span>
-                  <span className="ml-auto text-[8px] text-muted-foreground/30">WW90T554DAW</span>
+                  <span className="text-[9px] text-muted-foreground">Page 42 of 98</span>
+                  <span className="ml-auto text-[8px] text-muted-foreground">WW90T554DAW</span>
                 </div>
               </div>
               {/* Digital output */}
@@ -190,7 +190,7 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-3xl font-semibold tracking-tight">Security you can trust</h2>
-            <p className="mt-2 text-muted-foreground">Your documents are private by default. Always.</p>
+            <p className="mt-2 text-muted-foreground">Authenticated access controls keep each user's documents isolated by default.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {securityFeatures.map((item, i) => (
@@ -224,7 +224,7 @@ export default function Landing() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-semibold tracking-tight">Built with modern tools</h2>
-            <p className="mt-2 text-muted-foreground">Production-ready architecture from frontend to infrastructure.</p>
+            <p className="mt-2 text-muted-foreground">Tested local architecture with infrastructure defined for AWS.</p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-16">
@@ -328,14 +328,14 @@ function BackToTop() {
 
 function AppMockup() {
   return (
-    <div className="relative rounded-2xl border border-border/50 bg-card shadow-2xl shadow-black/10 overflow-hidden">
+    <div aria-hidden="true" className="relative rounded-2xl border border-border/50 bg-card shadow-2xl shadow-black/10 overflow-hidden">
       {/* Fake browser chrome */}
       <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border/30 bg-muted/40">
         <div className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
         <div className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
         <div className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
         <div className="flex-1 mx-4 h-5 rounded-full bg-muted/80 flex items-center px-3">
-          <span className="text-[9px] text-muted-foreground/60">docvault.app/dashboard</span>
+          <span className="text-[9px] text-muted-foreground">docvault.app/dashboard</span>
         </div>
       </div>
 
@@ -360,7 +360,7 @@ function AppMockup() {
             <div className="flex-1 h-6 rounded-full bg-muted/60 flex items-center px-3 gap-2">
               <div className="w-3 h-3 rounded-full bg-muted-foreground/20" />
               <div className="w-16 h-2 rounded bg-muted-foreground/15" />
-              <div className="ml-auto w-8 h-3 rounded bg-muted-foreground/20 text-[7px] text-muted-foreground/40 flex items-center justify-center font-mono">⌘K</div>
+              <div className="ml-auto w-8 h-3 rounded bg-muted-foreground/20 text-[7px] text-foreground flex items-center justify-center font-mono">⌘K</div>
             </div>
             <div className="w-14 h-6 rounded-full gradient-bg flex items-center justify-center">
               <span className="text-[8px] text-white font-semibold">Upload</span>
@@ -384,7 +384,7 @@ function AppMockup() {
                   <div className="h-1.5 w-10 rounded bg-muted-foreground/20" />
                 </div>
                 <div className="mt-auto">
-                  <span className="text-[8px] text-primary/70 font-medium bg-primary/[0.08] px-1.5 py-0.5 rounded-full">{d.type}</span>
+                  <span className="text-[8px] text-primary font-medium bg-primary/[0.08] px-1.5 py-0.5 rounded-full">{d.type}</span>
                 </div>
               </div>
             ))}

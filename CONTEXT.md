@@ -122,14 +122,14 @@ docker run --rm -v "$PWD/terraform:/tf" -w /tf hashicorp/terraform:1.9 fmt -chec
 `Get-Content file | docker compose exec -T ...`. Use `Select-Object` / `Select-String`
 for filtering.
 
-### Last verified state (2026-09-14)
+### Last verified state (2026-09-15)
 
 | Check | Result |
 |-------|--------|
 | main CI | success |
 | Backend | ruff clean · **136** pytest pass · 67.69% coverage (65% floor) |
 | Frontend | `tsc -b` exit 0 · **25** vitest pass · build passes |
-| E2E | Playwright **5** scenarios · smoke **12/12** |
+| E2E | Playwright **8** scenarios (3 axe WCAG scans) · smoke **12/12** |
 | Terraform | `validate` + `fmt -check` pass (**never applied**) |
 | Mobile | TypeScript clean · Expo Doctor **21/21** · CI job enabled |
 

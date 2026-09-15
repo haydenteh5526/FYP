@@ -24,9 +24,9 @@ npm run build
 npx playwright test
 ```
 
-The verified baseline is 25 Vitest tests and five Playwright scenarios. One
-authenticated browser scenario uses an explicitly enabled seed account in CI
-and skips in an ordinary local run without `E2E_EMAIL`/`E2E_PASSWORD`.
+The verified baseline is 25 Vitest tests and eight Playwright scenarios. Two
+authenticated browser scenarios use an explicitly enabled seed account in CI
+and skip in an ordinary local run without `E2E_EMAIL`/`E2E_PASSWORD`.
 
 ## Structure
 
