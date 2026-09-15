@@ -96,7 +96,7 @@ precedence. Only `GROQ_API_KEY` and `JWT_SECRET` matter for a working demo.
 ### Verification commands (all confirmed working)
 
 ```bash
-# Backend — 136 tests at the 2026-09-14 baseline.
+# Backend — 152 tests at the 2026-09-15 baseline.
 docker compose exec -T api pip install -q -r dev-requirements.txt
 docker compose exec -T api python -m pytest tests/ -q
 
@@ -127,7 +127,7 @@ for filtering.
 | Check | Result |
 |-------|--------|
 | main CI | success |
-| Backend | ruff clean · **136** pytest pass · 67.69% coverage (65% floor) |
+| Backend | ruff clean · **152** pytest pass · 70.73% coverage (65% floor) |
 | Frontend | `tsc -b` exit 0 · **25** vitest pass · build passes |
 | E2E | Playwright **8** scenarios (3 axe WCAG scans) · smoke **12/12** |
 | Terraform | `validate` + `fmt -check` pass (**never applied**) |

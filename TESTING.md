@@ -34,7 +34,7 @@ $env:S3_SECRET_KEY='minioadmin'
 $env:S3_BUCKET='documents'
 $env:JWT_SECRET='test-secret-that-is-at-least-32-bytes-long'
 $env:OCR_BACKEND='tesseract'
-C:\venv\fyp\Scripts\python.exe -m pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=50
+C:\venv\fyp\Scripts\python.exe -m pytest tests -v --cov=app --cov-report=term-missing --cov-fail-under=65
 C:\venv\fyp\Scripts\python.exe -m ruff check app tests scripts
 
 cd C:\FYP\frontend
@@ -48,7 +48,7 @@ npm run typecheck
 npm run doctor
 ```
 
-Verified baseline: 136 backend tests, 67.69% coverage, 25 frontend tests and
+Verified baseline: 152 backend tests, 70.73% coverage, 25 frontend tests and
 eight Playwright scenarios, including three axe-based WCAG scans. Authenticated
 Playwright scenarios are seeded in CI and skip locally unless `E2E_EMAIL` and
 `E2E_PASSWORD` are supplied.

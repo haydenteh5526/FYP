@@ -1,7 +1,7 @@
 # Verified implementation status
 
 **Last verified:** 2026-09-15
-**Verification baseline:** `f3d5344`
+**Verification baseline:** `d9c547c`
 **Overall status:** Web/backend MVP implemented; evaluation, physical-device validation and live-cloud evidence remain.
 
 This is the canonical status document for the system as built. The original
@@ -16,7 +16,7 @@ are intentional evidence of the project's design evolution.
 | Git | `main` clean and synchronized with `origin/main` | No uncommitted production work at verification time |
 | Local runtime | API, worker, PostgreSQL/pgvector, Redis, MinIO, Ollama and web running | Full Docker development stack operational |
 | Readiness | Database, storage, Ollama embeddings and Redis reported healthy | Dependencies reachable |
-| Backend | 136 tests; ruff clean; 67.69% coverage with a 65% CI floor | Core processing, OCR, categorisation, RAG and warranty extraction modules have full line coverage |
+| Backend | 152 tests; ruff clean; 70.73% coverage with a 65% CI floor | Core processing, OCR, categorisation, RAG, storage, queueing, worker and warranty extraction modules have full line coverage |
 | Frontend | 25 Vitest tests; ESLint clean; production build succeeds | Build and component/utility baseline healthy |
 | Browser E2E | 8 Playwright tests, including verified login, protected access and 3 axe WCAG scans | Public/auth/onboarding/Ask AI/document states covered; upload UI is not exercised against real OCR in CI |
 | Full-stack smoke | 12/12 checks passed | Register, verify, login, upload, OCR, categorise, search, RAG retrieval, export and cleanup work locally |
@@ -39,7 +39,7 @@ protocol in [EVALUATION_PLAN.md](EVALUATION_PLAN.md) is executed.
 | Account deletion | Implemented and tested | Removes relational data and the complete S3/MinIO user prefix |
 | OCR pipeline | Implemented | Tesseract default; Mistral OCR and Textract adapters available; benchmark not run |
 | Image preprocessing | Partial | Deskew, contrast enhancement and denoising exist; automatic cropping is not implemented |
-| Background processing | Implemented | ARQ/Redis worker with inline fallback |
+| Background processing | Implemented and tested | ARQ/Redis worker with inline fallback; queue success, fallback and cleanup paths are covered |
 | Categorisation and warranty extraction | Implemented, not formally evaluated | Accuracy and provider-dependent behaviour need measurement |
 | Hybrid search | Implemented | PostgreSQL full-text plus pgvector semantic retrieval; comparative evaluation not run |
 | RAG Q&A and conversations | Implemented, generated-answer evaluation pending | Groq or Gemini generates answers when configured; sources and safe fallback are present |
@@ -68,8 +68,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the current system view and
 ## Known gaps and risks
 
 1. No formal OCR, retrieval, RAG or categorisation results have been collected.
-2. Storage adapters, the worker entry point and external email/notification
-   failure paths remain less covered than the core document-processing pipeline.
+2. External email/notification failure paths remain less covered than the core
+   document-processing pipeline.
 3. The mobile app has not been validated on real iOS and Android devices.
 4. Search filters are available for document listing but not the dedicated
    search results page.

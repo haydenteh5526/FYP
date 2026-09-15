@@ -18,8 +18,13 @@ async def enqueue_document_processing(document_id: str) -> bool:
         from arq.connections import RedisSettings
 
         pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
-        await pool.enqueue_job("process_document_task", str(document_id))
-        await pool.close()
+        try:
+            await pool.enqueue_job("process_document_task", str(document_id))
+        finally:
+            try:
+                await pool.close()
+            except Exception as e:  # noqa: BLE001 - cleanup must not trigger duplicate inline processing
+                logger.warning("Queue close failed (%s)", type(e).__name__)
         return True
     except Exception as e:  # noqa: BLE001 - any failure falls back to inline
         logger.warning("Enqueue failed (%s); processing inline", type(e).__name__)
