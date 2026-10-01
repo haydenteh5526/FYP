@@ -141,9 +141,13 @@ for filtering.
   `gh pr merge --merge --delete-branch`. Branch protection requires `backend` +
   `frontend` checks and is `strict` (branch must be up to date).
 - Verify with real tool output before claiming something works.
-- Dependabot is dialled back (monthly, minor/patch only, ignores majors) after an
-  initial flood of 21 PRs. If PRs reappear in bulk, the cause is an outdated
-  dependency tail — bump it in one PR rather than merging them one by one.
+- Dependabot PR automation is disabled at the owner's request (2026-10-01):
+  `.github/dependabot.yml` is removed and GitHub's automatic security updates
+  setting is disabled. Do not recreate the schedule without an explicit request.
+  Review dependency advisories manually and ship necessary updates through a
+  tested maintenance PR; CI dependency audits remain enabled. Upgrade Expo
+  packages together using `npx expo install --fix`, keeping React Native aligned
+  with the installed Expo SDK.
 
 ---
 
