@@ -6,7 +6,7 @@
     "expo": "~57.0.22",
     "expo-camera": "~57.0.5",
     "expo-device": "~57.0.2",
-    "expo-image-manipulator": "~57.0.17",
+    "expo-image-manipulator": "~57.0.20",
     "expo-image-picker": "~57.0.17",
     "expo-local-authentication": "~57.0.3",
     "expo-notifications": "~57.0.18",
