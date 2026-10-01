@@ -236,6 +236,15 @@ cd backend && locust -f tests/locustfile.py --host http://localhost:8000
 
 ## Developer Experience
 
+Dependency updates are maintained manually. Dependabot version-update
+configuration is intentionally absent, and automatic Dependabot security PRs
+are disabled in repository settings. Keep both disabled to prevent recurring
+bot branches; deleting existing branches alone does not disable scheduling.
+CI still runs dependency security audits. Review advisories regularly and
+before releases, then update affected packages on a maintenance branch and
+merge only after CI passes. For mobile updates, use `npx expo install --fix`
+to keep packages compatible with the installed Expo SDK.
+
 A `Makefile` wraps the common commands — run `make help` to list them:
 
 | Command | Description |
